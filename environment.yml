@@ -1,0 +1,7 @@
+name: techdd
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11.16
+  - nodejs=20.20.2
+  - pip

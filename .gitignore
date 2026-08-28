@@ -1,0 +1,43 @@
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+*.egg-info/
+
+# db
+*.db
+*.sqlite3
+
+# node / next
+node_modules/
+.next/
+out/
+dist/
+coverage/
+frontend/.env*.local
+*.tsbuildinfo
+
+# playwright
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# conda
+.conda/
+
+# editor / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
