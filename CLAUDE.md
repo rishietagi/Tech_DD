@@ -250,7 +250,10 @@ saved to and read from the API. The Scope-of-Work screen is built as a real rout
 that renders a scope returned by the API — but the API returns a clearly-marked
 **deterministic placeholder** scope. See `initial_plan.md`.
 
-**Phase 2 (do NOT build yet):** the actual SOW derivation engine — signal
+**Phase 1 status: BUILT** (commit `feat: Phase 1 Tech DD platform`). The routed app,
+the eight-step intake and the placeholder scope are in place.
+
+**Phase 2 (build when instructed):** the actual SOW derivation engine — signal
 extraction, Enterprise/Product mix scoring, workstream module library, LLM
 narrative tailoring. Rishi will explicitly say when to start this. Phase 1 must
 leave a clean seam for it: a single `ScopeGenerator` service interface behind
@@ -261,6 +264,16 @@ export, multi-user auth.
 
 If a Phase-1 task tempts you into Phase-2 logic, stop and leave a `TODO(phase-2)`
 comment instead.
+
+**Phase 2 reference documents (read both before touching the scope engine):**
+- `DD_master.md` — the technology due diligence domain authority: process, workstream
+  library, decision rules, benchmarks and provenance conventions. Built from
+  Roehl-Anderson, *M&A Information Technology Best Practices* (Wiley, 2013).
+  Content marked `[EXT]` is modern practice added by us, not sourced; content marked
+  `[DATED]` is in the book but needs modernising. That distinction must survive into
+  the product's own output.
+- `PHASE2_SCOPE_ENGINE.md` — the build spec for the engine.
+- `PHASE2_PROMPT.md` — the handoff prompt for that phase.
 
 ---
 
