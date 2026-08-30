@@ -2,7 +2,7 @@
 
 Returns a small, honest, hard-coded scope in the exact shape Phase 2's real
 generator will use, so the UI and API contract are built against the real shape
-from day one (initial_plan.md §10). It ignores the intake content entirely and
+from day one (docs/phases/PHASE1_PLAN.md §10). It ignores the intake content entirely and
 is clearly labelled `is_placeholder=True` for the frontend to badge.
 """
 

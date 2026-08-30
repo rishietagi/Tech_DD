@@ -1,7 +1,7 @@
 """Canonical enum values shared by models, schemas and /meta/enums.
 
 Every enum the frontend needs to render a select/multiselect/toggle lives here so
-option lists have one source of truth (initial_plan.md §6).
+option lists have one source of truth (docs/phases/PHASE1_PLAN.md §6).
 """
 
 from enum import Enum
@@ -219,7 +219,7 @@ class DeliverableFormat(str, Enum):
 class DdTypePreference(str, Enum):
     """Which KPMG scope deck the engagement should produce.
 
-    User-declared, and it wins over the engine's computed mix (KPMG_SOW_LANGUAGE.md).
+    User-declared, and it wins over the engine's computed mix (docs/reference/KPMG_SOW_LANGUAGE.md).
     The engine still computes its own view and surfaces disagreement.
     """
 

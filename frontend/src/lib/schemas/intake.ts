@@ -29,7 +29,7 @@ import {
   VALUE_CREATION_LEVER,
 } from "./enums";
 
-// One zod schema per intake step (initial_plan.md §3), mirroring
+// One zod schema per intake step (docs/phases/PHASE1_PLAN.md §3), mirroring
 // backend/app/schemas/intake.py. If they drift, that is a bug (CLAUDE.md §7).
 // Every field is optional except target.sector and target.line_of_business.
 

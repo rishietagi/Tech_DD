@@ -1,6 +1,6 @@
 # CLAUDE.md — Tech DD Platform
 
-Project constitution. Read this file **and** `initial_plan.md` before writing any code.
+Project constitution. Read this file **and** `docs/phases/PHASE1_PLAN.md` before writing any code.
 Rishi edits this file; treat it as authoritative over your own preferences.
 
 ---
@@ -12,14 +12,12 @@ acquirers, family offices).
 
 The flow the product owns:
 
-1. **Intake** — capture the transaction: deal context, rationale, structure
-   (strategic vs financial, majority vs minority), investor details, investor
-   objectives, target company details, target technology profile, engagement
-   logistics.
+1. **Intake** — capture the transaction: deal context (including the investor
+   firm), rationale and focus areas, deal structure, target company, target
+   technology profile, and diligence objectives and logistics.
 2. **Scope of Work generation** — from that intake, produce a tailored technical
-   diligence scope: which workstreams open, at what depth, what evidence is
-   requested, what the key questions are. *(Phase 2 — see §9. Do not build the
-   generation logic in Phase 1.)*
+   diligence scope: which areas open, at what depth, what evidence is requested.
+   Built in Phase 2 — see §9.
 3. **Execution & reporting** — run the workstreams, collect findings, produce the
    report. *(Phase 3+, not planned yet.)*
 
@@ -80,8 +78,10 @@ investor type.
   privacy workstreams regardless of archetype.
 - **AI/ML dependence** → model governance, data rights, vendor lock-in, inference
   cost workstreams.
-- **Deal stage & access level** → determine depth (red-flag vs confirmatory) and
-  whether code-level review is even possible.
+- **Deal stage & access level** → determine depth: exploratory and bid-situation
+  engagements are red-flag screens, exclusivity is confirmatory, and public
+  information alone caps every area at a screen. (`code_access` is deliberately not
+  captured — see `docs/PROJECT_LOG.md`.)
 
 Glossary the code should use consistently: `engagement`, `intake`, `workstream`,
 `module`, `scope_of_work` (SOW), `dd_type` (`enterprise` | `product` | `blended`),
@@ -114,7 +114,7 @@ Hard rules:
 - No `any` in TypeScript. No bare `except:` in Python.
 - Server URLs, keys and secrets come from env vars only. Never hard-code them.
 
-**LLM provider — recorded deviation (2026-08-30).** `PHASE2_SCOPE_ENGINE.md` §8 and
+**LLM provider — recorded deviation (2026-08-30).** `docs/phases/PHASE2_SPEC.md` §8 and
 earlier versions of this table specified the Anthropic Messages API. Rishi chose
 **Gemini** instead: a Claude Pro subscription does not include API credits, and Gemini
 has a free tier (`aistudio.google.com/apikey`, no card required). The LLM layer is
@@ -129,10 +129,20 @@ on it.
 
 ```
 Tech_DD/
-├── CLAUDE.md                  # this file
-├── initial_plan.md            # the build plan
+├── CLAUDE.md                  # this file — the constitution
 ├── README.md                  # setup + run instructions
-├── .gitignore
+├── docs/
+│   ├── PROJECT_LOG.md         # running log of decisions and state — READ THIS FIRST
+│   ├── phases/
+│   │   ├── PHASE1_PLAN.md     # Phase 1 build plan (intake)
+│   │   ├── PHASE2_SPEC.md     # Phase 2 build spec (scope engine)
+│   │   └── PHASE2_PROMPT.md   # the Phase 2 handoff prompt
+│   └── reference/
+│       ├── DD_master.md       # the domain authority (Roehl-Anderson 2013)
+│       ├── KPMG_SOW_LANGUAGE.md  # house scope-of-work voice, from the source deck
+│       ├── KPMG Product and Enterprise Tech DD scope v1.1.pdf   # that source deck
+│       └── mockup_v0.html     # v0 visual reference (architecture superseded)
+├── assets/                    # brand assets (logos)
 ├── .env.example               # every env var, no real values
 ├── environment.yml            # conda env `techdd` (python 3.11 + nodejs 20)
 ├── requirements.txt           # backend python deps, pinned
@@ -145,20 +155,26 @@ Tech_DD/
 │   │   ├── db/                # base.py, session.py, init_db.py
 │   │   ├── models/            # SQLAlchemy models
 │   │   ├── schemas/           # Pydantic request/response models
-│   │   ├── api/v1/            # router.py + routes/{engagements,intake,scope,meta}.py
-│   │   ├── services/          # business logic — routes stay thin
-│   │   └── reference/         # seed data: sectors, workstream library, enums
+│   │   ├── api/v1/            # router.py + routes/{engagements,scope,meta}.py
+│   │   ├── services/
+│   │   │   └── scope/         # the engine: signals, scoring, selection, depth,
+│   │   │                      #   composer, llm, export + prompts/
+│   │   └── reference/         # enums + kpmg_scope/*.yaml + scope_rules.yaml
 │   ├── alembic/
-│   └── tests/
+│   └── tests/                 # incl. golden cases and mocked LLM tests
 └── frontend/
-    ├── package.json  next.config.ts  tsconfig.json  tailwind.config.ts
+    ├── public/                # logos served by next/image
     └── src/
-        ├── app/               # routes (see initial_plan.md §4)
+        ├── app/               # routes (see docs/phases/PHASE1_PLAN.md §4)
         ├── components/        # ui/ (primitives) + intake/ + engagement/
         ├── lib/               # api client, zod schemas, store, formatting
         ├── types/             # shared TS types mirroring backend schemas
         └── styles/            # tokens.css + globals.css
 ```
+
+**Domain content lives in YAML, not Python.** `reference/kpmg_scope/*.yaml` and
+`reference/scope_rules.yaml` are editable by a practitioner without a developer, and
+validated at startup. Put content there, not in code.
 
 ---
 
@@ -242,7 +258,7 @@ components.
 serif "Newsreader" · sans "IBM Plex Sans" · mono "IBM Plex Mono"
 ```
 
-The v0 single-file mockup is preserved at `reference/mockup_v0.html` as a
+The v0 single-file mockup is preserved at `docs/reference/mockup_v0.html` as a
 **visual** reference for the toggle cards, ledger rail, stamp and cover sheet.
 Read it for the look; ignore its architecture entirely.
 
@@ -252,48 +268,42 @@ meaning: section numbering (`§01`), the ledger/progress rail, the status stamp
 
 ---
 
-## 9. Phasing — what is in scope right now
+## 9. Phasing — where the project stands
 
-**Phase 1 (build this now):** the full routed application shell and the complete
-intake experience, persisted end to end. Every screen real, every field real, data
-saved to and read from the API. The Scope-of-Work screen is built as a real route
-that renders a scope returned by the API — but the API returns a clearly-marked
-**deterministic placeholder** scope. See `initial_plan.md`.
+**Phase 1 — BUILT and pushed.** The routed application and the fully persisted intake.
+Now six steps (was eight; the Investor step was folded into Deal Context on
+2026-08-30). See `docs/phases/PHASE1_PLAN.md`.
 
-**Phase 1 status: BUILT** (commit `feat: Phase 1 Tech DD platform`). The routed app,
-the eight-step intake and the placeholder scope are in place.
+**Phase 2 — BUILT, not yet committed.** The scope-of-work engine: signal extraction
+from 37 encoded rules, Enterprise/Product mix scoring, KPMG scope-row selection and
+depth calibration, LLM prose tailoring, and Markdown export. Spec at
+`docs/phases/PHASE2_SPEC.md`, though several of Rishi's decisions override it — see
+`docs/PROJECT_LOG.md`.
 
-**Phase 2 (build when instructed):** the actual SOW derivation engine — signal
-extraction, Enterprise/Product mix scoring, workstream module library, LLM
-narrative tailoring. Rishi will explicitly say when to start this. Phase 1 must
-leave a clean seam for it: a single `ScopeGenerator` service interface behind
-which the placeholder sits, so Phase 2 is a swap, not a rewrite.
+**Phase 3+ — not planned.** Execution, evidence collection, findings, reporting,
+multi-user auth.
 
-**Phase 3+ (not planned):** execution, evidence collection, findings, reporting,
-export, multi-user auth.
-
-If a Phase-1 task tempts you into Phase-2 logic, stop and leave a `TODO(phase-2)`
-comment instead.
-
-**Phase 2 reference documents (read both before touching the scope engine):**
-- `DD_master.md` — the technology due diligence domain authority: process, workstream
-  library, decision rules, benchmarks and provenance conventions. Built from
-  Roehl-Anderson, *M&A Information Technology Best Practices* (Wiley, 2013).
-  Content marked `[EXT]` is modern practice added by us, not sourced; content marked
-  `[DATED]` is in the book but needs modernising. That distinction must survive into
-  the product's own output.
-- `PHASE2_SCOPE_ENGINE.md` — the build spec for the engine.
-- `PHASE2_PROMPT.md` — the handoff prompt for that phase.
-
----
+**Reference documents:**
+- `docs/PROJECT_LOG.md` — decisions, deviations, known gaps, bugs worth remembering.
+  **Read this first in a new session.**
+- `docs/reference/DD_master.md` — the domain authority, built from Roehl-Anderson,
+  *M&A Information Technology Best Practices* (Wiley, 2013). `[EXT]` marks modern
+  practice added by us; `[DATED]` marks content needing modernising. That distinction
+  survives into the product's output.
+- `docs/reference/KPMG_SOW_LANGUAGE.md` — the house scope-of-work voice, transcribed
+  verbatim from the KPMG source deck. This is what the generated document must sound
+  like.
 
 ## 10. Working agreements
 
-- Read `initial_plan.md` fully before the first file. If something in it conflicts
-  with this file, this file wins — and say so rather than silently choosing.
+- Read `docs/PROJECT_LOG.md` first — it records the decisions that override the phase
+  specs, the known gaps, and the bugs worth not repeating.
+- If a phase spec conflicts with this file, this file wins. If a later instruction from
+  Rishi conflicts with either, that wins — and say so rather than silently choosing.
 - Plan first, then build. Show the plan for approval before large file changes.
 - Ask before inventing product decisions that aren't covered here (extra fields,
   new routes, auth). Small implementation details: decide and note it.
-- After each phase of work: run lint, run tests, confirm both servers start
-  cleanly, then commit.
-- Update `README.md` whenever setup steps change.
+- After each phase of work: run lint, run tests, confirm both servers start cleanly,
+  **and generate a scope and read it** — several real bugs passed their tests.
+- Update `README.md` whenever setup steps change, and add an entry to
+  `docs/PROJECT_LOG.md` whenever a decision, deviation or known gap changes.

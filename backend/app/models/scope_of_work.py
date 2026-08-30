@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 class ScopeOfWork(TimestampMixin, Base):
-    """Versioned: regenerating never destroys a prior scope (initial_plan.md §5)."""
+    """Versioned: regenerating never destroys a prior scope (docs/phases/PHASE1_PLAN.md §5)."""
 
     __tablename__ = "scope_of_work"
 

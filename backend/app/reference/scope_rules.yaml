@@ -1,4 +1,4 @@
-# Scope engine decision rules — DD_master.md §15, encoded.
+# Scope engine decision rules — docs/reference/DD_master.md §15, encoded.
 #
 # Rule ids are preserved EXACTLY so a signal shown in the UI maps back to a line in the
 # reference document. A practitioner tunes weights here without touching Python.
@@ -13,7 +13,7 @@
 # tuning against real engagements. The golden-case tests are what make tuning safe.
 
 rules_version: "1.0"
-source: "DD_master.md §15 (Roehl-Anderson 2013, Deloitte; [EXT] items are modern practice)"
+source: "docs/reference/DD_master.md §15 (Roehl-Anderson 2013, Deloitte; [EXT] items are modern practice)"
 
 # CALIBRATION NOTE (observed 2026-08-30, to be settled by the golden cases in step 5):
 # the raw deltas saturate. Product-pulling rules total +105 and enterprise-pulling −70,
@@ -130,7 +130,7 @@ archetype:
 
   - id: A8
     status: dormant
-    dormant_reason: "deal_type is not on the intake (PHASE2_SCOPE_ENGINE §9.3 fields declined)."
+    dormant_reason: "deal_type is not on the intake (PHASE2_SPEC §9.3 fields declined)."
     field: structure.deal_type
     when: {equals: carve_out}
     mix_delta: -10

@@ -1,6 +1,6 @@
 """DepthCalibrator — applies the caps, floors and trade-offs after selection.
 
-Order matters (PHASE2_SCOPE_ENGINE §6):
+Order matters (PHASE2_SPEC §6):
   5. Complexity adjustment (D9/D10 — dormant on this intake)
   6. Access gates (D2)          — hard caps. Never promise depth we cannot reach (G2).
   7. Time and stage gates (D4-D8)

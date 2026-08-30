@@ -93,7 +93,7 @@ def assess_confidence(
     # So it is reported, not scored: the reason always appears, and the caveat reaches
     # the reader through the exclusions section, but the rating stays free to reflect
     # what this particular intake actually said. Settled against the six golden cases
-    # (PHASE2_SCOPE_ENGINE §10), which is what the calibration note asked for.
+    # (PHASE2_SPEC §10), which is what the calibration note asked for.
     if unknowns:
         reasons.append(
             f"{len(unknowns)} scoping inputs are not captured by this intake "

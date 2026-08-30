@@ -1,4 +1,4 @@
-"""Golden cases — PHASE2_SCOPE_ENGINE §10.
+"""Golden cases — PHASE2_SPEC §10.
 
 Six representative engagements with asserted deterministic output. These are what make
 the weights in scope_rules.yaml safe to tune: change a weight, and the case that no

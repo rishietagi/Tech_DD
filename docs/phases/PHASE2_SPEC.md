@@ -1,6 +1,6 @@
-# PHASE2_SCOPE_ENGINE.md — Scope-of-Work Generation Engine
+# docs/phases/PHASE2_SPEC.md — Scope-of-Work Generation Engine
 
-Phase 2 of the Tech DD platform. Read `DD_master.md` first — it is the domain
+Phase 2 of the Tech DD platform. Read `docs/reference/DD_master.md` first — it is the domain
 authority and this document only says how to encode it. `CLAUDE.md` still governs
 stack, conventions and git rules. Phase 1 is built and committed; this phase replaces
 `PlaceholderScopeGenerator` behind the existing `ScopeGenerator` protocol.
@@ -16,11 +16,11 @@ rewriting it.
 Three properties, in priority order:
 
 1. **Defensible.** Every workstream and every depth tier traces to a named signal in
-   the intake and, where possible, to a citation in `DD_master.md`. A reviewer can ask
+   the intake and, where possible, to a citation in `docs/reference/DD_master.md`. A reviewer can ask
    "why is W-SEP at Tier 3?" and get an answer.
 2. **Tailored.** No generic output. The source's own instruction: *"Don't simply apply
    a predefined standard due diligence approach and scope. You should adapt to the
-   specific transaction context."* (`DD_master.md` §11).
+   specific transaction context."* (`docs/reference/DD_master.md` §11).
 3. **Repeatable.** The same intake produces the same deterministic skeleton. Only the
    prose layer varies, and it varies inside a validated schema.
 
@@ -150,24 +150,24 @@ mandatory_when:
 source_provenance: sourced      # sourced | extended | mixed
 ```
 
-**`source_provenance` is required on every module and every question.** `DD_master.md`
+**`source_provenance` is required on every module and every question.** `docs/reference/DD_master.md`
 §16 explains why: the platform must be able to show a reviewer which content comes
 from a cited methodology and which is modern practice the platform added.
 
 ### 3.2 Modules to ship in v1
 
-Build all twelve from `DD_master.md` §6, keeping its ids:
+Build all twelve from `docs/reference/DD_master.md` §6, keeping its ids:
 
 `W-OPS`, `W-VEN`, `W-PROC`, `W-STRAT`, `W-SPEND`, `W-APP`, `W-INFRA`, `W-SEC`,
 `W-DATA`, `W-SEP`, `W-INT`, `W-PROD`.
 
-`W-PROD` carries sub-modules `P1`–`P10` (`DD_master.md` §6.12). Model sub-modules as
+`W-PROD` carries sub-modules `P1`–`P10` (`docs/reference/DD_master.md` §6.12). Model sub-modules as
 a `submodules:` list inside the module file with the same question/evidence shape, so
 the product deep-dive can be tiered per sub-module rather than as one block.
 
-Content for each module is already written in `DD_master.md` §6 — including verbatim
+Content for each module is already written in `docs/reference/DD_master.md` §6 — including verbatim
 sourced question sets. **Transcribe it faithfully; do not paraphrase sourced questions
-and do not silently drop any.** Where `DD_master.md` marks content `[EXT]`, set
+and do not silently drop any.** Where `docs/reference/DD_master.md` marks content `[EXT]`, set
 `source_provenance: extended` on that item.
 
 ---
@@ -178,7 +178,7 @@ and do not silently drop any.** Where `DD_master.md` marks content `[EXT]`, set
 
 ```python
 class Signal(BaseModel):
-    code: str                 # "A2", "M4", "D1" — matches DD_master.md §15 rule ids
+    code: str                 # "A2", "M4", "D1" — matches docs/reference/DD_master.md §15 rule ids
     label: str                # "Target is digital-native"
     source_field: str         # "target.digital_maturity"
     source_value: str
@@ -189,7 +189,7 @@ class Signal(BaseModel):
 ```
 
 Rules live in `backend/app/reference/scope_rules.yaml`, not in Python — same reasoning
-as the library. Implement the full rule set from `DD_master.md` §15: **A1–A11**
+as the library. Implement the full rule set from `docs/reference/DD_master.md` §15: **A1–A11**
 (archetype mix), **M1–M7** (mandatory modules), **D1–D10** (depth and access gates),
 **C1–C9** (content injection).
 
@@ -213,7 +213,7 @@ testable.
   in the scope. Never silently discard the computed value — the disagreement is
   informative.
 
-The weights in `DD_master.md` §15.1 are a **starting calibration**, explicitly flagged
+The weights in `docs/reference/DD_master.md` §15.1 are a **starting calibration**, explicitly flagged
 there as needing tuning. Keep them in the YAML so they can be tuned without a code
 change, and write the golden-case tests (§10) so tuning is safe.
 
@@ -226,13 +226,13 @@ change, and write the golden-case tests (§10) so tuning is safe.
 **Selection order — do not reorder:**
 
 1. **Floor.** M1 puts `W-OPS`, `W-APP`, `W-INFRA`, `W-SPEND` in at Tier ≥ 1, always.
-   `DD_master.md` guardrail G3: the 80% core is never dropped to make room for
+   `docs/reference/DD_master.md` guardrail G3: the 80% core is never dropped to make room for
    tailoring.
 2. **Mandatory triggers.** M2–M7 force modules in at their minimum tiers.
 3. **Affinity weighting.** Remaining modules are included and base-tiered by how
    closely `archetype_affinity` matches `dd_mix`.
 4. **Objective boost.** Modules matching the user's `dd_objectives` get +1 base tier.
-   The user's stated priorities beat inferred ones (`DD_master.md` §8.1).
+   The user's stated priorities beat inferred ones (`docs/reference/DD_master.md` §8.1).
 5. **Complexity adjustment.** D9/D10 raise tiers where the estate is complex or the
    target is comparable in size.
 
@@ -321,7 +321,7 @@ class ScopeOfWorkPayload(BaseModel):
 ```
 
 `exclusions` and `provenance` are **required, non-empty** in any non-placeholder
-scope. `DD_master.md` guardrails G4 and G5.
+scope. `docs/reference/DD_master.md` guardrails G4 and G5.
 
 ---
 
@@ -387,7 +387,7 @@ are computed.
   build DOCX/PDF in this phase.
 
 ### 9.3 Intake additions (required before the engine can run)
-Add these fields, per `DD_master.md` §13, with an Alembic migration and matching zod
+Add these fields, per `docs/reference/DD_master.md` §13, with an Alembic migration and matching zod
 schemas and form controls:
 
 | Section | Field | Enum |
@@ -411,7 +411,7 @@ confidence rather than an error.
 This is the phase where tests carry real weight, because the output is a judgement.
 
 **Unit**
-- `SignalExtractor`: one test per rule in `DD_master.md` §15 — fires when it should,
+- `SignalExtractor`: one test per rule in `docs/reference/DD_master.md` §15 — fires when it should,
   does not fire when it should not.
 - `MixScorer`: clamping, band boundaries (34/35, 65/66), confidence downgrades on
   sparse or conflicting input.
@@ -454,7 +454,7 @@ Snapshot the deterministic payload (rules generator only — never snapshot LLM 
 - [ ] A human tier override or objective edit always survives regeneration as a
       recorded prior version, and `dd_type_preference` always wins. (G6)
 - [ ] Cost language is order-of-magnitude with an assumptions register — never a point
-      estimate. (`DD_master.md` §8.3)
+      estimate. (`docs/reference/DD_master.md` §8.3)
 - [ ] Every question and evidence request carries `provenance` and, where sourced, a
       citation.
 - [ ] The rules generator produces a complete, publishable scope with the LLM disabled.

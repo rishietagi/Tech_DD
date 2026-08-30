@@ -1,4 +1,4 @@
-"""One Pydantic schema per intake section (initial_plan.md §3).
+"""One Pydantic schema per intake section (docs/phases/PHASE1_PLAN.md §3).
 
 Each section schema has every field Optional so `PATCH .../intake/{section}` can
 save a partial draft. `POST /submit` re-validates the same data against the

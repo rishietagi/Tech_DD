@@ -1,6 +1,6 @@
 """ModuleSelector — decides which KPMG rows are in scope, at what base tier.
 
-Selection order is fixed (PHASE2_SCOPE_ENGINE §6):
+Selection order is fixed (PHASE2_SPEC §6):
   1. Floor      — M1's core coverage is never dropped (G3)
   2. Mandatory  — M2-M7 force rows in at a minimum tier
   3. Affinity   — remaining rows open based on the archetype

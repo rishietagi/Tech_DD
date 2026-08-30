@@ -50,7 +50,7 @@ class EngagementIntake(TimestampMixin, Base):
 
 
 class EngagementDenorm(TimestampMixin, Base):
-    """Columns lifted out of the intake JSON for listing/filtering (initial_plan.md §5)."""
+    """Columns lifted out of the intake JSON for listing/filtering (docs/phases/PHASE1_PLAN.md §5)."""
 
     __tablename__ = "engagement_denorm"
 

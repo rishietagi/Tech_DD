@@ -4,8 +4,11 @@ A Technology Due Diligence intake and scope-of-work platform. An analyst capture
 transaction through a six-step intake; the platform derives a tailored, defensible
 scope of work from it.
 
-See `CLAUDE.md` for the project constitution, `DD_master.md` for the domain reference,
-and `KPMG_SOW_LANGUAGE.md` for the house scope-of-work voice.
+**Picking this up mid-project?** Read `docs/PROJECT_LOG.md` first — it records the
+decisions that override the phase specs, the known gaps, and the state of things.
+
+`CLAUDE.md` is the project constitution. `docs/reference/DD_master.md` is the domain
+authority; `docs/reference/KPMG_SOW_LANGUAGE.md` is the house scope-of-work voice.
 
 ## What it does
 
@@ -15,7 +18,7 @@ Objectives & Logistics. Autosaves as you type; resumable by URL.
 
 **Phase 2 — the scope engine.** A filed intake becomes a scope of work:
 
-- **Rules decide coverage.** 37 encoded rules from `DD_master.md` §15 (26 active, 10
+- **Rules decide coverage.** 37 encoded rules from `docs/reference/DD_master.md` §15 (26 active, 10
   dormant, 1 disabled) pick which KPMG scope areas open and at what depth. Every
   decision carries the rule id and page citation that produced it.
 - **The model writes the prose.** With `SCOPE_GENERATOR=llm`, Gemini rewrites the
@@ -148,10 +151,10 @@ touching Python:
 
 | File | What it holds |
 | --- | --- |
-| `app/reference/kpmg_scope/product.yaml` | The 10 Product DD objectives, verbatim |
-| `app/reference/kpmg_scope/enterprise.yaml` | The 9 Enterprise IT focus areas, verbatim |
-| `app/reference/scope_rules.yaml` | All 37 rules, weights and citations |
-| `app/services/scope/prompts/tailoring.md` | The LLM prompt, versioned |
+| `backend/app/reference/kpmg_scope/product.yaml` | The 10 Product DD objectives, verbatim |
+| `backend/app/reference/kpmg_scope/enterprise.yaml` | The 9 Enterprise IT focus areas, verbatim |
+| `backend/app/reference/scope_rules.yaml` | All 37 rules, weights and citations |
+| `backend/app/services/scope/prompts/tailoring.md` | The LLM prompt, versioned |
 
 All are validated at startup; a malformed file fails loudly rather than producing a
 quietly wrong scope.
@@ -170,12 +173,17 @@ For Postgres, set `DATABASE_URL` in `.env` and re-run `alembic upgrade head`.
 
 ## Repository layout
 
-See `CLAUDE.md` §4 for the annotated layout.
+See `CLAUDE.md` §4 for the fully annotated layout.
 
 ```
 Tech_DD/
-├── backend/    FastAPI app, scope engine, YAML libraries, Alembic, pytest
-└── frontend/   Next.js app, components, zod schemas, vitest + Playwright
+├── docs/
+│   ├── PROJECT_LOG.md    running log of decisions, gaps and state
+│   ├── phases/           the Phase 1 and Phase 2 plans and specs
+│   └── reference/        DD_master, the KPMG source deck and house voice
+├── assets/               brand assets
+├── backend/              FastAPI app, scope engine, YAML libraries, Alembic, pytest
+└── frontend/             Next.js app, components, zod schemas, vitest + Playwright
 ```
 
 ## Known gaps
@@ -190,7 +198,7 @@ Recorded honestly rather than left to be discovered:
   them with no code change.
 - **Rule D1 is disabled** and acceptance criterion G2 is correspondingly narrowed to
   `access_level` only, because `code_access` is not captured. See `scope_rules.yaml`.
-- **Mix weights are a starting calibration.** `DD_master.md` §15.1 flags them as
+- **Mix weights are a starting calibration.** `docs/reference/DD_master.md` §15.1 flags them as
   needing tuning against real engagements. The golden-case tests in
   `tests/test_golden_cases.py` are what make tuning safe — change a weight, and the
   case that no longer holds tells you what you broke.

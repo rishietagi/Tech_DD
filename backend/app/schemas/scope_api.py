@@ -25,7 +25,7 @@ class ScopePreviewResponse(BaseModel):
 
     Classification only, from a possibly-incomplete draft intake. Powers the live
     signal panel, so it must tolerate a half-filled intake and return low confidence
-    rather than erroring (PHASE2_SCOPE_ENGINE §9.1).
+    rather than erroring (PHASE2_SPEC §9.1).
     """
 
     classification: Classification

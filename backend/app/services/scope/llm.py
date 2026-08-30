@@ -96,7 +96,7 @@ def _strip_fences(raw: str) -> str:
 def validate_tailoring(tailoring: LlmTailoring, scope: ScopeOfWorkPayloadV2) -> None:
     """Diff the model's output against the skeleton. Raises TailoringRejected.
 
-    Order matters (PHASE2_SCOPE_ENGINE §8): identical row id set, then matching line
+    Order matters (PHASE2_SPEC §8): identical row id set, then matching line
     counts and indices. Anything else means the model changed something structural.
     """
     if not tailoring.engagement_summary.strip():

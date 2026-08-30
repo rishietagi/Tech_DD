@@ -1,4 +1,4 @@
-"""Builds the /meta/enums payload from app.reference.enums (initial_plan.md §6)."""
+"""Builds the /meta/enums payload from app.reference.enums (docs/phases/PHASE1_PLAN.md §6)."""
 
 from enum import Enum
 

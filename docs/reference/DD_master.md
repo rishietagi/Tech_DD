@@ -1,7 +1,7 @@
-# DD_master.md — Technology Due Diligence: Master Reference
+# docs/reference/DD_master.md — Technology Due Diligence: Master Reference
 
 **Status:** authoritative domain reference for the Tech DD platform. Phase 1 (routed app + intake) is built; this file is the input to Phase 2, the scope-of-work engine. Read this
-alongside `CLAUDE.md` (project constitution) and `initial_plan.md` (Phase 1 build).
+alongside `CLAUDE.md` (project constitution) and `docs/phases/PHASE1_PLAN.md` (Phase 1 build).
 This file is what the scope-of-work engine encodes.
 
 **Primary source:** *M&A Information Technology Best Practices*, ed. Janice M.
@@ -1124,7 +1124,7 @@ and a Day 1 checklist — not just prose.
 
 ## 13. Intake → what the engine needs
 
-Fields already specified in `initial_plan.md` §3 are marked *(have)*. Fields the scope
+Fields already specified in `docs/phases/PHASE1_PLAN.md` §3 are marked *(have)*. Fields the scope
 engine needs that Phase 1 does **not** yet capture are marked **(ADD)** and must be
 added to the intake before the engine can run.
 

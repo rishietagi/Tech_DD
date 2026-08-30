@@ -1,4 +1,4 @@
-# initial_plan.md — Tech DD Platform, Phase 1
+# docs/phases/PHASE1_PLAN.md — Tech DD Platform, Phase 1
 
 Companion to `CLAUDE.md`. That file is the constitution; this is the build plan.
 Scope of this document: **Phase 1 only** — the routed application and the complete,

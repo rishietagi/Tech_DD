@@ -1,7 +1,7 @@
 """KpmgScopeComposer — assembles the deterministic scope-of-work document.
 
 This produces a complete, publishable scope with the LLM entirely disabled: an
-acceptance criterion in PHASE2_SCOPE_ENGINE §11. The LLM layer (step 8) rewrites the
+acceptance criterion in PHASE2_SPEC §11. The LLM layer (step 8) rewrites the
 prose inside this document; it never decides what the document contains.
 """
 

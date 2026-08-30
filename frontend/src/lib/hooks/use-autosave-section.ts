@@ -26,7 +26,7 @@ function stripEmptyStrings<T extends Record<string, unknown>>(values: T): T {
 }
 
 /**
- * Debounced autosave for one intake section (initial_plan.md §7). Saves on
+ * Debounced autosave for one intake section (docs/phases/PHASE1_PLAN.md §7). Saves on
  * change (debounced), on demand (step navigation), and mirrors to
  * sessionStorage purely as a crash guard — the API stays the source of truth
  * (CLAUDE.md §3).
