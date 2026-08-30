@@ -140,7 +140,7 @@ Tech_DD/
 │   └── reference/
 │       ├── DD_master.md       # the domain authority (Roehl-Anderson 2013)
 │       ├── KPMG_SOW_LANGUAGE.md  # house scope-of-work voice, from the source deck
-│       ├── KPMG Product and Enterprise Tech DD scope v1.1.pdf   # that source deck
+│       │   # (the source PDF is gitignored — client-confidential, local only)
 │       └── mockup_v0.html     # v0 visual reference (architecture superseded)
 ├── assets/                    # brand assets (logos)
 ├── .env.example               # every env var, no real values

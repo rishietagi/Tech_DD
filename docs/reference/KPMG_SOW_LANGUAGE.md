@@ -1,7 +1,9 @@
 # docs/reference/KPMG_SOW_LANGUAGE.md — house scope-of-work language
 
-Transcribed verbatim from `Product and Tech Due Diligence scope_ITeS company v1.1.pdf`
-(© 2024 KPMG India Services LLP). This is the **house voice and structure** the scope
+Transcribed from the KPMG Product and Enterprise Tech DD scope deck v1.1
+(© 2024 KPMG India Services LLP). **The source PDF is client-confidential and is not
+in this repository** — it is gitignored and kept locally only. This transcription of
+the scope structure and house voice is what the engine reads. This is the **house voice and structure** the scope
 generator must produce. `docs/reference/DD_master.md` supplies the domain depth; this file supplies
 the shape, tone and register a KPMG deliverable actually uses.
 

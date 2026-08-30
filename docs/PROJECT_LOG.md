@@ -155,6 +155,30 @@ done.
 
 ## Session log
 
+### 2026-08-31 — Confidential PDF removed from tracking
+
+The KPMG source deck (`docs/reference/KPMG Product and Enterprise Tech DD scope
+v1.1.pdf`) is client-confidential and was being tracked. Removed from git tracking
+(`git rm --cached`), added `*.pdf` to `.gitignore`, and backed the file up to
+`Desktop\KPMG-scope-deck-BACKUP.pdf`. **The file is still on disk at its original
+path** — only git no longer tracks it.
+
+**Known and accepted exposure.** The PDF remains in commits `451ddac` and `61399a6`,
+both already pushed to the **public** GitHub repo, so it is still recoverable via
+`git show 451ddac:<path>`. Rishi chose "remove going forward only" over a history
+rewrite; a full purge would need `git filter-repo` plus a force-push, which `CLAUDE.md`
+§6 forbids Claude from performing.
+
+The deck's *content* also remains public and tracked, by Rishi's explicit decision:
+`docs/reference/KPMG_SOW_LANGUAGE.md` and `backend/app/reference/kpmg_scope/*.yaml`
+carry all 19 objectives and focus areas verbatim. He judged the wording itself
+non-sensitive. Those files are load-bearing — the engine reads the YAMLs at startup —
+so do not remove them without replacing the loader.
+
+**If this needs to change later:** making the repo private (GitHub → Settings → Danger
+Zone → Change visibility) covers the PDF in history *and* the transcribed content in
+one step, with no history rewrite.
+
 ### 2026-08-31 — Restructure and documentation
 
 Reorganised a cluttered root into `docs/` and `assets/`, all moves via `git mv` so

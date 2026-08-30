@@ -41,3 +41,10 @@ playwright/.cache/
 .DS_Store
 Thumbs.db
 *.log
+
+# Confidential source material — never commit.
+# The KPMG scope deck is client-confidential. Its *content* lives in
+# docs/reference/KPMG_SOW_LANGUAGE.md (transcribed house voice), which is what the
+# engine actually reads; the PDF itself stays local.
+*.pdf
+docs/reference/*.pdf
