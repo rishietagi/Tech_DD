@@ -10,8 +10,18 @@ class Settings(BaseSettings):
     environment: Literal["development", "test", "production"] = "development"
     database_url: str = "sqlite:///./techdd.db"
     cors_origins: str = "http://localhost:3000"
-    scope_generator: Literal["placeholder"] = "placeholder"
-    api_version: str = "0.1.0"
+    scope_generator: Literal["placeholder", "rules", "llm"] = "rules"
+    api_version: str = "0.2.0"
+
+    # LLM tailoring (Phase 2). An absent key is not an error: the factory falls back
+    # to the deterministic RulesScopeGenerator with a logged warning.
+    anthropic_api_key: str | None = None
+    anthropic_model: str = "claude-opus-5"
+    llm_max_tokens: int = 16000
+
+    @property
+    def llm_enabled(self) -> bool:
+        return bool(self.anthropic_api_key)
 
     @property
     def cors_origin_list(self) -> list[str]:

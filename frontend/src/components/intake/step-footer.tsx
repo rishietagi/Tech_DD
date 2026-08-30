@@ -8,10 +8,7 @@ export function StepFooter({ backHref, isSubmitting, nextLabel = "Save & continu
   return (
     <div className="mt-8 flex items-center justify-between border-t border-line pt-6">
       {backHref ? (
-        <a
-          href={backHref}
-          className="font-mono text-[13px] tracking-[0.06em] text-muted uppercase transition-colors hover:text-text"
-        >
+        <a href={backHref} className="font-sans text-[14px] font-medium text-muted transition-colors hover:text-text">
           ← Back
         </a>
       ) : (
@@ -20,7 +17,7 @@ export function StepFooter({ backHref, isSubmitting, nextLabel = "Save & continu
       <button
         type="submit"
         disabled={isSubmitting}
-        className="rounded-[3px] border border-ink bg-ink px-[26px] py-[15px] font-mono text-[13px] tracking-[0.08em] text-paper-on-ink uppercase transition-colors hover:border-redline-dark hover:bg-redline-dark disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-full border border-ink bg-ink px-7 py-3.5 font-sans text-[14px] font-medium text-paper-on-ink transition-colors hover:border-kpmg-blue-dark hover:bg-kpmg-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isSubmitting ? "Saving…" : nextLabel}
       </button>

@@ -21,11 +21,9 @@ class DdType(str, Enum):
 
 
 class DealStage(str, Enum):
-    pre_ioi = "Pre-IOI"
-    ioi_submitted = "IOI submitted"
-    confirmatory = "Confirmatory"
     exclusivity = "Exclusivity"
-    post_signing = "Post-signing"
+    bid_situation = "Bid situation"
+    exploratory = "Exploratory"
 
 
 class ProcessType(str, Enum):
@@ -72,22 +70,6 @@ class HoldPeriod(str, Enum):
     evergreen = "Evergreen"
 
 
-class InvestorType(str, Enum):
-    pe = "PE"
-    vc = "VC"
-    growth_equity = "Growth equity"
-    corporate_strategic = "Corporate or strategic acquirer"
-    family_office = "Family office"
-    sovereign_wealth_fund = "Sovereign wealth fund"
-    other = "Other"
-
-
-class InvestorTechCapability(str, Enum):
-    in_house = "In-house tech team"
-    operating_partner = "Operating partner"
-    relies_on_advisors = "Relies on advisors"
-
-
 class Sector(str, Enum):
     saas = "SaaS"
     fintech = "Fintech"
@@ -113,16 +95,6 @@ class BusinessModel(str, Enum):
     hardware_and_software = "Hardware + software"
     services_led = "Services-led"
     hybrid = "Hybrid"
-
-
-class RevenueModel(str, Enum):
-    subscription = "Subscription"
-    usage_based = "Usage-based"
-    transaction_take_rate = "Transaction take-rate"
-    licence = "Licence"
-    advertising = "Advertising"
-    professional_services = "Professional services"
-    hardware_sales = "Hardware sales"
 
 
 class DigitalMaturity(str, Enum):
@@ -232,25 +204,29 @@ class DdObjective(str, Enum):
 
 
 class AccessLevel(str, Enum):
-    full = "Full (data room, management sessions, code access)"
+    full = "Full (data room and management sessions)"
     data_room_and_management = "Data room + management sessions"
     data_room_only = "Data room only"
     limited_or_public = "Limited or public information"
-
-
-class CodeAccess(str, Enum):
-    full_repository = "Full repository access"
-    read_only_sample = "Read-only sample"
-    automated_scan_only = "Automated scan only"
-    none = "None"
 
 
 class DeliverableFormat(str, Enum):
     red_flag_memo = "Red-flag memo"
     full_diligence_report = "Full diligence report"
     ic_paper_input = "IC paper input"
-    hundred_day_plan = "100-day plan"
-    cost_model = "Cost model"
+
+
+class DdTypePreference(str, Enum):
+    """Which KPMG scope deck the engagement should produce.
+
+    User-declared, and it wins over the engine's computed mix (KPMG_SOW_LANGUAGE.md).
+    The engine still computes its own view and surfaces disagreement.
+    """
+
+    let_platform_decide = "Let the platform decide"
+    product = "Product Tech DD"
+    enterprise = "Enterprise IT DD"
+    blended = "Blended"
 
 
 class BudgetBand(str, Enum):
@@ -259,10 +235,3 @@ class BudgetBand(str, Enum):
     b_75k_150k = "$75k-$150k"
     b_150k_300k = "$150k-$300k"
     over_300k = "Over $300k"
-
-
-class DdTypePreference(str, Enum):
-    let_platform_decide = "Let the platform decide"
-    enterprise_tech_dd = "Enterprise Tech DD"
-    product_tech_dd = "Product Tech DD"
-    blended = "Blended"

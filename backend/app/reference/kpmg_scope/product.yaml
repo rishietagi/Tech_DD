@@ -1,0 +1,190 @@
+# Product Due Diligence — Scope of Work
+#
+# Transcribed VERBATIM from "Product and Tech Due Diligence scope_ITeS company v1.1.pdf"
+# (© 2024 KPMG India Services LLP), pages 2-3. See KPMG_SOW_LANGUAGE.md.
+#
+# `objective` and `scope_of_work` are the client-facing text and are quoted exactly.
+# `workstreams` / `triggers` / `evidence` are the internal rule layer: they decide
+# whether a row appears and at what depth, and they carry the audit trail. They are
+# never shown to the client as-is.
+#
+# A practitioner may edit objective/scope_of_work wording here without touching Python.
+
+deck: product
+deck_title: Product Due Diligence
+deck_subtitle: Scope of Work
+library_version: "1.0"
+source: "KPMG India Services LLP, Product and Tech Due Diligence scope (ITeS company) v1.1, 2024"
+
+rows:
+  - sn: 1
+    id: PD-01
+    objective: Review product tech stack and architecture for scalability constraints
+    scope_of_work: >-
+      Review technology stack to identify limiting factors for growth, including core
+      architecture, use of legacy languages/ frameworks, interfaces etc. Identify any
+      legacy systems, degree of tech standardization etc.
+    workstreams: [W-PROD, W-APP]
+    submodules: [P1, P2]
+    always_in_scope: true
+    base_tier: 2
+    triggers: [A1, A2, A5, M6]
+    evidence:
+      - Architecture diagrams and system documentation
+      - Technology stack inventory with language and framework versions
+      - Known technical debt register
+    dd_master_ref: "§6.12 P1-P2; Exhibit 5.6 [p. 77]"
+
+  - sn: 2
+    id: PD-02
+    objective: Technology readiness to support future business growth projections
+    scope_of_work: >-
+      Review technology platform roadmap and operating model to identify whether
+      adequate planning and resources are available to meet business objectives.
+    workstreams: [W-STRAT, W-PROD]
+    submodules: [P5]
+    always_in_scope: true
+    base_tier: 2
+    triggers: [M1]
+    evidence:
+      - Product and technology roadmap with delivery dates
+      - Resourcing plan against the roadmap
+      - Business growth projections used by management
+    dd_master_ref: "§6.4; §6.12 P5"
+
+  - sn: 3
+    id: PD-03
+    objective: Review product infrastructure to understand scalability constraints
+    scope_of_work: >-
+      Review scalability of infrastructure to meet deal thesis, including use of cloud
+      services, infrastructure management, performance/ scalability testing performed,
+      and backup/ DR cadence
+    workstreams: [W-INFRA]
+    always_in_scope: true
+    base_tier: 2
+    triggers: [M1, A10]
+    evidence:
+      - Infrastructure architecture diagram and hosting inventory
+      - Performance and scalability test results
+      - Backup, disaster recovery and restoration policy with test evidence
+    dd_master_ref: "§6.7 [p. 76, 92]"
+
+  - sn: 4
+    id: PD-04
+    objective: >-
+      Review risks related to cyber security posture, and internal IT governance to
+      manage security and privacy
+    scope_of_work: >-
+      Review IT governance and security framework and testing results (strategy/ policy,
+      governance structure, solutions implemented and managed, testing performed etc.)
+      and initiatives implemented for cybersecurity and data privacy
+    workstreams: [W-SEC, W-PROC]
+    submodules: [P9]
+    always_in_scope: true
+    base_tier: 2
+    triggers: [M2, M3]
+    escalate_when: data_sensitivity_present
+    evidence:
+      - Information security policy and governance structure
+      - Most recent penetration test report and remediation status
+      - Data privacy framework and records of processing
+    dd_master_ref: "§6.8 [p. 284-300]; §6.3 [p. 73]"
+
+  - sn: 5
+    id: PD-05
+    objective: IT Regulatory aspects
+    scope_of_work: >-
+      Gain overview of SAR audit report, as well as identify any additional tech related
+      regulatory requirements
+    workstreams: [W-PROC]
+    base_tier: 1
+    triggers: [M3]
+    escalate_when: compliance_regimes_present
+    evidence:
+      - SAR audit report
+      - Register of applicable technology regulatory requirements
+      - Certifications held or in progress
+    dd_master_ref: "§4.8 [p. 288-289]"
+
+  - sn: 6
+    id: PD-06
+    objective: Technology team
+    scope_of_work: >-
+      Understand current capacity and capabilities for the Product tech team, and
+      identify limiting factors from a growth perspective (ex. key personnel, spread of
+      knowledge)
+    workstreams: [W-OPS]
+    submodules: [P8]
+    always_in_scope: true
+    base_tier: 2
+    triggers: [M1, A6]
+    evidence:
+      - Engineering organisation chart with tenure and seniority
+      - Attrition data for the technology function
+      - Key-person and bus-factor assessment on critical components
+    dd_master_ref: "§6.1 [p. 73, 84]; §6.12 P8"
+
+  - sn: 7
+    id: PD-07
+    objective: >-
+      Current IT stack is adequately integrated across internal components and
+      third-party solutions in an automated manner
+    scope_of_work: >-
+      Review key functionalities in the system and readiness for IT enabled integration
+      across technology platform landscape
+    workstreams: [W-APP]
+    base_tier: 2
+    triggers: [M1, A9]
+    evidence:
+      - Application architecture diagram showing interfaces between systems
+      - Integration inventory with third-party solutions
+      - Automation coverage across key business processes
+    dd_master_ref: "§6.6 [p. 75]"
+
+  - sn: 8
+    id: PD-08
+    objective: Software development lifecyle (SDLC)
+    scope_of_work: >-
+      Review development and testing methodology, quality metrics, release cadence,
+      Devops capabilities and other associated areas
+    workstreams: [W-PROD]
+    submodules: [P3, P4]
+    always_in_scope: true
+    base_tier: 2
+    triggers: [M6]
+    evidence:
+      - SDLC documentation covering requirements through deployment
+      - Release history and deployment frequency
+      - Test coverage and quality metrics
+    dd_master_ref: "§6.12 P3-P4 [EXT]"
+
+  - sn: 9
+    id: PD-09
+    objective: Technology vendors
+    scope_of_work: >-
+      Identify major vendors and their role in Tech stack, as well as Tech stack focused
+      on specific clients. Identify accountability and obligations due to tech failure,
+      as well as tenure of contracts and monetary spends obligations due to Tech.
+    workstreams: [W-VEN]
+    base_tier: 2
+    triggers: [M7]
+    evidence:
+      - Vendor register with role in the technology stack
+      - Contract register with term, renewal date and annual value
+      - Service levels and liability provisions for technology failure
+    dd_master_ref: "§6.2 [p. 73, 199-200, 222]"
+
+  - sn: 10
+    id: PD-10
+    objective: Tech outages and disclosures
+    scope_of_work: >-
+      Identify any outages, vulnerabilities and other relevant aspects etc. basis
+      disclosures made
+    workstreams: [W-SEC, W-INFRA]
+    base_tier: 1
+    triggers: [M2]
+    evidence:
+      - Incident and outage log for the last 24 months
+      - Open vulnerability register with severity and age
+      - Post-incident reviews for material incidents
+    dd_master_ref: "§6.8; §6.7 [p. 76]"

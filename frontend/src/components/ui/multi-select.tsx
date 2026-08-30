@@ -23,7 +23,7 @@ export function MultiSelect({ name, options, value, onChange }: MultiSelectProps
             key={opt.value}
             className={`cursor-pointer rounded-full border px-3.5 py-1.5 font-sans text-[13px] transition-colors ${
               checked
-                ? "border-redline bg-redline-tint text-text"
+                ? "border-kpmg-blue bg-kpmg-blue-tint text-text"
                 : "border-line-strong bg-paper-2 text-muted hover:bg-paper-3"
             }`}
           >

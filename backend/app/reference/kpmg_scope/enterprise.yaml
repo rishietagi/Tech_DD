@@ -1,0 +1,189 @@
+# Enterprise IT Due Diligence — Scope of Work
+#
+# Transcribed VERBATIM from "Product and Tech Due Diligence scope_ITeS company v1.1.pdf"
+# (© 2024 KPMG India Services LLP), pages 5-6. See KPMG_SOW_LANGUAGE.md.
+#
+# `focus_area` and each `considerations` bullet are client-facing and quoted exactly.
+# `workstreams` / `triggers` / `evidence` are the internal rule layer.
+
+deck: enterprise
+deck_title: Enterprise IT Due Diligence
+deck_subtitle: Scope of Work
+library_version: "1.0"
+source: "KPMG India Services LLP, Product and Tech Due Diligence scope (ITeS company) v1.1, 2024"
+
+rows:
+  - sn: 1
+    id: EN-01
+    focus_area: Applications
+    considerations:
+      - >-
+        Assess key enterprise IT applications, such as ERP, CRM, timesheet system, HRMS,
+        finance and accounting systems (AR, AP, FA, GR etc.) etc. and level of automation
+        enabled for supporting business processes
+      - >-
+        Assess IT infrastructure for enterprise IT applications (on cloud and on premise),
+        reviewing end of life assets as well as ability to support planned growth
+      - >-
+        Assess list of all the dashboards (Finance, Processes, infrastructure and others)
+        along with the functionalities and KPI including employee productivity
+    workstreams: [W-APP]
+    always_in_scope: true
+    base_tier: 2
+    triggers: [M1, A4]
+    escalate_when: erp_present
+    evidence:
+      - Application inventory with business function, version and licensing
+      - Application architecture diagram showing interfaces
+      - Dashboard and reporting inventory with KPIs
+    dd_master_ref: "§6.6 [p. 74-75]; C1 ERP note [p. 197]"
+
+  - sn: 2
+    id: EN-02
+    focus_area: IT Strategy and Roadmap
+    considerations:
+      - >-
+        Review enterprise IT roadmap prepared by management, fitment to meet business
+        objectives, and current level of preparedness for the roadmap initiatives
+    workstreams: [W-STRAT]
+    always_in_scope: true
+    base_tier: 1
+    triggers: [M1]
+    evidence:
+      - Enterprise IT roadmap with initiative-level detail
+      - Business case and readiness assessment per initiative
+    dd_master_ref: "§6.4 [p. 74, 8, 148]"
+
+  - sn: 3
+    id: EN-03
+    focus_area: IT Org and Governance
+    considerations:
+      - >-
+        Review IT organization including key personnel, responsibilities, skills and areas
+        of specialist knowledge, including any keyperson risk
+    workstreams: [W-OPS]
+    always_in_scope: true
+    base_tier: 2
+    triggers: [M1]
+    evidence:
+      - IT organisation chart with roles and reporting lines
+      - Skills matrix and areas of specialist knowledge
+      - Key-person risk and succession position
+    dd_master_ref: "§6.1 [p. 73, 84, 362]"
+
+  - sn: 4
+    id: EN-04
+    focus_area: IT Infrastructure
+    considerations:
+      - >-
+        Overview of the infrastructure (on-premise/ cloud) and services including Infra
+        architecture diagram showing the linkage between various infra components, example
+        servers, devices, storage, backup, analytics, availability zones and instances etc.
+      - Assess details of data centers
+      - Review implementation of backup, disaster recovery and restoration policy
+      - >-
+        Review infrastructure performance metrics are monitored (CPU, disk space, RAM) to
+        allow monitoring of the application performance KPIs, and the processes/mechanisms
+        in place to ensure the infrastructure is scalable and can meet planned business growth
+      - Assess the status EOL infrastructure
+    workstreams: [W-INFRA]
+    always_in_scope: true
+    base_tier: 2
+    triggers: [M1, A10]
+    escalate_when: on_premise_hosting
+    evidence:
+      - Infrastructure architecture diagram and component inventory
+      - Data centre details including location and capacity
+      - Backup, DR and restoration policy with test evidence
+      - Infrastructure performance monitoring reports
+      - End-of-life asset register with replacement dates
+    dd_master_ref: "§6.7 [p. 76, 92-93]"
+
+  - sn: 5
+    id: EN-05
+    focus_area: IT Financials
+    considerations:
+      - Evaluate IT financials and details of how the technology budget is defined and agreed.
+    workstreams: [W-SPEND]
+    always_in_scope: true
+    base_tier: 2
+    triggers: [M1]
+    evidence:
+      - IT budget and actuals for the last three years
+      - Capex and opex split with run-versus-change analysis
+      - Budget-setting and approval process
+    dd_master_ref: "§6.5 [p. 74, 81, 84]"
+
+  - sn: 6
+    id: EN-06
+    focus_area: IT Projects
+    considerations:
+      - >-
+        Review in-flight enterprise projects' status and management's plan for completion
+        of such projects
+      - >-
+        Assess all ongoing enterprise IT projects, corresponding budget, resource mapping,
+        current status and estimated date of completion of each project
+    workstreams: [W-STRAT]
+    base_tier: 1
+    triggers: [M1]
+    evidence:
+      - In-flight project register with status, budget and completion date
+      - Resource allocation per project
+      - Management plan for completion
+    dd_master_ref: "§6.4 project triage rule [p. 8, 148]"
+
+  - sn: 7
+    id: EN-07
+    focus_area: Software Development Lifecycle for internal apps
+    considerations:
+      - >-
+        Review key SDLC (Software Development Life Cycle) applications being leveraged, such
+        as bug management, project management system, knowledge management platform,
+        collaboration and communication platform etc. for custom developed internal applications
+      - Review SDLC for product development cycle and digital technology
+      - >-
+        Review software development processes from requirements definition, through to
+        development, integration, testing and deployment
+    workstreams: [W-APP, W-PROD]
+    submodules: [P4]
+    base_tier: 1
+    triggers: [A5]
+    escalate_when: in_house_build
+    evidence:
+      - SDLC tooling inventory
+      - Development process documentation from requirements to deployment
+      - Testing and release approach for internal applications
+    dd_master_ref: "§6.6 custom-developed applications [p. 75]"
+
+  - sn: 8
+    id: EN-08
+    focus_area: Emerging Tech
+    considerations:
+      - >-
+        Overview of Emerging Technologies such as Analytics, RPA, AI, ML related solutions
+        that have been implemented for enabling key business processes.
+    workstreams: [W-APP]
+    base_tier: 1
+    triggers: [A11, C8]
+    escalate_when: ai_ml_material
+    evidence:
+      - Inventory of analytics, RPA, AI and ML solutions in use
+      - Business processes enabled by each
+      - Model governance and data rights position where AI/ML is material
+    dd_master_ref: "§4.9 [EXT]; §6.12 P7"
+
+  - sn: 9
+    id: EN-09
+    focus_area: Contracts and Licenses
+    considerations:
+      - Review and Assess of key IT contracts & licenses
+    workstreams: [W-VEN]
+    always_in_scope: true
+    base_tier: 2
+    triggers: [M7]
+    evidence:
+      - Contract register with counterparty, term, renewal date and annual value
+      - Software licence inventory with entitlement counts and true-up position
+      - Assignment and change-of-control provisions on critical agreements
+    dd_master_ref: "§6.2 [p. 73, 199-200, 511]"

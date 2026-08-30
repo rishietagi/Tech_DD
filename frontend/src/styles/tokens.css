@@ -1,19 +1,40 @@
 :root {
-  --ink: #14171f;
-  --ink-2: #1d212b;
-  --paper: #ecede6;
-  --paper-2: #e1e2d8;
-  --paper-3: #d8d9cd;
-  --line: rgba(20, 23, 31, 0.16);
-  --line-strong: rgba(20, 23, 31, 0.32);
-  --text: #1b1d18;
-  --muted: #6c6f63;
-  --muted-2: #8b8e82;
-  --redline: #9c3b2e;
-  --redline-dark: #7c2e23;
-  --redline-tint: rgba(156, 59, 46, 0.09);
-  --steel: #3f5e78;
-  --steel-tint: rgba(63, 94, 120, 0.1);
-  --paper-on-ink: #edede6;
-  --radius: 3px;
+  /* KPMG blue family */
+  --kpmg-blue: #00338d;
+  --kpmg-blue-dark: #002566;
+  --kpmg-blue-light: #0091da;
+  --kpmg-blue-tint: rgba(0, 51, 141, 0.06);
+  --kpmg-blue-tint-strong: rgba(0, 51, 141, 0.12);
+
+  /* Surfaces */
+  --paper: #ffffff;
+  --paper-2: #f4f6fa;
+  --paper-3: #e8ecf3;
+  --ink: #00338d;
+  --ink-2: #002566;
+
+  /* Lines */
+  --line: rgba(0, 41, 107, 0.12);
+  --line-strong: rgba(0, 41, 107, 0.24);
+
+  /* Text */
+  --text: #0a0e1a;
+  --muted: #4a5568;
+  --muted-2: #8087a0;
+  --paper-on-ink: #ffffff;
+
+  /* Accent — kept as "redline" naming for component compatibility; used sparingly
+     for destructive/attention states only, not as the brand accent. */
+  --redline: #c0392b;
+  --redline-dark: #962d22;
+  --redline-tint: rgba(192, 57, 43, 0.08);
+
+  /* Informational accent — the lighter KPMG blue */
+  --steel: #0091da;
+  --steel-tint: rgba(0, 145, 218, 0.1);
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
 }

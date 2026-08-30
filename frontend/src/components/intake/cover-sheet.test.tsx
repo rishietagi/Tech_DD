@@ -8,7 +8,6 @@ const EMPTY_INTAKE: IntakeDraft = {
   context: null,
   rationale: null,
   structure: null,
-  investor: null,
   target: null,
   technology: null,
   objectives: null,
@@ -17,7 +16,7 @@ const EMPTY_INTAKE: IntakeDraft = {
 describe("CoverSheet", () => {
   it("shows 'Not started' for every section when the intake is empty", () => {
     render(<CoverSheet engagementId="abc-123" intake={EMPTY_INTAKE} />);
-    expect(screen.getAllByText("Not started")).toHaveLength(7);
+    expect(screen.getAllByText("Not started")).toHaveLength(6);
   });
 
   it("renders filled-in section fields and formats them for display", () => {
@@ -26,13 +25,12 @@ describe("CoverSheet", () => {
       context: {
         deal_name: "Project Falcon",
         context_narrative: "Some narrative",
-        deal_stage: "Confirmatory",
+        deal_stage: "Exclusivity",
         process_type: "Bilateral",
       },
       structure: {
         investment_type: "strategic",
         stake: "majority",
-        carve_out_or_tsa: false,
         post_close_intent: "Standalone",
       },
     };
@@ -40,15 +38,14 @@ describe("CoverSheet", () => {
     render(<CoverSheet engagementId="abc-123" intake={intake} />);
 
     expect(screen.getByText("Project Falcon")).toBeInTheDocument();
-    // carve_out_or_tsa: false should render as "No", not "false" or blank.
-    expect(screen.getByText("No")).toBeInTheDocument();
+    expect(screen.getByText("Standalone")).toBeInTheDocument();
   });
 
   it("links each section's Edit action to its intake step route", () => {
     render(<CoverSheet engagementId="abc-123" intake={EMPTY_INTAKE} />);
     const editLinks = screen.getAllByRole("link", { name: "Edit" });
     expect(editLinks[0]).toHaveAttribute("href", "/intake/abc-123/context");
-    expect(editLinks[6]).toHaveAttribute("href", "/intake/abc-123/objectives");
+    expect(editLinks[5]).toHaveAttribute("href", "/intake/abc-123/objectives");
   });
 
   it("renders arrays joined with commas", () => {

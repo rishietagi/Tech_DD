@@ -61,7 +61,7 @@ export function ScopePage({ engagementId }: { engagementId: string }) {
           action={
             <Link
               href={`/intake/${engagementId}/review`}
-              className="rounded-[3px] border border-ink bg-ink px-5 py-3 font-mono text-xs text-paper-on-ink uppercase"
+              className="rounded-full border border-ink bg-ink px-5 py-3 font-sans text-[13px] font-medium text-paper-on-ink"
             >
               Go to review
             </Link>
@@ -82,7 +82,7 @@ export function ScopePage({ engagementId }: { engagementId: string }) {
               type="button"
               onClick={() => generateMutation.mutate()}
               disabled={generateMutation.isPending}
-              className="rounded-[3px] border border-ink bg-ink px-5 py-3 font-mono text-xs text-paper-on-ink uppercase disabled:opacity-50"
+              className="rounded-full border border-ink bg-ink px-5 py-3 font-sans text-[13px] font-medium text-paper-on-ink disabled:opacity-50"
             >
               {generateMutation.isPending ? "Generating…" : "Generate scope"}
             </button>
@@ -107,7 +107,7 @@ export function ScopePage({ engagementId }: { engagementId: string }) {
           type="button"
           onClick={() => generateMutation.mutate()}
           disabled={generateMutation.isPending}
-          className="rounded-[3px] border border-line-strong px-4 py-2 font-mono text-[11px] uppercase transition-colors hover:bg-paper-2 disabled:opacity-50"
+          className="rounded-full border border-line-strong px-4 py-2 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2 disabled:opacity-50"
         >
           {generateMutation.isPending ? "Regenerating…" : "Regenerate"}
         </button>

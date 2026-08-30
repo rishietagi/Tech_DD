@@ -7,8 +7,8 @@ export function ValidationSummary({ engagementId, fieldErrors }: { engagementId:
   if (fieldErrors.length === 0) return null;
 
   return (
-    <div role="alert" className="mb-8 rounded-[3px] border border-redline bg-redline-tint px-6 py-5">
-      <p className="mb-3 font-mono text-xs tracking-[0.06em] text-redline uppercase">
+    <div role="alert" className="mb-8 rounded-2xl border border-redline bg-redline-tint px-6 py-5">
+      <p className="mb-3 font-sans text-[13px] font-semibold text-redline">
         {fieldErrors.length} field{fieldErrors.length === 1 ? "" : "s"} need attention before filing
       </p>
       <ul className="space-y-1.5">

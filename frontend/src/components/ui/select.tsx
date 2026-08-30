@@ -14,7 +14,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     <select
       ref={ref}
       aria-invalid={invalid || undefined}
-      className={`w-full rounded-[3px] border bg-paper-2 px-3.5 py-3 font-sans text-[15px] text-text transition-colors focus:bg-paper focus:border-steel focus:outline-none ${
+      className={`w-full rounded-xl border bg-paper-2 px-3.5 py-3 font-sans text-[15px] text-text transition-colors focus:bg-paper focus:border-steel focus:outline-none ${
         invalid ? "border-redline" : "border-line-strong"
       } ${className ?? ""}`}
       {...props}

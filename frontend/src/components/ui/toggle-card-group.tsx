@@ -20,8 +20,8 @@ export function ToggleCardGroup({ name, options, value, onChange, columns = 2 }:
         return (
           <label
             key={opt.value}
-            className={`relative block cursor-pointer rounded-[3px] border px-[18px] py-4 transition-colors ${
-              checked ? "border-redline bg-redline-tint" : "border-line-strong bg-paper-2 hover:bg-paper-3"
+            className={`relative block cursor-pointer rounded-xl border px-[18px] py-4 transition-colors ${
+              checked ? "border-kpmg-blue bg-kpmg-blue-tint" : "border-line-strong bg-paper-2 hover:bg-paper-3"
             }`}
           >
             <input
@@ -36,7 +36,9 @@ export function ToggleCardGroup({ name, options, value, onChange, columns = 2 }:
             <span className="block text-[13px] leading-[1.5] text-muted">{opt.description}</span>
             <span
               className={`absolute top-[15px] right-4 h-3.5 w-3.5 rounded-full border-[1.5px] transition-colors ${
-                checked ? "border-redline bg-redline shadow-[inset_0_0_0_3px_var(--redline-tint)]" : "border-muted-2"
+                checked
+                  ? "border-kpmg-blue bg-kpmg-blue shadow-[inset_0_0_0_3px_var(--kpmg-blue-tint)]"
+                  : "border-muted-2"
               }`}
               aria-hidden
             />

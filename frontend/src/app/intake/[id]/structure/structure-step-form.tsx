@@ -41,7 +41,6 @@ export function StructureStepForm({ engagementId }: { engagementId: string }) {
   } = useForm<DealStructureValues>({
     resolver: zodResolver(dealStructureSchema),
     mode: "onBlur",
-    defaultValues: { carve_out_or_tsa: false },
   });
 
   const hasHydrated = useRef(false);
@@ -60,7 +59,7 @@ export function StructureStepForm({ engagementId }: { engagementId: string }) {
 
   const onSubmit = handleSubmit(async (values) => {
     await saveNow(values);
-    router.push(`/intake/${engagementId}/investor`);
+    router.push(`/intake/${engagementId}/target`);
   });
 
   return (
@@ -98,7 +97,7 @@ export function StructureStepForm({ engagementId }: { engagementId: string }) {
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Stake percent" optional error={errors.stake_percent?.message}>
+          <Field label="Stake percent" error={errors.stake_percent?.message}>
             {(id) => (
               <Controller
                 name="stake_percent"
@@ -109,7 +108,7 @@ export function StructureStepForm({ engagementId }: { engagementId: string }) {
               />
             )}
           </Field>
-          <Field label="Hold period" optional>
+          <Field label="Hold period">
             {(id) => (
               <Select
                 id={id}
@@ -132,22 +131,10 @@ export function StructureStepForm({ engagementId }: { engagementId: string }) {
             />
           )}
         </Field>
-
-        <div className="mb-5 flex items-center gap-2.5">
-          <input
-            id="carve_out_or_tsa"
-            type="checkbox"
-            className="h-4 w-4 accent-redline"
-            {...register("carve_out_or_tsa")}
-          />
-          <label htmlFor="carve_out_or_tsa" className="font-sans text-sm text-text">
-            This is a carve-out, or involves a Transition Services Agreement (TSA)
-          </label>
-        </div>
       </div>
 
       {isSubmitted && Object.keys(errors).length > 0 && (
-        <p role="alert" className="mb-4 font-mono text-xs text-redline">
+        <p role="alert" className="mb-4 font-sans text-xs font-medium text-redline">
           Fix the highlighted fields before continuing.
         </p>
       )}

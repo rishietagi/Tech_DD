@@ -93,13 +93,17 @@ export function ContextStepForm({ engagementId }: { engagementId: string }) {
           </Field>
         </div>
 
-        <Field label="Source of deal" optional>
+        <Field label="Source of deal">
           {(id) => <TextInput id={id} {...register("source_of_deal")} />}
+        </Field>
+
+        <Field label="Investor / firm name">
+          {(id) => <TextInput id={id} {...register("investor_firm_name")} />}
         </Field>
       </div>
 
       {isSubmitted && Object.keys(errors).length > 0 && (
-        <p role="alert" className="mb-4 font-mono text-xs text-redline">
+        <p role="alert" className="mb-4 font-sans text-xs font-medium text-redline">
           Fix the highlighted fields before continuing.
         </p>
       )}

@@ -5,7 +5,7 @@ from app.core.config import get_settings
 from app.core.errors import AppError
 from app.models.scope_of_work import ScopeOfWork
 from app.services.engagements import assemble_intake_full, get_engagement
-from app.services.scope.factory import get_scope_generator
+from app.services.scope.factory import get_scope_generator, resolve_generator_name
 
 
 def generate_scope(db: Session, engagement_id: str) -> ScopeOfWork:
@@ -32,7 +32,7 @@ def generate_scope(db: Session, engagement_id: str) -> ScopeOfWork:
     scope = ScopeOfWork(
         engagement_id=engagement_id,
         version=next_version,
-        generator=get_settings().scope_generator,
+        generator=resolve_generator_name(get_settings()),
         dd_type=payload.dd_type,
         dd_mix=payload.dd_mix,
         payload_json=payload.model_dump(mode="json"),

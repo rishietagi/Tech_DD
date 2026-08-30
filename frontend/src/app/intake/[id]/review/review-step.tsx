@@ -65,7 +65,7 @@ export function ReviewStep({ engagementId }: { engagementId: string }) {
   return (
     <div className="border-t border-line-strong py-8">
       <SectionHeader
-        num="08"
+        num="07"
         title="Review & File"
         hint="A cover sheet of everything on file. File the engagement once it's ready for the desk."
       />
@@ -80,12 +80,12 @@ export function ReviewStep({ engagementId }: { engagementId: string }) {
       <div className="flex items-center justify-between border-t border-line pt-6">
         <a
           href={`/intake/${engagementId}/objectives`}
-          className="font-mono text-[13px] tracking-[0.06em] text-muted uppercase transition-colors hover:text-text"
+          className="font-sans text-[14px] font-medium text-muted transition-colors hover:text-text"
         >
           ← Back
         </a>
         {alreadyFiled ? (
-          <span className="font-mono text-xs tracking-[0.06em] text-steel uppercase">
+          <span className="font-sans text-[13px] font-medium text-steel">
             Already filed — status: {engagement.status}
           </span>
         ) : (
@@ -93,7 +93,7 @@ export function ReviewStep({ engagementId }: { engagementId: string }) {
             type="button"
             onClick={() => submitMutation.mutate()}
             disabled={submitMutation.isPending}
-            className="rounded-[3px] border border-ink bg-ink px-[26px] py-[15px] font-mono text-[13px] tracking-[0.08em] text-paper-on-ink uppercase transition-colors hover:border-redline-dark hover:bg-redline-dark disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-full border border-ink bg-ink px-7 py-3.5 font-sans text-[14px] font-medium text-paper-on-ink transition-colors hover:border-kpmg-blue-dark hover:bg-kpmg-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitMutation.isPending ? "Filing…" : "File engagement"}
           </button>

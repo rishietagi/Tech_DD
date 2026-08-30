@@ -33,7 +33,7 @@ export function EngagementDetail({ engagementId }: { engagementId: string }) {
             <button
               type="button"
               onClick={() => refetch()}
-              className="rounded-[3px] border border-line-strong px-5 py-2.5 font-mono text-xs uppercase"
+              className="rounded-full border border-line-strong px-5 py-2.5 font-sans text-[13px] font-medium"
             >
               Retry
             </button>
@@ -47,20 +47,20 @@ export function EngagementDetail({ engagementId }: { engagementId: string }) {
     <main className="mx-auto max-w-[1120px] px-7 pt-12 pb-24">
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <div className="mb-1 font-mono text-xs tracking-[0.16em] text-redline uppercase">
+          <div className="mb-1 font-sans text-xs font-semibold tracking-[0.08em] text-kpmg-blue uppercase">
             {engagement.denorm?.company_name ?? "Target not yet named"}
           </div>
-          <h1 className="font-serif text-3xl font-medium">{engagement.deal_name}</h1>
+          <h1 className="font-display font-semibold text-3xl">{engagement.deal_name}</h1>
           <div className="mt-2 flex items-center gap-3">
             <EngagementStatusBadge status={engagement.status} />
-            <span className="font-mono text-xs text-muted-2">
+            <span className="font-sans text-xs text-muted-2">
               Updated {new Date(engagement.updated_at).toLocaleString()}
             </span>
           </div>
         </div>
         <Link
           href={`/engagements/${engagementId}/scope`}
-          className="rounded-[3px] border border-ink bg-ink px-5 py-3 font-mono text-xs tracking-[0.08em] text-paper-on-ink uppercase transition-colors hover:border-redline-dark hover:bg-redline-dark"
+          className="rounded-full border border-ink bg-ink px-5 py-3 font-sans text-[13px] font-medium text-paper-on-ink transition-colors hover:border-kpmg-blue-dark hover:bg-kpmg-blue-dark"
         >
           View scope of work
         </Link>

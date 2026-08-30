@@ -16,7 +16,7 @@ export function AutosaveIndicator({ status, lastSavedAt }: { status: SaveStatus;
     <span
       role="status"
       aria-live="polite"
-      className={`font-mono text-[11px] tracking-[0.06em] ${status === "error" ? "text-redline" : "text-muted-2"}`}
+      className={`font-sans text-xs ${status === "error" ? "text-redline" : "text-muted-2"}`}
     >
       {text}
     </span>

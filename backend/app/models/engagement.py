@@ -42,7 +42,6 @@ class EngagementIntake(TimestampMixin, Base):
     context_json: Mapped[dict[str, Any] | None] = mapped_column(SAJSON, nullable=True)
     rationale_json: Mapped[dict[str, Any] | None] = mapped_column(SAJSON, nullable=True)
     structure_json: Mapped[dict[str, Any] | None] = mapped_column(SAJSON, nullable=True)
-    investor_json: Mapped[dict[str, Any] | None] = mapped_column(SAJSON, nullable=True)
     target_json: Mapped[dict[str, Any] | None] = mapped_column(SAJSON, nullable=True)
     technology_json: Mapped[dict[str, Any] | None] = mapped_column(SAJSON, nullable=True)
     objectives_json: Mapped[dict[str, Any] | None] = mapped_column(SAJSON, nullable=True)
@@ -62,7 +61,6 @@ class EngagementDenorm(TimestampMixin, Base):
 
     company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     sector: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    investor_firm: Mapped[str | None] = mapped_column(String(255), nullable=True)
     investment_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
     stake: Mapped[str | None] = mapped_column(String(20), nullable=True)
     digital_maturity: Mapped[str | None] = mapped_column(String(50), nullable=True)

@@ -49,7 +49,6 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
   } = useForm<TechnologyProfileValues>({
     resolver: zodResolver(technologyProfileSchema),
     mode: "onBlur",
-    defaultValues: { data_sensitivity: [] },
   });
 
   const hasHydrated = useRef(false);
@@ -75,12 +74,12 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
     <form onSubmit={onSubmit} noValidate>
       <div className="border-t border-line-strong py-8">
         <SectionHeader
-          num="06"
+          num="05"
           title="Technology Profile"
           hint="Load-bearing: this is where Enterprise vs Product Tech DD is decided."
         />
 
-        <Field label="Is the software the product?" error={errors.tech_is_product?.message}>
+        <Field label="Is the software the product?">
           {() => (
             <Controller
               name="tech_is_product"
@@ -99,22 +98,20 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Build vs buy" error={errors.build_vs_buy?.message}>
+          <Field label="Build vs buy">
             {(id) => (
               <Select
                 id={id}
-                invalid={!!errors.build_vs_buy}
                 placeholder="Select"
                 options={BUILD_VS_BUY.map((v) => ({ value: v, label: v }))}
                 {...register("build_vs_buy")}
               />
             )}
           </Field>
-          <Field label="Hosting model" error={errors.hosting_model?.message}>
+          <Field label="Hosting model">
             {(id) => (
               <Select
                 id={id}
-                invalid={!!errors.hosting_model}
                 placeholder="Select"
                 options={HOSTING_MODEL.map((v) => ({ value: v, label: v }))}
                 {...register("hosting_model")}
@@ -123,7 +120,7 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
           </Field>
         </div>
 
-        <Field label="Core systems" optional>
+        <Field label="Core systems">
           {() => (
             <Controller
               name="core_systems"
@@ -140,7 +137,7 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="Cloud providers" optional>
+        <Field label="Cloud providers">
           {() => (
             <Controller
               name="cloud_providers"
@@ -157,12 +154,12 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="Known tech stack" optional>
+        <Field label="Known tech stack">
           {(id) => <TextInput id={id} {...register("known_tech_stack")} />}
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Engineering headcount" optional>
+          <Field label="Engineering headcount">
             {(id) => (
               <Controller
                 name="engineering_headcount"
@@ -171,7 +168,7 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
               />
             )}
           </Field>
-          <Field label="Engineering share of headcount (%)" optional>
+          <Field label="Engineering share of headcount (%)">
             {(id) => (
               <Controller
                 name="engineering_share_pct"
@@ -184,7 +181,7 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
           </Field>
         </div>
 
-        <Field label="Outsourcing reliance" optional>
+        <Field label="Outsourcing reliance">
           {(id) => (
             <Select
               id={id}
@@ -195,11 +192,10 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="AI/ML dependence" error={errors.ai_ml_dependence?.message}>
+        <Field label="AI/ML dependence">
           {(id) => (
             <Select
               id={id}
-              invalid={!!errors.ai_ml_dependence}
               placeholder="Select"
               options={AI_ML_DEPENDENCE.map((v) => ({ value: v, label: v }))}
               {...register("ai_ml_dependence")}
@@ -207,7 +203,7 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="Data sensitivity" error={errors.data_sensitivity?.message}>
+        <Field label="Data sensitivity">
           {() => (
             <Controller
               name="data_sensitivity"
@@ -224,7 +220,7 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="Compliance regimes" optional>
+        <Field label="Compliance regimes">
           {() => (
             <Controller
               name="compliance_regimes"
@@ -241,13 +237,13 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="Known incidents" optional hint="Outages, breaches, audit findings">
+        <Field label="Known incidents" hint="Outages, breaches, audit findings">
           {(id) => <TextArea id={id} {...register("known_incidents")} />}
         </Field>
       </div>
 
       {isSubmitted && Object.keys(errors).length > 0 && (
-        <p role="alert" className="mb-4 font-mono text-xs text-redline">
+        <p role="alert" className="mb-4 font-sans text-xs font-medium text-redline">
           Fix the highlighted fields before continuing.
         </p>
       )}

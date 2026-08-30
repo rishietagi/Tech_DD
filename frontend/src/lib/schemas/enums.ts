@@ -2,7 +2,7 @@
 // /meta/enums at runtime for rendering; these arrays exist so zod can validate
 // the same closed sets without a network round-trip.
 
-export const DEAL_STAGE = ["Pre-IOI", "IOI submitted", "Confirmatory", "Exclusivity", "Post-signing"] as const;
+export const DEAL_STAGE = ["Exclusivity", "Bid situation", "Exploratory"] as const;
 export const PROCESS_TYPE = ["Broad auction", "Limited process", "Bilateral", "Proprietary"] as const;
 
 export const VALUE_CREATION_LEVER = [
@@ -29,18 +29,6 @@ export const POST_CLOSE_INTENT = [
 
 export const HOLD_PERIOD = ["<3", "3-5", "5-7", "7+", "Evergreen"] as const;
 
-export const INVESTOR_TYPE = [
-  "PE",
-  "VC",
-  "Growth equity",
-  "Corporate or strategic acquirer",
-  "Family office",
-  "Sovereign wealth fund",
-  "Other",
-] as const;
-
-export const INVESTOR_TECH_CAPABILITY = ["In-house tech team", "Operating partner", "Relies on advisors"] as const;
-
 export const SECTOR = [
   "SaaS",
   "Fintech",
@@ -66,16 +54,6 @@ export const BUSINESS_MODEL = [
   "Hardware + software",
   "Services-led",
   "Hybrid",
-] as const;
-
-export const REVENUE_MODEL = [
-  "Subscription",
-  "Usage-based",
-  "Transaction take-rate",
-  "Licence",
-  "Advertising",
-  "Professional services",
-  "Hardware sales",
 ] as const;
 
 export const DIGITAL_MATURITY = ["Digital native", "Digitally enabled", "Traditional"] as const;
@@ -156,21 +134,13 @@ export const DD_OBJECTIVE = [
 ] as const;
 
 export const ACCESS_LEVEL = [
-  "Full (data room, management sessions, code access)",
+  "Full (data room and management sessions)",
   "Data room + management sessions",
   "Data room only",
   "Limited or public information",
 ] as const;
 
-export const CODE_ACCESS = ["Full repository access", "Read-only sample", "Automated scan only", "None"] as const;
-
-export const DELIVERABLE_FORMAT = [
-  "Red-flag memo",
-  "Full diligence report",
-  "IC paper input",
-  "100-day plan",
-  "Cost model",
-] as const;
+export const DELIVERABLE_FORMAT = ["Red-flag memo", "Full diligence report", "IC paper input"] as const;
 
 export const BUDGET_BAND = [
   "Under $25k",
@@ -182,7 +152,7 @@ export const BUDGET_BAND = [
 
 export const DD_TYPE_PREFERENCE = [
   "Let the platform decide",
-  "Enterprise Tech DD",
   "Product Tech DD",
+  "Enterprise IT DD",
   "Blended",
 ] as const;

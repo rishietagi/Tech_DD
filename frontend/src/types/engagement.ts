@@ -5,7 +5,6 @@ export type EngagementStatus = "draft" | "filed" | "scoped" | "archived";
 export interface EngagementDenorm {
   company_name: string | null;
   sector: string | null;
-  investor_firm: string | null;
   investment_type: string | null;
   stake: string | null;
   digital_maturity: string | null;

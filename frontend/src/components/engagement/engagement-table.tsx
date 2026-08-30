@@ -65,7 +65,7 @@ export function EngagementTable() {
             <button
               type="button"
               onClick={() => refetch()}
-              className="rounded-[3px] border border-line-strong px-5 py-2.5 font-mono text-xs uppercase"
+              className="rounded-full border border-line-strong px-5 py-2.5 font-sans text-[13px] font-medium"
             >
               Retry
             </button>
@@ -78,16 +78,16 @@ export function EngagementTable() {
       )}
 
       {data && data.items.length > 0 && (
-        <div className="overflow-x-auto rounded-[3px] border border-line-strong">
+        <div className="overflow-x-auto rounded-2xl border border-line-strong">
           <table className="w-full min-w-[720px] border-collapse">
             <thead>
               <tr className="border-b border-line-strong bg-paper-2 text-left">
-                <th className="px-4 py-3 font-mono text-[11px] tracking-[0.06em] text-muted uppercase">Deal</th>
-                <th className="px-4 py-3 font-mono text-[11px] tracking-[0.06em] text-muted uppercase">Target</th>
-                <th className="px-4 py-3 font-mono text-[11px] tracking-[0.06em] text-muted uppercase">Structure</th>
-                <th className="px-4 py-3 font-mono text-[11px] tracking-[0.06em] text-muted uppercase">DD Type</th>
-                <th className="px-4 py-3 font-mono text-[11px] tracking-[0.06em] text-muted uppercase">Status</th>
-                <th className="px-4 py-3 font-mono text-[11px] tracking-[0.06em] text-muted uppercase">Updated</th>
+                <th className="px-4 py-3 font-sans text-[11px] font-semibold text-muted uppercase">Deal</th>
+                <th className="px-4 py-3 font-sans text-[11px] font-semibold text-muted uppercase">Target</th>
+                <th className="px-4 py-3 font-sans text-[11px] font-semibold text-muted uppercase">Structure</th>
+                <th className="px-4 py-3 font-sans text-[11px] font-semibold text-muted uppercase">DD Type</th>
+                <th className="px-4 py-3 font-sans text-[11px] font-semibold text-muted uppercase">Status</th>
+                <th className="px-4 py-3 font-sans text-[11px] font-semibold text-muted uppercase">Updated</th>
               </tr>
             </thead>
             <tbody>
@@ -106,13 +106,13 @@ export function EngagementTable() {
                       ? `${engagement.denorm.investment_type} / ${engagement.denorm.stake}`
                       : "—"}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted uppercase">
+                  <td className="px-4 py-3 font-sans text-xs font-medium text-muted uppercase">
                     {engagement.denorm?.dd_type ?? "Undetermined"}
                   </td>
                   <td className="px-4 py-3">
                     <EngagementStatusBadge status={engagement.status} />
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-muted-2">{formatDate(engagement.updated_at)}</td>
+                  <td className="px-4 py-3 font-sans text-xs text-muted-2">{formatDate(engagement.updated_at)}</td>
                 </tr>
               ))}
             </tbody>

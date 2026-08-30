@@ -12,18 +12,34 @@ import { MultiSelect } from "@/components/ui/multi-select";
 import { NumberInput } from "@/components/ui/number-input";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Select } from "@/components/ui/select";
-import { TextArea } from "@/components/ui/text-area";
+import { ToggleCardGroup } from "@/components/ui/toggle-card-group";
 import { useAutosaveSection } from "@/lib/hooks/use-autosave-section";
-import {
-  ACCESS_LEVEL,
-  BUDGET_BAND,
-  CODE_ACCESS,
-  DD_OBJECTIVE,
-  DD_TYPE_PREFERENCE,
-  DELIVERABLE_FORMAT,
-} from "@/lib/schemas/enums";
+import { ACCESS_LEVEL, BUDGET_BAND, DD_OBJECTIVE, DELIVERABLE_FORMAT } from "@/lib/schemas/enums";
 import { diligenceObjectivesSchema, type DiligenceObjectivesValues } from "@/lib/schemas/intake";
 import { useIntakeStore } from "@/lib/store/intake-store";
+
+const DD_TYPE_OPTIONS = [
+  {
+    value: "Let the platform decide",
+    title: "Let the platform decide",
+    description: "The engine classifies the engagement from your answers and picks the deck.",
+  },
+  {
+    value: "Product Tech DD",
+    title: "Product Tech DD",
+    description: "The software is the asset. Produces the 10-objective product scope.",
+  },
+  {
+    value: "Enterprise IT DD",
+    title: "Enterprise IT DD",
+    description: "Technology enables the business. Produces the enterprise IT focus areas.",
+  },
+  {
+    value: "Blended",
+    title: "Blended",
+    description: "Both decks, weighted by how the engagement scores.",
+  },
+];
 
 export function ObjectivesStepForm({ engagementId }: { engagementId: string }) {
   const router = useRouter();
@@ -40,7 +56,6 @@ export function ObjectivesStepForm({ engagementId }: { engagementId: string }) {
   } = useForm<DiligenceObjectivesValues>({
     resolver: zodResolver(diligenceObjectivesSchema),
     mode: "onBlur",
-    defaultValues: { dd_objectives: [], deliverable_format: [], dd_type_preference: "Let the platform decide" },
   });
 
   const hasHydrated = useRef(false);
@@ -57,9 +72,6 @@ export function ObjectivesStepForm({ engagementId }: { engagementId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watch]);
 
-  const ddTypePreference = watch("dd_type_preference");
-  const showOverrideReason = ddTypePreference && ddTypePreference !== "Let the platform decide";
-
   const onSubmit = handleSubmit(async (values) => {
     await saveNow(values);
     router.push(`/intake/${engagementId}/review`);
@@ -69,12 +81,33 @@ export function ObjectivesStepForm({ engagementId }: { engagementId: string }) {
     <form onSubmit={onSubmit} noValidate>
       <div className="border-t border-line-strong py-8">
         <SectionHeader
-          num="07"
+          num="06"
           title="Diligence Objectives & Logistics"
           hint="What the team needs to answer, what access it will have, and how much time it has to do it."
         />
 
-        <Field label="Diligence objectives" error={errors.dd_objectives?.message}>
+        <Field
+          label="Type of diligence"
+          hint="Which scope of work should this engagement produce? This drives the whole document."
+        >
+          {() => (
+            <Controller
+              name="dd_type_preference"
+              control={control}
+              render={({ field }) => (
+                <ToggleCardGroup
+                  name="dd_type_preference"
+                  columns={2}
+                  options={DD_TYPE_OPTIONS}
+                  value={field.value}
+                  onChange={field.onChange}
+                />
+              )}
+            />
+          )}
+        </Field>
+
+        <Field label="Diligence objectives">
           {() => (
             <Controller
               name="dd_objectives"
@@ -91,32 +124,18 @@ export function ObjectivesStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Access level" error={errors.access_level?.message}>
-            {(id) => (
-              <Select
-                id={id}
-                invalid={!!errors.access_level}
-                placeholder="Select access"
-                options={ACCESS_LEVEL.map((v) => ({ value: v, label: v }))}
-                {...register("access_level")}
-              />
-            )}
-          </Field>
-          <Field label="Code access" error={errors.code_access?.message}>
-            {(id) => (
-              <Select
-                id={id}
-                invalid={!!errors.code_access}
-                placeholder="Select code access"
-                options={CODE_ACCESS.map((v) => ({ value: v, label: v }))}
-                {...register("code_access")}
-              />
-            )}
-          </Field>
-        </div>
+        <Field label="Access level">
+          {(id) => (
+            <Select
+              id={id}
+              placeholder="Select access"
+              options={ACCESS_LEVEL.map((v) => ({ value: v, label: v }))}
+              {...register("access_level")}
+            />
+          )}
+        </Field>
 
-        <Field label="Deliverable format" error={errors.deliverable_format?.message}>
+        <Field label="Deliverable format">
           {() => (
             <Controller
               name="deliverable_format"
@@ -134,18 +153,18 @@ export function ObjectivesStepForm({ engagementId }: { engagementId: string }) {
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Timeline (weeks)" error={errors.timeline_weeks?.message}>
+          <Field label="Timeline (weeks)">
             {(id) => (
               <Controller
                 name="timeline_weeks"
                 control={control}
                 render={({ field }) => (
-                  <NumberInput id={id} invalid={!!errors.timeline_weeks} value={field.value} onValueChange={field.onChange} min={1} />
+                  <NumberInput id={id} value={field.value} onValueChange={field.onChange} min={1} />
                 )}
               />
             )}
           </Field>
-          <Field label="Budget band" optional>
+          <Field label="Budget band">
             {(id) => (
               <Select
                 id={id}
@@ -158,40 +177,17 @@ export function ObjectivesStepForm({ engagementId }: { engagementId: string }) {
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Bid date" optional>
+          <Field label="Bid date">
             {(id) => <DateInput id={id} {...register("bid_date")} />}
           </Field>
-          <Field label="IC date" optional>
+          <Field label="IC date">
             {(id) => <DateInput id={id} {...register("ic_date")} />}
           </Field>
         </div>
-
-        <Field label="Clean team constraints" optional>
-          {(id) => <TextArea id={id} {...register("clean_team_constraints")} />}
-        </Field>
-
-        <Field label="DD type preference" error={errors.dd_type_preference?.message}>
-          {(id) => (
-            <Select
-              id={id}
-              invalid={!!errors.dd_type_preference}
-              options={DD_TYPE_PREFERENCE.map((v) => ({ value: v, label: v }))}
-              {...register("dd_type_preference")}
-            />
-          )}
-        </Field>
-
-        {showOverrideReason && (
-          <Field label="Reason for override" error={errors.dd_type_override_reason?.message}>
-            {(id) => (
-              <TextArea id={id} invalid={!!errors.dd_type_override_reason} {...register("dd_type_override_reason")} />
-            )}
-          </Field>
-        )}
       </div>
 
       {isSubmitted && Object.keys(errors).length > 0 && (
-        <p role="alert" className="mb-4 font-mono text-xs text-redline">
+        <p role="alert" className="mb-4 font-sans text-xs font-medium text-redline">
           Fix the highlighted fields before continuing.
         </p>
       )}

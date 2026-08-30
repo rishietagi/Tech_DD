@@ -7,21 +7,13 @@ import { Controller, useForm } from "react-hook-form";
 
 import { StepFooter } from "@/components/intake/step-footer";
 import { Field } from "@/components/ui/field";
-import { MultiSelect } from "@/components/ui/multi-select";
 import { NumberInput } from "@/components/ui/number-input";
 import { SectionHeader } from "@/components/ui/section-header";
 import { Select } from "@/components/ui/select";
 import { TextArea } from "@/components/ui/text-area";
 import { TextInput } from "@/components/ui/text-input";
 import { useAutosaveSection } from "@/lib/hooks/use-autosave-section";
-import {
-  BUSINESS_MODEL,
-  CUSTOMER_CONCENTRATION,
-  DIGITAL_MATURITY,
-  REVENUE_MODEL,
-  REVENUE_STAGE,
-  SECTOR,
-} from "@/lib/schemas/enums";
+import { BUSINESS_MODEL, CUSTOMER_CONCENTRATION, DIGITAL_MATURITY, REVENUE_STAGE, SECTOR } from "@/lib/schemas/enums";
 import { targetCompanySchema, type TargetCompanyValues } from "@/lib/schemas/intake";
 import { useIntakeStore } from "@/lib/store/intake-store";
 
@@ -40,7 +32,6 @@ export function TargetStepForm({ engagementId }: { engagementId: string }) {
   } = useForm<TargetCompanyValues>({
     resolver: zodResolver(targetCompanySchema),
     mode: "onBlur",
-    defaultValues: { revenue_model: [] },
   });
 
   const hasHydrated = useRef(false);
@@ -65,13 +56,17 @@ export function TargetStepForm({ engagementId }: { engagementId: string }) {
   return (
     <form onSubmit={onSubmit} noValidate>
       <div className="border-t border-line-strong py-8">
-        <SectionHeader num="05" title="Target Company" hint="What the company actually sells, to whom, and how it makes money." />
+        <SectionHeader
+          num="04"
+          title="Target Company"
+          hint="What the company actually sells, to whom, and how it makes money."
+        />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Company name" error={errors.company_name?.message}>
-            {(id) => <TextInput id={id} invalid={!!errors.company_name} {...register("company_name")} />}
+          <Field label="Company name">
+            {(id) => <TextInput id={id} {...register("company_name")} />}
           </Field>
-          <Field label="Website" optional>
+          <Field label="Website">
             {(id) => <TextInput id={id} {...register("website")} />}
           </Field>
         </div>
@@ -92,11 +87,10 @@ export function TargetStepForm({ engagementId }: { engagementId: string }) {
               />
             )}
           </Field>
-          <Field label="Business model" error={errors.business_model?.message}>
+          <Field label="Business model">
             {(id) => (
               <Select
                 id={id}
-                invalid={!!errors.business_model}
                 placeholder="Select model"
                 options={BUSINESS_MODEL.map((v) => ({ value: v, label: v }))}
                 {...register("business_model")}
@@ -105,28 +99,10 @@ export function TargetStepForm({ engagementId }: { engagementId: string }) {
           </Field>
         </div>
 
-        <Field label="Revenue model" error={errors.revenue_model?.message}>
-          {() => (
-            <Controller
-              name="revenue_model"
-              control={control}
-              render={({ field }) => (
-                <MultiSelect
-                  name="revenue_model"
-                  options={REVENUE_MODEL.map((v) => ({ value: v, label: v }))}
-                  value={field.value ?? []}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-          )}
-        </Field>
-
-        <Field label="Digital maturity" error={errors.digital_maturity?.message}>
+        <Field label="Digital maturity" hint="If known — the single strongest signal for what kind of DD this is.">
           {(id) => (
             <Select
               id={id}
-              invalid={!!errors.digital_maturity}
               placeholder="Select maturity"
               options={DIGITAL_MATURITY.map((v) => ({ value: v, label: v }))}
               {...register("digital_maturity")}
@@ -135,22 +111,21 @@ export function TargetStepForm({ engagementId }: { engagementId: string }) {
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Headcount" error={errors.headcount?.message}>
+          <Field label="Headcount">
             {(id) => (
               <Controller
                 name="headcount"
                 control={control}
                 render={({ field }) => (
-                  <NumberInput id={id} invalid={!!errors.headcount} value={field.value} onValueChange={field.onChange} min={0} />
+                  <NumberInput id={id} value={field.value} onValueChange={field.onChange} min={0} />
                 )}
               />
             )}
           </Field>
-          <Field label="Revenue stage" error={errors.revenue_stage?.message}>
+          <Field label="Revenue stage">
             {(id) => (
               <Select
                 id={id}
-                invalid={!!errors.revenue_stage}
                 placeholder="Select stage"
                 options={REVENUE_STAGE.map((v) => ({ value: v, label: v }))}
                 {...register("revenue_stage")}
@@ -159,11 +134,15 @@ export function TargetStepForm({ engagementId }: { engagementId: string }) {
           </Field>
         </div>
 
+        <Field label="Company revenue">
+          {(id) => <TextInput id={id} {...register("company_revenue")} />}
+        </Field>
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="HQ location" error={errors.hq_location?.message}>
-            {(id) => <TextInput id={id} invalid={!!errors.hq_location} {...register("hq_location")} />}
+          <Field label="HQ location">
+            {(id) => <TextInput id={id} {...register("hq_location")} />}
           </Field>
-          <Field label="Founded year" optional>
+          <Field label="Founded year">
             {(id) => (
               <Controller
                 name="founded_year"
@@ -176,7 +155,11 @@ export function TargetStepForm({ engagementId }: { engagementId: string }) {
           </Field>
         </div>
 
-        <Field label="Customer concentration" optional>
+        <Field label="Office / plant locations" hint="Physical locations of offices, plants or facilities">
+          {(id) => <TextInput id={id} {...register("office_locations")} />}
+        </Field>
+
+        <Field label="Customer concentration">
           {(id) => (
             <Select
               id={id}
@@ -187,18 +170,18 @@ export function TargetStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="M&A history" optional hint="Prior acquisitions, unintegrated estates">
+        <Field label="M&A history" hint="Prior acquisitions, unintegrated estates">
           {(id) => <TextArea id={id} {...register("ma_history")} />}
         </Field>
       </div>
 
       {isSubmitted && Object.keys(errors).length > 0 && (
-        <p role="alert" className="mb-4 font-mono text-xs text-redline">
+        <p role="alert" className="mb-4 font-sans text-xs font-medium text-redline">
           Fix the highlighted fields before continuing.
         </p>
       )}
 
-      <StepFooter backHref={`/intake/${engagementId}/investor`} isSubmitting={isSaving} />
+      <StepFooter backHref={`/intake/${engagementId}/structure`} isSubmitting={isSaving} />
     </form>
   );
 }

@@ -1,15 +1,15 @@
 export default function MethodologyPage() {
   return (
     <main className="mx-auto max-w-[760px] px-7 pt-14 pb-24">
-      <div className="mb-3 font-mono text-xs tracking-[0.16em] text-redline uppercase">Methodology</div>
-      <h1 className="mb-6 font-serif text-4xl font-medium">The Enterprise / Product axis</h1>
+      <div className="mb-3 font-sans text-xs font-semibold tracking-[0.08em] text-kpmg-blue uppercase">Methodology</div>
+      <h1 className="mb-6 font-display font-semibold text-4xl">The Enterprise / Product axis</h1>
       <p className="mb-10 font-sans text-[17px] leading-[1.6] text-muted">
         Two archetypes sit at the ends of one spectrum. Real engagements are a blend; the platform expresses the
         blend as a ratio, not a binary.
       </p>
 
       <section className="mb-12 border-t border-line-strong pt-8">
-        <h2 className="mb-3 font-serif text-2xl font-medium">Enterprise Tech DD</h2>
+        <h2 className="mb-3 font-display font-semibold text-2xl">Enterprise Tech DD</h2>
         <p className="mb-4 font-sans text-[15px] leading-[1.6] text-text">
           Technology is an <em>enabler of</em> the business. The question is whether the IT estate supports the
           plan, and what it will cost.
@@ -30,7 +30,7 @@ export default function MethodologyPage() {
       </section>
 
       <section className="mb-12 border-t border-line-strong pt-8">
-        <h2 className="mb-3 font-serif text-2xl font-medium">Product Tech DD</h2>
+        <h2 className="mb-3 font-display font-semibold text-2xl">Product Tech DD</h2>
         <p className="mb-4 font-sans text-[15px] leading-[1.6] text-text">
           Technology <em>is</em> the business. The question is whether the product and the team behind it can carry
           the growth case.
@@ -51,7 +51,7 @@ export default function MethodologyPage() {
       </section>
 
       <section className="border-t border-line-strong pt-8">
-        <h2 className="mb-4 font-serif text-2xl font-medium">Modifiers that apply to both</h2>
+        <h2 className="mb-4 font-display font-semibold text-2xl">Modifiers that apply to both</h2>
         <ul className="space-y-4 font-sans text-[15px] leading-[1.6] text-muted">
           <li>
             <strong className="text-text">Majority</strong> stake → deeper access, control-oriented workstreams

@@ -1,0 +1,24 @@
+# KPMG scope-of-work library manifest.
+#
+# Bump `library_version` whenever a deck's client-facing wording changes; it is recorded
+# on every generated scope so a reviewer can tell which wording produced a given document.
+
+library_version: "1.0"
+source_document: "Product and Tech Due Diligence scope_ITeS company v1.1.pdf"
+source_owner: "KPMG India Services LLP"
+source_year: 2024
+
+decks:
+  - id: product
+    file: product.yaml
+    title: Product Due Diligence
+    applies_when: dd_type in [product, blended]
+  - id: enterprise
+    file: enterprise.yaml
+    title: Enterprise IT Due Diligence
+    applies_when: dd_type in [enterprise, blended]
+
+# When the engagement is blended, both decks are emitted and the mix decides which one
+# leads and which is depth-reduced. See services/scope/selection.py.
+blended:
+  lead_threshold: 50

@@ -7,12 +7,12 @@ export default function EngagementsPage() {
     <main className="mx-auto max-w-[1120px] px-7 pt-12 pb-24">
       <div className="mb-8 flex items-center justify-between gap-4">
         <div>
-          <div className="mb-1 font-mono text-xs tracking-[0.16em] text-redline uppercase">Engagements</div>
-          <h1 className="font-serif text-3xl font-medium">The desk&apos;s open files</h1>
+          <div className="mb-1 font-sans text-xs font-semibold tracking-[0.08em] text-kpmg-blue uppercase">Engagements</div>
+          <h1 className="font-display font-semibold text-3xl">The desk&apos;s open files</h1>
         </div>
         <Link
           href="/intake/new"
-          className="rounded-[3px] border border-ink bg-ink px-5 py-3 font-mono text-xs tracking-[0.08em] text-paper-on-ink uppercase transition-colors hover:border-redline-dark hover:bg-redline-dark"
+          className="rounded-full border border-kpmg-blue bg-kpmg-blue px-5 py-3 font-sans text-[13px] font-medium text-white transition-colors hover:border-kpmg-blue-dark hover:bg-kpmg-blue-dark"
         >
           Start an intake
         </Link>

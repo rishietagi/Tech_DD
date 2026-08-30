@@ -6,13 +6,14 @@ export interface DealContext {
   deal_stage?: string;
   process_type?: string;
   source_of_deal?: string;
+  investor_firm_name?: string;
 }
 
 export interface Rationale {
   rationale_narrative?: string;
   value_creation_levers?: string[];
   deal_breakers?: string;
-  known_concerns?: string;
+  focus_areas?: string;
 }
 
 export interface DealStructure {
@@ -20,19 +21,7 @@ export interface DealStructure {
   stake?: "majority" | "minority";
   stake_percent?: number;
   post_close_intent?: string;
-  carve_out_or_tsa?: boolean;
   hold_period_years?: string;
-}
-
-export interface Investor {
-  firm_name?: string;
-  investor_type?: string;
-  deal_lead_name?: string;
-  deal_lead_email?: string;
-  check_size?: string;
-  enterprise_value?: string;
-  existing_portfolio_overlap?: string;
-  investor_tech_capability?: string;
 }
 
 export interface TargetCompany {
@@ -41,11 +30,12 @@ export interface TargetCompany {
   sector?: string;
   line_of_business?: string;
   business_model?: string;
-  revenue_model?: string[];
   digital_maturity?: string;
   headcount?: number;
   revenue_stage?: string;
+  company_revenue?: string;
   hq_location?: string;
+  office_locations?: string;
   geographies?: string[];
   customer_concentration?: string;
   founded_year?: number;
@@ -71,36 +61,24 @@ export interface TechnologyProfile {
 export interface DiligenceObjectives {
   dd_objectives?: string[];
   access_level?: string;
-  code_access?: string;
   deliverable_format?: string[];
   timeline_weeks?: number;
   bid_date?: string;
   ic_date?: string;
   budget_band?: string;
-  clean_team_constraints?: string;
   dd_type_preference?: string;
-  dd_type_override_reason?: string;
 }
 
 export interface IntakeDraft {
   context: DealContext | null;
   rationale: Rationale | null;
   structure: DealStructure | null;
-  investor: Investor | null;
   target: TargetCompany | null;
   technology: TechnologyProfile | null;
   objectives: DiligenceObjectives | null;
 }
 
-export const INTAKE_STEPS = [
-  "context",
-  "rationale",
-  "structure",
-  "investor",
-  "target",
-  "technology",
-  "objectives",
-] as const;
+export const INTAKE_STEPS = ["context", "rationale", "structure", "target", "technology", "objectives"] as const;
 
 export type IntakeStep = (typeof INTAKE_STEPS)[number];
 
@@ -108,7 +86,6 @@ export const INTAKE_STEP_LABELS: Record<IntakeStep, string> = {
   context: "Deal Context",
   rationale: "Rationale",
   structure: "Deal Structure",
-  investor: "Investor",
   target: "Target Company",
   technology: "Technology Profile",
   objectives: "Objectives & Logistics",
@@ -118,7 +95,6 @@ export type IntakeSectionPayload =
   | DealContext
   | Rationale
   | DealStructure
-  | Investor
   | TargetCompany
   | TechnologyProfile
   | DiligenceObjectives;

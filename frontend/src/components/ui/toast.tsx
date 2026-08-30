@@ -32,7 +32,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {messages.map((m) => (
           <div
             key={m.id}
-            className={`rounded-[3px] border px-4 py-2.5 font-mono text-xs shadow-md ${
+            className={`rounded-xl border px-4 py-2.5 font-sans text-[13px] font-medium shadow-md ${
               m.tone === "error" ? "border-redline bg-paper text-redline" : "border-line-strong bg-ink text-paper"
             }`}
           >

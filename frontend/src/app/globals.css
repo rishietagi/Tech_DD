@@ -19,10 +19,19 @@
   --color-steel-tint: var(--steel-tint);
   --color-paper-on-ink: var(--paper-on-ink);
 
-  --radius-token: var(--radius);
+  --color-kpmg-blue: var(--kpmg-blue);
+  --color-kpmg-blue-dark: var(--kpmg-blue-dark);
+  --color-kpmg-blue-light: var(--kpmg-blue-light);
+  --color-kpmg-blue-tint: var(--kpmg-blue-tint);
+  --color-kpmg-blue-tint-strong: var(--kpmg-blue-tint-strong);
 
-  --font-serif: var(--font-newsreader), Georgia, serif;
-  --font-sans: var(--font-plex-sans), -apple-system, "Segoe UI", sans-serif;
+  --radius-token: var(--radius);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+
+  --font-display: var(--font-manrope), -apple-system, "Segoe UI", sans-serif;
+  --font-sans: var(--font-inter), -apple-system, "Segoe UI", sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, SFMono-Regular, monospace;
 }
 

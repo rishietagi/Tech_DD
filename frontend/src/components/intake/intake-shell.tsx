@@ -5,8 +5,6 @@ import { useEffect } from "react";
 
 import { AutosaveIndicator } from "@/components/intake/autosave-indicator";
 import { FieldCounter } from "@/components/intake/field-counter";
-import { LedgerChips } from "@/components/intake/ledger-chips";
-import { LedgerRail } from "@/components/intake/ledger-rail";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Stamp, type StampState } from "@/components/ui/stamp";
@@ -39,14 +37,11 @@ export function IntakeShell({ engagementId, children }: { engagementId: string; 
 
   if (isLoading || storeEngagementId !== engagementId) {
     return (
-      <main className="mx-auto max-w-[1120px] px-7 pb-24">
-        <div className="grid grid-cols-1 gap-14 md:grid-cols-[200px_1fr]">
-          <div />
-          <div className="space-y-4 pt-10">
-            <Skeleton className="h-8 w-1/3" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
-          </div>
+      <main className="mx-auto max-w-[880px] px-8 pt-10 pb-24">
+        <div className="space-y-4">
+          <Skeleton className="h-8 w-1/3" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
         </div>
       </main>
     );
@@ -54,7 +49,7 @@ export function IntakeShell({ engagementId, children }: { engagementId: string; 
 
   if (isError || !engagement) {
     return (
-      <main className="mx-auto max-w-[720px] px-7 py-20">
+      <main className="mx-auto max-w-[720px] px-8 py-20">
         <ErrorState
           title="Couldn't load this engagement"
           description="It may not exist, or the API may be unreachable."
@@ -62,7 +57,7 @@ export function IntakeShell({ engagementId, children }: { engagementId: string; 
             <button
               type="button"
               onClick={() => refetch()}
-              className="rounded-[3px] border border-line-strong px-5 py-2.5 font-mono text-xs uppercase"
+              className="rounded-full border border-line-strong px-5 py-2.5 font-sans text-[13px] font-medium"
             >
               Retry
             </button>
@@ -74,27 +69,18 @@ export function IntakeShell({ engagementId, children }: { engagementId: string; 
 
   return (
     <div>
-      <section className="relative mx-auto max-w-[920px] px-7 pt-10 pb-6">
-        <div className="mb-2 font-mono text-xs tracking-[0.16em] text-redline uppercase">
-          {engagement.deal_name}
+      <section className="mx-auto max-w-[880px] px-8 pt-10 pb-6">
+        <div className="mb-3 flex items-start justify-between gap-4">
+          <div className="font-sans text-xs font-semibold tracking-[0.08em] text-kpmg-blue uppercase">{engagement.deal_name}</div>
+          <Stamp state={stampStateFor(engagement.status, visitedSteps.size)} />
         </div>
         <div className="flex items-center justify-between gap-4">
           <FieldCounter filled={visitedSteps.size} total={INTAKE_STEPS.length} />
           <AutosaveIndicator status={saveStatus} lastSavedAt={lastSavedAt} />
         </div>
-        <div className="absolute top-8 right-7">
-          <Stamp state={stampStateFor(engagement.status, visitedSteps.size)} />
-        </div>
       </section>
 
-      <LedgerChips engagementId={engagementId} />
-
-      <main className="mx-auto max-w-[1120px] px-7 pb-24">
-        <div className="grid grid-cols-1 gap-14 md:grid-cols-[200px_1fr] md:items-start">
-          <LedgerRail engagementId={engagementId} visitedSteps={visitedSteps} />
-          <div>{children}</div>
-        </div>
-      </main>
+      <main className="mx-auto max-w-[880px] px-8 pb-24">{children}</main>
     </div>
   );
 }

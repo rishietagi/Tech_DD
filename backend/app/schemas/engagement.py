@@ -17,7 +17,6 @@ class EngagementCreate(BaseModel):
 class EngagementDenormRead(BaseModel):
     company_name: str | None = None
     sector: str | None = None
-    investor_firm: str | None = None
     investment_type: str | None = None
     stake: str | None = None
     digital_maturity: str | None = None

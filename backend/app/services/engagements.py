@@ -14,11 +14,14 @@ from app.schemas.intake import (
     IntakeFull,
 )
 
-INTAKE_STEP_ORDER = ["context", "rationale", "structure", "investor", "target", "technology", "objectives"]
+INTAKE_STEP_ORDER = ["context", "rationale", "structure", "target", "technology", "objectives"]
 
+# The user's declared archetype maps straight onto denorm.dd_type. "Let the platform
+# decide" leaves it NULL until the scope engine computes one (TODO(phase-2): backfill
+# from the generated scope's classification).
 _DD_TYPE_VALUE_MAP = {
-    DdTypePreference.enterprise_tech_dd.value: "enterprise",
-    DdTypePreference.product_tech_dd.value: "product",
+    DdTypePreference.enterprise.value: "enterprise",
+    DdTypePreference.product.value: "product",
     DdTypePreference.blended.value: "blended",
 }
 
@@ -116,8 +119,6 @@ def _sync_denorm(engagement: Engagement, section: str, merged: dict[str, object]
         denorm.company_name = _as_str(merged.get("company_name"))
         denorm.sector = _as_str(merged.get("sector"))
         denorm.digital_maturity = _as_str(merged.get("digital_maturity"))
-    elif section == "investor":
-        denorm.investor_firm = _as_str(merged.get("firm_name"))
     elif section == "structure":
         denorm.investment_type = _as_str(merged.get("investment_type"))
         denorm.stake = _as_str(merged.get("stake"))

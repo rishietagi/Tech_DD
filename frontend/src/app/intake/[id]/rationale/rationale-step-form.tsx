@@ -30,7 +30,6 @@ export function RationaleStepForm({ engagementId }: { engagementId: string }) {
   } = useForm<RationaleValues>({
     resolver: zodResolver(rationaleSchema),
     mode: "onBlur",
-    defaultValues: { value_creation_levers: [] },
   });
 
   const hasHydrated = useRef(false);
@@ -61,13 +60,11 @@ export function RationaleStepForm({ engagementId }: { engagementId: string }) {
           hint="The thesis in plain terms — what does the buyer believe, and what would prove it wrong?"
         />
 
-        <Field label="Rationale" error={errors.rationale_narrative?.message}>
-          {(id) => (
-            <TextArea id={id} invalid={!!errors.rationale_narrative} {...register("rationale_narrative")} />
-          )}
+        <Field label="Rationale">
+          {(id) => <TextArea id={id} {...register("rationale_narrative")} />}
         </Field>
 
-        <Field label="Value creation levers" error={errors.value_creation_levers?.message}>
+        <Field label="Value creation levers">
           {() => (
             <Controller
               name="value_creation_levers"
@@ -84,17 +81,20 @@ export function RationaleStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="Deal breakers" optional>
+        <Field label="Deal breakers">
           {(id) => <TextArea id={id} {...register("deal_breakers")} />}
         </Field>
 
-        <Field label="Known concerns" optional>
-          {(id) => <TextArea id={id} {...register("known_concerns")} />}
+        <Field
+          label="Focus areas"
+          hint="What should the diligence broadly cover, and how deep should it go? These questions shape what the team investigates and how much depth each area gets."
+        >
+          {(id) => <TextArea id={id} {...register("focus_areas")} />}
         </Field>
       </div>
 
       {isSubmitted && Object.keys(errors).length > 0 && (
-        <p role="alert" className="mb-4 font-mono text-xs text-redline">
+        <p role="alert" className="mb-4 font-sans text-xs font-medium text-redline">
           Fix the highlighted fields before continuing.
         </p>
       )}

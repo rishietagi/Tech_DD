@@ -1,0 +1,434 @@
+# Scope engine decision rules — DD_master.md §15, encoded.
+#
+# Rule ids are preserved EXACTLY so a signal shown in the UI maps back to a line in the
+# reference document. A practitioner tunes weights here without touching Python.
+#
+# STATUS field, per rule:
+#   active   - fires on the current intake
+#   disabled - deliberately dropped; `reason` says why (see MEMORY / Rishi's decisions)
+#   dormant  - would fire, but its input field is not on the intake. Records an
+#              "unknown" signal that LOWERS CONFIDENCE. Never an error.
+#
+# Weights in 15.1 are a starting calibration, explicitly flagged in DD_master as needing
+# tuning against real engagements. The golden-case tests are what make tuning safe.
+
+rules_version: "1.0"
+source: "DD_master.md §15 (Roehl-Anderson 2013, Deloitte; [EXT] items are modern practice)"
+
+# CALIBRATION NOTE (observed 2026-08-30, to be settled by the golden cases in step 5):
+# the raw deltas saturate. Product-pulling rules total +105 and enterprise-pulling −70,
+# so a typical SaaS target reaches +95 (clamps to 100) and a typical ERP-heavy
+# manufacturer −60 (clamps to 0). That makes the 35–65 "blended" band nearly
+# unreachable, which contradicts DD_master §3.4 (real engagements are a blend).
+# `damping` scales every delta before it is applied, pulling realistic engagements back
+# into a usable range without changing the sourced weights themselves — DD_master's
+# directions stay intact, only the arithmetic is the platform's (§5 "[EXT, structure only]").
+mix:
+  start: 50
+  clamp: [0, 100]
+  damping: 0.55
+  bands:
+    enterprise: [0, 34]
+    blended: [35, 65]
+    product: [66, 100]
+
+confidence:
+  # Confidence falls when few rules fire, when they conflict, or when dormant rules
+  # mean we are reasoning on partial information.
+  high_min_signals: 5
+  medium_min_signals: 3
+  conflict_penalty: 1        # both directions fired strongly
+  dormant_penalty_per_3: 1   # one step down per three dormant inputs
+
+# ---------------------------------------------------------------- 15.1 archetype mix
+
+archetype:
+  - id: A1
+    status: active
+    field: technology.tech_is_product
+    when: {equals: "Yes, the software is the product"}
+    mix_delta: 35
+    label: Software is the product
+    citation: "Roehl-Anderson 2013, p. 76-77"
+    provenance: sourced
+
+  - id: A2
+    status: active
+    field: target.digital_maturity
+    when: {equals: "Digital native"}
+    mix_delta: 25
+    label: Target is digital-native
+    citation: "Roehl-Anderson 2013, p. 76-77"
+    provenance: sourced
+
+  - id: A3
+    status: active
+    field: target.digital_maturity
+    when: {equals: "Traditional"}
+    mix_delta: -20
+    label: Traditional business; software supports operations
+    citation: "Roehl-Anderson 2013, p. 72"
+    provenance: sourced
+
+  - id: A4
+    status: active
+    field: technology.build_vs_buy
+    when:
+      any_of:
+        - {equals: "Predominantly COTS/packaged (ERP, CRM, etc.)"}
+        - {other_field: technology.core_systems, intersects: [SAP, Oracle, "Microsoft Dynamics", NetSuite, Workday]}
+    mix_delta: -20
+    label: COTS/ERP-heavy estate
+    citation: "Roehl-Anderson 2013, p. 197"
+    provenance: sourced
+
+  - id: A5
+    status: active
+    field: technology.build_vs_buy
+    when: {equals: "Predominantly in-house build"}
+    mix_delta: 15
+    label: Predominantly in-house build
+    citation: "Roehl-Anderson 2013, p. 75"
+    provenance: sourced
+
+  - id: A6
+    status: active
+    field: technology.engineering_share_pct
+    when: {gte: 30}
+    mix_delta: 10
+    label: Engineering is a large share of headcount
+    citation: null
+    provenance: extended
+
+  - id: A7
+    status: dormant
+    dormant_reason: >-
+      investor_type was removed with the Investor step on 2026-08-30; only the firm
+      name is captured now.
+    field: context.investor_type
+    when: {in: [VC, "Growth equity"]}
+    mix_delta: 10
+    label: Venture or growth-equity investor
+    citation: "Roehl-Anderson 2013, p. 496"
+    provenance: sourced
+
+  - id: A8
+    status: dormant
+    dormant_reason: "deal_type is not on the intake (PHASE2_SCOPE_ENGINE §9.3 fields declined)."
+    field: structure.deal_type
+    when: {equals: carve_out}
+    mix_delta: -10
+    force_workstream: {id: W-SEP, min_tier: 2}
+    label: Carve-out transaction
+    citation: "Roehl-Anderson 2013, p. 71, 78"
+    provenance: sourced
+
+  - id: A9
+    status: active
+    field: structure.post_close_intent
+    when: {equals: "Integrate into existing platform"}
+    requires: {field: structure.investment_type, equals: strategic}
+    mix_delta: -10
+    force_workstream: {id: W-INT, min_tier: 2}
+    label: Strategic acquirer integrating onto an existing platform
+    citation: "Roehl-Anderson 2013, p. 78"
+    provenance: sourced
+
+  - id: A10
+    status: active
+    field: technology.hosting_model
+    when: {equals: "Predominantly on-premise"}
+    mix_delta: -10
+    label: Heavy on-premise footprint
+    citation: "Roehl-Anderson 2013, p. 92"
+    provenance: sourced
+
+  - id: A11
+    status: active
+    field: technology.ai_ml_dependence
+    when: {in: ["Embedded in the product", "Core to the value proposition"]}
+    mix_delta: 10
+    label: AI/ML is material to the product
+    citation: null
+    provenance: extended
+
+# ------------------------------------------------------- 15.2 mandatory workstreams
+
+mandatory:
+  - id: M1
+    status: active
+    always: true
+    workstreams: [W-OPS, W-APP, W-INFRA, W-SPEND]
+    min_tier: 1
+    label: Core coverage is never dropped
+    citation: "Roehl-Anderson 2013, p. 72"
+    provenance: sourced
+
+  - id: M2
+    status: active
+    field: technology.data_sensitivity
+    when: {non_empty_excluding: ["None"]}
+    workstreams: [W-SEC, W-DATA]
+    min_tier: 2
+    label: Regulated or sensitive data present
+    citation: "Roehl-Anderson 2013, p. 73"
+    provenance: sourced
+
+  - id: M3
+    status: active
+    field: technology.compliance_regimes
+    when: {non_empty_excluding: ["None known"]}
+    workstreams: [W-PROC]
+    min_tier: 2
+    label: Compliance regimes in scope
+    citation: "Roehl-Anderson 2013, p. 288-289"
+    provenance: sourced
+
+  - id: M4
+    status: dormant
+    dormant_reason: >-
+      Both inputs are off the intake: deal_type (§9.3 declined) and carve_out_or_tsa
+      (removed 2026-08-30 at Rishi's request).
+    field: structure.deal_type
+    when: {equals: carve_out}
+    workstreams: [W-SEP]
+    min_tier: 2
+    label: Carve-out or TSA involved
+    citation: "Roehl-Anderson 2013, p. 78"
+    provenance: sourced
+
+  - id: M5
+    status: active
+    field: structure.post_close_intent
+    when: {equals: "Integrate into existing platform"}
+    workstreams: [W-INT]
+    min_tier: 2
+    label: Integration intended post-close
+    citation: "Roehl-Anderson 2013, p. 71"
+    provenance: sourced
+
+  - id: M6
+    status: active
+    field: technology.tech_is_product
+    when:
+      in:
+        - "Yes, the software is the product"
+        - "Partly, software is a major differentiator"
+    workstreams: [W-PROD]
+    min_tier: 2
+    label: Proprietary technology is a revenue asset
+    citation: "Roehl-Anderson 2013, p. 76-77"
+    provenance: sourced
+
+  - id: M7
+    status: active
+    always: true
+    workstreams: [W-VEN]
+    min_tier: 2
+    label: Contract transfer implied by the transaction
+    note_injection: VEN-LEADTIME
+    citation: "Roehl-Anderson 2013, p. 222"
+    provenance: sourced
+
+# -------------------------------------------------------- 15.3 depth and access gates
+
+depth:
+  - id: D1
+    status: disabled
+    disabled_reason: >-
+      code_access was removed from the intake on 2026-08-30. Rishi: "remove code access
+      we will not need that to generate scope of work anything code related we wont be
+      using." Acceptance criterion G2 is scoped down to access_level accordingly.
+    citation: null
+    provenance: extended
+
+  - id: D2
+    status: active
+    field: objectives.access_level
+    when: {equals: "Limited or public information"}
+    cap_all_tiers_at: 1
+    label: Public information only — this is a screen, not an assessment
+    citation: "Roehl-Anderson 2013, p. 70"
+    provenance: sourced
+
+  - id: D3
+    status: dormant
+    dormant_reason: "management_access is not on the intake (§9.3 fields declined)."
+    field: objectives.management_access
+    when: {equals: none}
+    strip_interview_evidence: true
+    label: No management access
+    citation: "Roehl-Anderson 2013, p. 84"
+    provenance: sourced
+
+  - id: D4
+    status: active
+    field: objectives.timeline_weeks
+    when: {lte: 3}
+    cap_all_tiers_at: 1
+    allow_single_deep_dive: true
+    label: Compressed timeline — breadth first, one deep dive
+    citation: "Roehl-Anderson 2013, p. 71"
+    provenance: sourced
+
+  - id: D5
+    status: active
+    field: context.deal_stage
+    when: {in: ["Exploratory", "Bid situation"]}
+    posture: red_flag
+    prefer_breadth: true
+    label: Early-stage posture — breadth over depth
+    citation: "Roehl-Anderson 2013, p. 71"
+    provenance: sourced
+
+  - id: D6
+    status: active
+    field: context.deal_stage
+    when: {in: ["Exclusivity"]}
+    posture: confirmatory
+    require_cost_model: true
+    label: Confirmatory posture — depth on flagged areas, cost model required
+    citation: "Roehl-Anderson 2013, p. 86"
+    provenance: sourced
+
+  - id: D7
+    status: active
+    field: structure.investment_type
+    when: {equals: financial}
+    sweep_then_target: true
+    label: Financial buyer — sweep, then target the risk and cost areas
+    citation: "Roehl-Anderson 2013, p. 79"
+    provenance: sourced
+
+  - id: D8
+    status: active
+    field: structure.investment_type
+    when: {equals: strategic}
+    requires: {field: structure.post_close_intent, equals: "Integrate into existing platform"}
+    floor_all_tiers_at: 2
+    label: Strategic acquirer integrating — depth on every domain
+    citation: "Roehl-Anderson 2013, p. 78"
+    provenance: sourced
+
+  - id: D9
+    status: dormant
+    dormant_reason: "it_landscape_complexity is not on the intake (§9.3 fields declined)."
+    field: technology.it_landscape_complexity
+    when: {equals: high}
+    tier_bump: {workstreams: [W-APP, W-INFRA], by: 1}
+    flag_sma_required: true
+    label: Complex IT landscape
+    citation: "Roehl-Anderson 2013, p. 71"
+    provenance: sourced
+
+  - id: D10
+    status: dormant
+    dormant_reason: "relative_size is not on the intake (§9.3 fields declined)."
+    field: structure.relative_size
+    when: {in: [comparable, target_larger]}
+    tier_bump: {workstreams: [W-APP], by: 1}
+    label: Target comparable to or larger than the buyer
+    citation: "Roehl-Anderson 2013, p. 71"
+    provenance: sourced
+
+# ------------------------------------------------------------ 15.4 content injection
+
+content:
+  - id: C1
+    status: active
+    field: technology.core_systems
+    when: {intersects: [SAP, Oracle, "Microsoft Dynamics", NetSuite, Workday]}
+    inject: ERP-COST
+    label: ERP present — integration cost concentration
+    text: >-
+      ERP integration typically accounts for approximately 80% of total integration
+      cost. Treat the ERP disposition as its own decision with its own timeline.
+    citation: "Roehl-Anderson 2013, p. 197"
+    provenance: sourced
+
+  - id: C2
+    status: dormant
+    dormant_reason: "Needs a cross-border signal; geographies is free-form and deal_type is absent."
+    field: technology.hosting_model
+    when: {in: ["Predominantly on-premise", "Colocation"]}
+    inject: CIRCUIT-LEADTIME
+    label: On-premise/colocation — circuit and firewall lead times
+    text: >-
+      Dedicated circuits and multinational firewall build/testing carry four to six
+      month lead times, country by country. Order early.
+    citation: "Roehl-Anderson 2013, p. 93, 259"
+    provenance: sourced
+
+  - id: C3
+    status: dormant
+    dormant_reason: "deal_type is not on the intake (§9.3 fields declined)."
+    field: structure.deal_type
+    when: {equals: carve_out}
+    inject: CARVE-OUT-QUESTIONS
+    label: Carve-out investigation questions
+    citation: "Roehl-Anderson 2013, p. 78"
+    provenance: sourced
+
+  - id: C4
+    status: dormant
+    dormant_reason: "deal_type is not on the intake (§9.3 fields declined)."
+    field: structure.deal_type
+    when: {equals: joint_venture}
+    inject: JV-QUESTIONS
+    label: Joint-venture responsibility split
+    citation: "Roehl-Anderson 2013, p. 78"
+    provenance: sourced
+
+  - id: C5
+    status: active
+    always: true
+    inject: DATA-ROOM-MAP
+    label: Hidden data-room folder map
+    text: >-
+      IT evidence commonly sits outside the IT folder: IT budgets and fixed-asset
+      inventory in Finance; org charts, headcount and CVs in HR; IT contracts and IP
+      inventory in Legal; data centre locations in Real Estate.
+    citation: "Roehl-Anderson 2013, p. 84 (Exhibit 5.9)"
+    provenance: sourced
+
+  - id: C6
+    status: active
+    always: true
+    inject: INITIAL-DATA-REQUEST
+    label: Opening data request
+    citation: "Roehl-Anderson 2013, p. 83"
+    provenance: sourced
+
+  - id: C7
+    status: dormant
+    dormant_reason: "carve_out_or_tsa was removed from the intake on 2026-08-30."
+    field: structure.carve_out_or_tsa
+    when: {equals: true}
+    inject: TSA-CHECKLIST
+    label: TSA scope checklist
+    citation: "Roehl-Anderson 2013, p. 517, 270"
+    provenance: sourced
+
+  - id: C8
+    status: active
+    field: technology.ai_ml_dependence
+    when: {in: ["Embedded in the product", "Core to the value proposition"]}
+    inject: AI-GOVERNANCE
+    label: AI and model governance questions
+    text: >-
+      Where AI/ML is material, cover model inventory and lineage, training-data
+      provenance and rights, vendor and model lock-in, inference cost per unit of
+      revenue, and evaluation and monitoring practice.
+    citation: null
+    provenance: extended
+
+  - id: C9
+    status: active
+    always: true
+    inject: COST-LANGUAGE
+    label: Order-of-magnitude cost language
+    text: >-
+      Cost estimates are presented as order-of-magnitude ranges with a stated
+      assumptions register, never as point estimates.
+    citation: "Roehl-Anderson 2013, p. 87"
+    provenance: sourced
