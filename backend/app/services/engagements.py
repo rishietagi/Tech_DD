@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from typing import cast
 
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -9,9 +10,17 @@ from app.models.engagement import Engagement, EngagementDenorm, EngagementIntake
 from app.reference.enums import DdTypePreference, EngagementStatus
 from app.schemas.engagement import EngagementCreate, EngagementUpdate
 from app.schemas.intake import (
+    SECTION_DRAFT_MODELS,
     SECTION_JSON_COLUMNS,
     SECTION_REQUIRED_MODELS,
+    DealContextRequired,
+    DealStructureRequired,
+    DiligenceObjectivesRequired,
     IntakeFull,
+    RationaleRequired,
+    SectionBase,
+    TargetCompanyRequired,
+    TechnologyProfileRequired,
 )
 
 INTAKE_STEP_ORDER = ["context", "rationale", "structure", "target", "technology", "objectives"]
@@ -156,6 +165,45 @@ def assemble_intake_full(engagement: Engagement) -> IntakeFull:
         )
 
     return IntakeFull.model_validate(section_values)
+
+
+def assemble_intake_draft(engagement: Engagement) -> tuple[IntakeFull, bool]:
+    """Best-effort IntakeFull from a possibly-incomplete draft.
+
+    Powers the live scope preview, which has to work while the user is still typing.
+    Sections that do not yet validate are substituted with an empty one, so the engine
+    sees "not answered" rather than failing. Returns (intake, is_complete).
+
+    Never use this for a filed scope — `assemble_intake_full` is the strict path.
+    """
+    intake = engagement.intake
+    sections: dict[str, SectionBase] = {}
+    is_complete = True
+
+    for section in INTAKE_STEP_ORDER:
+        column = SECTION_JSON_COLUMNS[section]
+        raw = getattr(intake, column) or {}
+        model_cls = SECTION_REQUIRED_MODELS[section]
+        try:
+            sections[section] = model_cls.model_validate(raw)
+        except ValidationError:
+            is_complete = False
+            # Fall back to the draft model, which has no required fields, then coerce
+            # it into the strict shape with whatever the user has answered so far.
+            draft = SECTION_DRAFT_MODELS[section].model_validate(raw)
+            sections[section] = model_cls.model_construct(**draft.model_dump())
+
+    return (
+        IntakeFull.model_construct(
+            context=cast(DealContextRequired, sections["context"]),
+            rationale=cast(RationaleRequired, sections["rationale"]),
+            structure=cast(DealStructureRequired, sections["structure"]),
+            target=cast(TargetCompanyRequired, sections["target"]),
+            technology=cast(TechnologyProfileRequired, sections["technology"]),
+            objectives=cast(DiligenceObjectivesRequired, sections["objectives"]),
+        ),
+        is_complete,
+    )
 
 
 def submit_engagement(db: Session, engagement_id: str) -> Engagement:

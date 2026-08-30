@@ -74,9 +74,16 @@ def test_full_intake_flow(client: TestClient) -> None:
     assert scope_response.status_code == 200, scope_response.text
     scope_body = scope_response.json()
     assert scope_body["version"] == 1
-    assert scope_body["generator"] == "placeholder"
-    assert scope_body["payload"]["is_placeholder"] is True
-    assert len(scope_body["payload"]["workstreams"]) >= 2
+    assert scope_body["generator"] == "rules"
+
+    payload = scope_body["payload"]
+    assert payload["schema_version"] == 2
+    assert payload["is_placeholder"] is False
+    # The intake declared "Product Tech DD", so the product deck ships.
+    assert payload["classification"]["dd_type"] == "product"
+    assert len(payload["rows"]) >= 5
+    assert payload["exclusions"], "a scope must state what it excludes (G4)"
+    assert payload["provenance"], "a scope must show the rules that fired (G5)"
 
     latest_response = client.get(f"/api/v1/engagements/{engagement_id}/scope")
     assert latest_response.status_code == 200

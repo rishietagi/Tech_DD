@@ -1,3 +1,5 @@
+import { WorkstreamLibraryView } from "@/components/engagement/workstream-library";
+
 export default function MethodologyPage() {
   return (
     <main className="mx-auto max-w-[760px] px-7 pt-14 pb-24">
@@ -73,10 +75,16 @@ export default function MethodologyPage() {
             lock-in, inference cost workstreams.
           </li>
           <li>
-            <strong className="text-text">Deal stage &amp; access level</strong> → determine depth (red-flag vs
-            confirmatory) and whether code-level review is even possible.
+            <strong className="text-text">Deal stage &amp; access level</strong> → determine depth: an
+            exploratory look is a red-flag screen, an exclusivity engagement is confirmatory, and public
+            information alone caps every area at a screen.
           </li>
         </ul>
+      </section>
+
+      <section className="mb-12 border-t border-line-strong pt-8">
+        <h2 className="mb-3 font-display font-semibold text-2xl">The scope library</h2>
+        <WorkstreamLibraryView />
       </section>
     </main>
   );

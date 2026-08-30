@@ -5,6 +5,8 @@ import type {
   EnumsResponse,
   ScopeOfWorkRead,
   ScopeOfWorkVersionSummary,
+  ScopePreview,
+  WorkstreamLibrary,
 } from "@/types/engagement";
 import type { IntakeSectionPayload, IntakeStep } from "@/types/intake";
 
@@ -28,12 +30,30 @@ export const engagementsApi = {
 };
 
 export const scopeApi = {
-  generate: (engagementId: string) => apiClient.post<ScopeOfWorkRead>(`/engagements/${engagementId}/scope`),
+  generate: (engagementId: string, generator?: "rules" | "llm") =>
+    apiClient.post<ScopeOfWorkRead>(`/engagements/${engagementId}/scope`, generator ? { generator } : {}),
+
   getLatest: (engagementId: string) => apiClient.get<ScopeOfWorkRead>(`/engagements/${engagementId}/scope`),
+
+  getVersion: (engagementId: string, version: number) =>
+    apiClient.get<ScopeOfWorkRead>(`/engagements/${engagementId}/scope/${version}`),
+
   listVersions: (engagementId: string) =>
     apiClient.get<ScopeOfWorkVersionSummary[]>(`/engagements/${engagementId}/scope/versions`),
+
+  /** Classification from a draft intake. Safe to call while the user is still typing. */
+  preview: (engagementId: string) =>
+    apiClient.post<ScopePreview>(`/engagements/${engagementId}/scope/preview`),
+
+  overrideRow: (
+    engagementId: string,
+    version: number,
+    rowId: string,
+    payload: { tier?: number; title?: string; reason?: string },
+  ) => apiClient.patch<ScopeOfWorkRead>(`/engagements/${engagementId}/scope/${version}/rows/${rowId}`, payload),
 };
 
 export const metaApi = {
   enums: () => apiClient.get<{ enums: EnumsResponse }>("/meta/enums"),
+  workstreams: () => apiClient.get<WorkstreamLibrary>("/meta/workstreams"),
 };

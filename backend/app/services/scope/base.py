@@ -1,20 +1,24 @@
-"""The Phase-2 seam (CLAUDE.md §9, initial_plan.md §10).
+"""The ScopeGenerator seam (CLAUDE.md §9).
 
-`ScopeGenerator` is the only contract Phase 2 needs to honor. Phase 1 ships exactly
-one implementation — `PlaceholderScopeGenerator` — selected via the
-`SCOPE_GENERATOR` setting. Phase 2 adds `RulesScopeGenerator` and
-`LlmScopeGenerator` beside it and flips the setting; no route, schema or UI changes.
+`ScopeGenerator` is the only contract a generator has to honour, which is what let
+Phase 2 swap the placeholder for a real engine without touching routes, schemas or UI.
 
-TODO(phase-2): implement signal extraction, Enterprise/Product mix scoring, and
-workstream selection from a versioned module library behind this same protocol.
-Do not add that logic here or anywhere in Phase 1.
+Implementations:
+  - PlaceholderScopeGenerator  Phase 1. Hard-coded v1 payload; retained so existing
+                               scope rows still render.
+  - RulesScopeGenerator        Phase 2. Deterministic KPMG deck, complete and
+                               publishable with no LLM involved.
+  - LlmScopeGenerator          Phase 2 step 8. Rewrites the prose inside a rules-built
+                               document; never decides what the document contains.
+
+Selected by the SCOPE_GENERATOR setting via `factory.get_scope_generator`.
 """
 
 from typing import Protocol
 
 from app.schemas.intake import IntakeFull
-from app.schemas.scope import ScopeOfWorkPayload
+from app.schemas.scope import AnyScopePayload
 
 
 class ScopeGenerator(Protocol):
-    def generate(self, intake: IntakeFull) -> ScopeOfWorkPayload: ...
+    def generate(self, intake: IntakeFull) -> AnyScopePayload: ...

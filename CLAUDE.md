@@ -98,6 +98,7 @@ Glossary the code should use consistently: `engagement`, `intake`, `workstream`,
 | Forms | react-hook-form + zod (`@hookform/resolvers`) |
 | Client state | Zustand for the intake draft; TanStack Query for server state |
 | Backend | Python 3.11 + FastAPI + Pydantic v2 |
+| LLM (Phase 2) | **Google Gemini** (`google-genai`), model `gemini-2.5-flash` — see note below |
 | ORM / DB | SQLAlchemy 2.0 (declarative, typed) + Alembic; SQLite in dev, Postgres in prod via `DATABASE_URL` |
 | Testing | Vitest + Testing Library (FE), pytest + httpx (BE), Playwright for one smoke E2E |
 | Lint/format | ESLint + Prettier (FE); ruff + black + mypy (BE) |
@@ -112,6 +113,15 @@ Hard rules:
   for resilience only; the backend is the source of truth.
 - No `any` in TypeScript. No bare `except:` in Python.
 - Server URLs, keys and secrets come from env vars only. Never hard-code them.
+
+**LLM provider — recorded deviation (2026-08-30).** `PHASE2_SCOPE_ENGINE.md` §8 and
+earlier versions of this table specified the Anthropic Messages API. Rishi chose
+**Gemini** instead: a Claude Pro subscription does not include API credits, and Gemini
+has a free tier (`aistudio.google.com/apikey`, no card required). The LLM layer is
+prose-tailoring only — the deterministic engine decides what the scope contains — so
+the provider choice does not affect defensibility or the audit trail. Swapping back
+means rewriting `services/scope/llm.py` and re-pinning the SDK; nothing else depends
+on it.
 
 ---
 

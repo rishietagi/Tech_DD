@@ -15,13 +15,18 @@ class Settings(BaseSettings):
 
     # LLM tailoring (Phase 2). An absent key is not an error: the factory falls back
     # to the deterministic RulesScopeGenerator with a logged warning.
-    anthropic_api_key: str | None = None
-    anthropic_model: str = "claude-opus-5"
+    #
+    # NOTE: CLAUDE.md §3 specifies the Anthropic API. Rishi chose Gemini on 2026-08-30
+    # because it has a free tier and a Claude Pro subscription does not include API
+    # credits. Recorded here so the code and the constitution do not silently disagree.
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-2.5-flash"
     llm_max_tokens: int = 16000
+    llm_temperature: float = 0.2
 
     @property
     def llm_enabled(self) -> bool:
-        return bool(self.anthropic_api_key)
+        return bool(self.gemini_api_key)
 
     @property
     def cors_origin_list(self) -> list[str]:

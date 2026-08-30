@@ -4,12 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 
 import { ScopeDocument } from "@/components/engagement/scope-document";
+import { ScopeDocumentV2 } from "@/components/engagement/scope-document-v2";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
-import { ApiError } from "@/lib/api/client";
+import { API_BASE_URL, ApiError } from "@/lib/api/client";
 import { engagementsApi, scopeApi } from "@/lib/api/engagements";
+import { isV2Payload } from "@/types/engagement";
 
 export function ScopePage({ engagementId }: { engagementId: string }) {
   const queryClient = useQueryClient();
@@ -76,7 +78,7 @@ export function ScopePage({ engagementId }: { engagementId: string }) {
       <main className="mx-auto max-w-[720px] px-7 py-20">
         <EmptyState
           title="No scope generated yet"
-          description="Generate the Phase 1 placeholder scope for this engagement."
+          description="Derive the scope of work from this engagement's intake."
           action={
             <button
               type="button"
@@ -102,17 +104,36 @@ export function ScopePage({ engagementId }: { engagementId: string }) {
 
   return (
     <main className="mx-auto max-w-[920px] px-7 pt-12 pb-24">
-      <div className="mb-6 flex justify-end">
-        <button
-          type="button"
-          onClick={() => generateMutation.mutate()}
-          disabled={generateMutation.isPending}
-          className="rounded-full border border-line-strong px-4 py-2 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2 disabled:opacity-50"
-        >
-          {generateMutation.isPending ? "Regenerating…" : "Regenerate"}
-        </button>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <span className="font-sans text-[13px] text-muted">
+          Version {scope.version}
+          {" · "}
+          {new Date(scope.created_at).toLocaleDateString()}
+        </span>
+        <div className="flex items-center gap-2">
+          {isV2Payload(scope.payload) && (
+            <a
+              href={`${API_BASE_URL}/engagements/${engagementId}/scope/export`}
+              className="rounded-full border border-line-strong px-4 py-2 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2"
+            >
+              Export Markdown
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={() => generateMutation.mutate()}
+            disabled={generateMutation.isPending}
+            className="rounded-full border border-line-strong px-4 py-2 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2 disabled:opacity-50"
+          >
+            {generateMutation.isPending ? "Regenerating…" : "Regenerate"}
+          </button>
+        </div>
       </div>
-      <ScopeDocument scope={scope} />
+      {isV2Payload(scope.payload) ? (
+        <ScopeDocumentV2 scope={scope.payload} />
+      ) : (
+        <ScopeDocument payload={scope.payload} version={scope.version} />
+      )}
     </main>
   );
 }

@@ -1,18 +1,38 @@
-# Tech DD Platform
+# KPMG Tech Diligence Tool
 
-A Technology Due Diligence intake and scoping platform for investors (PE, VC,
-corporate acquirers, family offices). See `CLAUDE.md` for the project
-constitution and `initial_plan.md` for the Phase 1 build plan.
+A Technology Due Diligence intake and scope-of-work platform. An analyst captures the
+transaction through a six-step intake; the platform derives a tailored, defensible
+scope of work from it.
 
-**Phase 1** (this build) ships the full routed application and the complete,
-persisted eight-step intake, plus a `/engagements/{id}/scope` route that renders
-a clearly-labelled **placeholder** scope of work. The real scope-derivation
-engine is Phase 2 and is not built yet — see `initial_plan.md` §10.
+See `CLAUDE.md` for the project constitution, `DD_master.md` for the domain reference,
+and `KPMG_SOW_LANGUAGE.md` for the house scope-of-work voice.
+
+## What it does
+
+**Phase 1 — intake.** A routed application and a fully persisted six-step intake:
+Deal Context, Rationale, Deal Structure, Target Company, Technology Profile, and
+Objectives & Logistics. Autosaves as you type; resumable by URL.
+
+**Phase 2 — the scope engine.** A filed intake becomes a scope of work:
+
+- **Rules decide coverage.** 37 encoded rules from `DD_master.md` §15 (26 active, 10
+  dormant, 1 disabled) pick which KPMG scope areas open and at what depth. Every
+  decision carries the rule id and page citation that produced it.
+- **The model writes the prose.** With `SCOPE_GENERATOR=llm`, Gemini rewrites the
+  wording so it names the target's actual stack, systems and thesis — inside a
+  document the rules already fixed. It cannot add, remove or re-tier an area; any
+  deviation is rejected and the deterministic scope ships instead.
+- **Everything is auditable.** Classification, signals, tier reasoning, exclusions and
+  a provenance footer, all exportable to Markdown.
+
+The deterministic engine produces a complete, publishable scope with the LLM entirely
+disabled. The model is an improvement to the wording, never a dependency.
 
 ## Stack
 
 - Frontend: Next.js 15 (App Router) + React 19 + TypeScript (strict) + Tailwind v4
 - Backend: FastAPI + Pydantic v2 + SQLAlchemy 2.0 + Alembic, SQLite in dev
+- LLM: Google Gemini (`google-genai`), `gemini-2.5-flash` — see the note in `CLAUDE.md` §3
 - Env: a single conda environment named `techdd` with Python 3.11 and Node 20
 
 ## Setup (Windows, PowerShell)
@@ -38,13 +58,29 @@ copy .env.example frontend\.env.local
 ```
 
 `.env` (repo root) is read by the backend; only `NEXT_PUBLIC_API_BASE_URL` in
-`frontend\.env.local` matters to the frontend. The defaults in `.env.example`
-work out of the box for local development.
+`frontend\.env.local` matters to the frontend. The defaults work out of the box.
+
+### Optional: enable LLM prose tailoring
+
+The engine runs without an API key. To have the model tailor the wording:
+
+1. Get a free key at <https://aistudio.google.com/apikey> (no card required).
+2. In `.env`, set:
+
+   ```
+   GEMINI_API_KEY=your-key-here
+   SCOPE_GENERATOR=llm
+   ```
+
+An absent or invalid key is not an error: the generator falls back to the
+deterministic scope with a logged warning, and the payload records which happened
+(`llm`, `rules (llm tailoring rejected)`, `rules (llm error)`, `rules (llm unavailable)`).
+
+`.env` is gitignored. Never commit a key.
 
 ## Run the app
 
-Every command below assumes the `techdd` conda environment is activated
-(`conda activate techdd`).
+Every command assumes the `techdd` environment is activated (`conda activate techdd`).
 
 **Backend** (from `backend/`):
 
@@ -54,29 +90,28 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Serves the API at `http://localhost:8000` and interactive docs at
-`http://localhost:8000/docs`.
+API at `http://localhost:8000`, interactive docs at `http://localhost:8000/docs`.
 
-**Frontend** (from `frontend/`, in a second terminal — still with `techdd`
-activated so it uses the conda-installed Node 20):
+**Frontend** (from `frontend/`, second terminal, `techdd` still activated so it uses
+the conda-installed Node 20):
 
 ```powershell
 cd frontend
 npm run dev
 ```
 
-Serves the app at `http://localhost:3000`.
+App at `http://localhost:3000`.
 
-Open `http://localhost:3000`, click **Start an intake**, and the intake wizard
-walks through all eight steps, autosaving to the backend as you go. Filed
-engagements appear at `/engagements`.
+Click **Start an intake**, work through the six steps, then **File engagement**. The
+scope page offers **Generate scope**, and the result can be regenerated (each run is a
+new version, prior versions are never destroyed) or exported to Markdown.
 
 ## Tests and quality gates
 
 Backend (from `backend/`):
 
 ```powershell
-pytest
+pytest                 # 204 tests
 ruff check .
 mypy app
 black --check .
@@ -87,14 +122,43 @@ Frontend (from `frontend/`):
 ```powershell
 npm run typecheck
 npm run lint
-npm run test          # vitest
-npm run test:e2e       # Playwright smoke test — needs both dev servers running
-                        # (first run: npx playwright install chromium)
+npm run test           # vitest
+npm run test:e2e       # Playwright — needs both dev servers running
+                       # (first run: npx playwright install chromium)
 ```
+
+The test suite never calls the live LLM API. `tests/conftest.py` pins
+`SCOPE_GENERATOR=rules` before config import and fails any test that constructs a real
+client; the LLM layer is covered by mocked tests in `tests/test_llm.py`.
+
+## How the scope engine is put together
+
+```
+IntakeFull
+  → SignalExtractor    services/scope/signals.py    rules → signals, with citations
+  → MixScorer          services/scope/scoring.py    mix 0-100, band, confidence
+  → ModuleSelector     services/scope/selection.py  which KPMG rows open
+  → DepthCalibrator    services/scope/depth.py      caps, floors, trade-offs
+  → KpmgScopeComposer  services/scope/composer.py   the document
+  → LlmScopeGenerator  services/scope/llm.py        prose only, validated + fallback
+```
+
+**Content lives in data, not code.** A practitioner can edit any of these without
+touching Python:
+
+| File | What it holds |
+| --- | --- |
+| `app/reference/kpmg_scope/product.yaml` | The 10 Product DD objectives, verbatim |
+| `app/reference/kpmg_scope/enterprise.yaml` | The 9 Enterprise IT focus areas, verbatim |
+| `app/reference/scope_rules.yaml` | All 37 rules, weights and citations |
+| `app/services/scope/prompts/tailoring.md` | The LLM prompt, versioned |
+
+All are validated at startup; a malformed file fails loudly rather than producing a
+quietly wrong scope.
 
 ## Database
 
-SQLite in dev, at `backend/techdd.db` (gitignored). To reset it:
+SQLite in dev, at `backend/techdd.db` (gitignored). To reset:
 
 ```powershell
 cd backend
@@ -102,22 +166,31 @@ del techdd.db
 alembic upgrade head
 ```
 
-To point at Postgres instead, set `DATABASE_URL` in `.env` and re-run
-`alembic upgrade head`.
+For Postgres, set `DATABASE_URL` in `.env` and re-run `alembic upgrade head`.
 
 ## Repository layout
 
-See `CLAUDE.md` §4 for the full annotated layout.
+See `CLAUDE.md` §4 for the annotated layout.
 
 ```
 Tech_DD/
-├── backend/    FastAPI app, SQLAlchemy models, Alembic migrations, pytest
+├── backend/    FastAPI app, scope engine, YAML libraries, Alembic, pytest
 └── frontend/   Next.js app, components, zod schemas, vitest + Playwright
 ```
 
-## Notes for Phase 2
+## Known gaps
 
-The scope-of-work generation engine (signal extraction, Enterprise/Product mix
-scoring, workstream selection) is intentionally not built. The seam is
-`backend/app/services/scope/base.py` (`ScopeGenerator` protocol), currently
-implemented only by `PlaceholderScopeGenerator`. See `initial_plan.md` §10.
+Recorded honestly rather than left to be discovered:
+
+- **10 of 37 rules are dormant.** They depend on intake fields that were deliberately
+  not added (`deal_type`, `perspective`, `integration_model`, `relative_size`,
+  `it_landscape_complexity`, `shared_with_parent`, `management_access`) or removed
+  (`code_access`, `carve_out_or_tsa`, `investor_type`). They record an "unknown"
+  signal that is reported in the scope, never an error. Adding the fields activates
+  them with no code change.
+- **Rule D1 is disabled** and acceptance criterion G2 is correspondingly narrowed to
+  `access_level` only, because `code_access` is not captured. See `scope_rules.yaml`.
+- **Mix weights are a starting calibration.** `DD_master.md` §15.1 flags them as
+  needing tuning against real engagements. The golden-case tests in
+  `tests/test_golden_cases.py` are what make tuning safe — change a weight, and the
+  case that no longer holds tells you what you broke.

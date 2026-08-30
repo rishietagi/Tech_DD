@@ -35,10 +35,26 @@ mix:
 confidence:
   # Confidence falls when few rules fire, when they conflict, or when dormant rules
   # mean we are reasoning on partial information.
-  high_min_signals: 5
-  medium_min_signals: 3
+  #
+  # CALIBRATION (2026-08-30): thresholds are set against the 9 archetype rules that can
+  # actually fire (A7 and A8 are dormant). A clearly-characterised target — traditional,
+  # COTS-heavy, on-premise — fires 3, and an unusually well-evidenced one fires 5-6.
+  # The earlier high>=5 was unreachable once the structural -1 was applied, so every
+  # scope read "low" and the rating carried no information.
+  #
+  # SETTLED (step 5, against the six golden cases): the structural unknowns are now
+  # REPORTED rather than SCORED. They were identical on every engagement, so scoring
+  # them shifted the whole scale instead of discriminating — an unambiguous ERP
+  # manufacturer rated "low". Confidence now tracks what the intake actually said:
+  #   high    G1/G4/G6  digital-native SaaS, 4 signals, weight 85
+  #   medium  G2        ERP-heavy manufacturer, 3 signals, weight 50
+  #   low     G3/G5     genuinely mixed (1 signal) and sparse (0 signals)
+  # The uncaptured-inputs caveat still reaches the reader, via confidence_reasons and
+  # the exclusions section. See scoring.assess_confidence.
+  high_min_signals: 4
+  medium_min_signals: 2
   conflict_penalty: 1        # both directions fired strongly
-  dormant_penalty_per_3: 1   # one step down per three dormant inputs
+  dormant_penalty_per_3: 0   # retained for config compatibility; no longer applied
 
 # ---------------------------------------------------------------- 15.1 archetype mix
 

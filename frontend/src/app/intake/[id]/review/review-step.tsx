@@ -74,7 +74,7 @@ export function ReviewStep({ engagementId }: { engagementId: string }) {
 
       <div className="mb-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_280px]">
         <CoverSheet engagementId={engagementId} intake={engagement.intake} />
-        <SignalPanel />
+        <SignalPanel engagementId={engagementId} />
       </div>
 
       <div className="flex items-center justify-between border-t border-line pt-6">
