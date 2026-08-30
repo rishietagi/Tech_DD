@@ -59,12 +59,19 @@ confidence:
 # ---------------------------------------------------------------- 15.1 archetype mix
 
 archetype:
+  # RE-SOURCED 2026-08-31. DD_master §15.1 states this rule as
+  # `tech_is_product = yes`, but that intake question was removed as redundant: the
+  # user already declares the archetype in Diligence Objectives, and declaring
+  # "Product Tech DD" is a stronger statement of the same fact than the removed
+  # question was. The weight and the citation are unchanged — only the input moved.
+  # Consequence: under "Let the platform decide" this rule is silent by design, and
+  # the computed mix rests on A2/A5/A6.
   - id: A1
     status: active
-    field: technology.tech_is_product
-    when: {equals: "Yes, the software is the product"}
+    field: objectives.dd_type_preference
+    when: {equals: "Product Tech DD"}
     mix_delta: 35
-    label: Software is the product
+    label: Product Tech DD declared in the intake
     citation: "Roehl-Anderson 2013, p. 76-77"
     provenance: sourced
 
@@ -223,13 +230,16 @@ mandatory:
     citation: "Roehl-Anderson 2013, p. 71"
     provenance: sourced
 
+  # RE-SOURCED 2026-08-31, with A1 — see the note there. "Product Tech DD" and
+  # "Blended" are the declarations under which proprietary technology is a revenue
+  # asset, mapping onto the former {yes, partly}.
   - id: M6
     status: active
-    field: technology.tech_is_product
+    field: objectives.dd_type_preference
     when:
       in:
-        - "Yes, the software is the product"
-        - "Partly, software is a major differentiator"
+        - "Product Tech DD"
+        - "Blended"
     workstreams: [W-PROD]
     min_tier: 2
     label: Proprietary technology is a revenue asset

@@ -43,7 +43,7 @@ def test_preview_reflects_answers_as_they_arrive(client: TestClient) -> None:
 
     client.patch(
         f"/api/v1/engagements/{engagement_id}/intake/technology",
-        json={"tech_is_product": "Yes, the software is the product"},
+        json={"build_vs_buy": "Predominantly in-house build"},
     )
     client.patch(
         f"/api/v1/engagements/{engagement_id}/intake/target",

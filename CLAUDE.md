@@ -100,6 +100,7 @@ Glossary the code should use consistently: `engagement`, `intake`, `workstream`,
 | Backend | Python 3.11 + FastAPI + Pydantic v2 |
 | LLM (Phase 2) | **Google Gemini** (`google-genai`), model `gemini-2.5-flash` — see note below |
 | ORM / DB | SQLAlchemy 2.0 (declarative, typed) + Alembic; SQLite in dev, Postgres in prod via `DATABASE_URL` |
+| PDF export | **ReportLab** (`reportlab` + `pillow`) — pure Python, no system libraries |
 | Testing | Vitest + Testing Library (FE), pytest + httpx (BE), Playwright for one smoke E2E |
 | Lint/format | ESLint + Prettier (FE); ruff + black + mypy (BE) |
 | Env | **conda** environment named `techdd`, Python 3.11 and Node 20 both installed into it |
@@ -158,7 +159,7 @@ Tech_DD/
 │   │   ├── api/v1/            # router.py + routes/{engagements,scope,meta}.py
 │   │   ├── services/
 │   │   │   └── scope/         # the engine: signals, scoring, selection, depth,
-│   │   │                      #   composer, llm, export + prompts/
+│   │   │                      #   composer, llm, export, export_pdf + prompts/
 │   │   └── reference/         # enums + kpmg_scope/*.yaml + scope_rules.yaml
 │   ├── alembic/
 │   └── tests/                 # incl. golden cases and mocked LLM tests
@@ -274,11 +275,18 @@ meaning: section numbering (`§01`), the ledger/progress rail, the status stamp
 Now six steps (was eight; the Investor step was folded into Deal Context on
 2026-08-30). See `docs/phases/PHASE1_PLAN.md`.
 
-**Phase 2 — BUILT, not yet committed.** The scope-of-work engine: signal extraction
+**Phase 2 — BUILT and committed.** The scope-of-work engine: signal extraction
 from 37 encoded rules, Enterprise/Product mix scoring, KPMG scope-row selection and
 depth calibration, LLM prose tailoring, and Markdown export. Spec at
 `docs/phases/PHASE2_SPEC.md`, though several of Rishi's decisions override it — see
 `docs/PROJECT_LOG.md`.
+
+**One rule-sourcing change worth knowing before you touch scoring** (2026-08-31): the
+Technology Profile's "Is the software the product?" question was removed as redundant
+with `dd_type_preference`, and rules **A1** (mix +35) and **M6** (W-PROD at Tier ≥ 2)
+now read the declaration instead. Consequence: under "Let the platform decide" both are
+silent by design and the computed mix rests on A2/A5/A6. Do not reintroduce the intake
+field — tune those weights instead. Full reasoning in `docs/PROJECT_LOG.md`.
 
 **Phase 3+ — not planned.** Execution, evidence collection, findings, reporting,
 multi-user auth.

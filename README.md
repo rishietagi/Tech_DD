@@ -27,6 +27,10 @@ Objectives & Logistics. Autosaves as you type; resumable by URL.
   deviation is rejected and the deterministic scope ships instead.
 - **Everything is auditable.** Classification, signals, tier reasoning, exclusions and
   a provenance footer, all exportable to Markdown.
+- **Two exports, deliberately different.** Markdown is the internal artefact and carries
+  the whole audit trail. **Download PDF** produces the client-facing document — the same
+  scope, sequencing, cost, team and exclusions, but without the signals and rule
+  provenance. See `docs/PROJECT_LOG.md` before changing what either one contains.
 
 The deterministic engine produces a complete, publishable scope with the LLM entirely
 disabled. The model is an improvement to the wording, never a dependency.
@@ -107,14 +111,15 @@ App at `http://localhost:3000`.
 
 Click **Start an intake**, work through the six steps, then **File engagement**. The
 scope page offers **Generate scope**, and the result can be regenerated (each run is a
-new version, prior versions are never destroyed) or exported to Markdown.
+new version, prior versions are never destroyed), downloaded as a client-facing PDF, or
+exported to Markdown with the full audit trail.
 
 ## Tests and quality gates
 
 Backend (from `backend/`):
 
 ```powershell
-pytest                 # 204 tests
+pytest                 # 218 tests
 ruff check .
 mypy app
 black --check .
@@ -198,6 +203,12 @@ Recorded honestly rather than left to be discovered:
   them with no code change.
 - **Rule D1 is disabled** and acceptance criterion G2 is correspondingly narrowed to
   `access_level` only, because `code_access` is not captured. See `scope_rules.yaml`.
+- **"Let the platform decide" is the weakest classification path.** Rules A1 and M6
+  were re-sourced to `dd_type_preference` on 2026-08-31 when the redundant
+  "Is the software the product?" question was removed from the intake. With no declared
+  archetype they stay silent by design, so the computed mix rests on digital maturity,
+  build-vs-buy and engineering share alone. A deliberate trade, pinned by
+  `test_platform_decide_still_classifies_from_the_evidence`.
 - **Mix weights are a starting calibration.** `docs/reference/DD_master.md` §15.1 flags them as
   needing tuning against real engagements. The golden-case tests in
   `tests/test_golden_cases.py` are what make tuning safe — change a weight, and the

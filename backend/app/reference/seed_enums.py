@@ -18,7 +18,6 @@ _ENUM_CLASSES: dict[str, type[Enum]] = {
     "digitalMaturity": enum_module.DigitalMaturity,
     "revenueStage": enum_module.RevenueStage,
     "customerConcentration": enum_module.CustomerConcentration,
-    "techIsProduct": enum_module.TechIsProduct,
     "buildVsBuy": enum_module.BuildVsBuy,
     "coreSystem": enum_module.CoreSystem,
     "hostingModel": enum_module.HostingModel,

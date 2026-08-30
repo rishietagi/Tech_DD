@@ -17,7 +17,7 @@ export function EngagementDetail({ engagementId }: { engagementId: string }) {
 
   if (isLoading) {
     return (
-      <main className="mx-auto max-w-[1120px] px-7 pt-12 pb-24">
+      <main className="mx-auto w-full max-w-[1600px] px-7 pt-12 pb-24">
         <Skeleton className="mb-6 h-10 w-1/3" />
         <Skeleton className="h-96 w-full" />
       </main>
@@ -26,7 +26,7 @@ export function EngagementDetail({ engagementId }: { engagementId: string }) {
 
   if (isError || !engagement) {
     return (
-      <main className="mx-auto max-w-[720px] px-7 py-20">
+      <main className="mx-auto w-full max-w-[720px] px-7 py-20">
         <ErrorState
           title="Couldn't load this engagement"
           action={
@@ -44,7 +44,7 @@ export function EngagementDetail({ engagementId }: { engagementId: string }) {
   }
 
   return (
-    <main className="mx-auto max-w-[1120px] px-7 pt-12 pb-24">
+    <main className="mx-auto w-full max-w-[1600px] px-7 pt-12 pb-24">
       <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="mb-1 font-sans text-xs font-semibold tracking-[0.08em] text-kpmg-blue uppercase">

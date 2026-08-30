@@ -40,16 +40,18 @@ export function SidebarNav() {
   const pathname = usePathname();
   const activeEngagementId = useActiveEngagementId();
 
+  // Sticky, not static: the rail has to span the viewport at any scroll depth, so it
+  // pins to the top and scrolls its own nav list rather than leaving with the page.
   return (
-    <aside className="flex h-screen w-[248px] flex-none flex-col bg-kpmg-blue text-paper-on-ink">
-      <Link href="/" className="flex items-center gap-2.5 px-6 py-7">
+    <aside className="sticky top-0 flex h-screen w-[248px] flex-none flex-col self-start bg-kpmg-blue text-paper-on-ink">
+      <Link href="/" className="flex flex-none items-center px-6 py-7">
         <Image
           src="/kpmg-logo-white.png"
           alt="KPMG"
-          width={690}
-          height={362}
+          width={336}
+          height={140}
           priority
-          className="h-8 w-auto"
+          className="h-9 w-auto"
         />
       </Link>
 
@@ -95,7 +97,7 @@ export function SidebarNav() {
         </div>
       </nav>
 
-      <div className="border-t border-white/15 px-5 py-4 font-sans text-[11px] font-medium text-paper-on-ink/45">
+      <div className="flex-none border-t border-white/15 px-5 py-4 font-sans text-[11px] font-medium text-paper-on-ink/45">
         KPMG Tech Diligence Tool
       </div>
     </aside>

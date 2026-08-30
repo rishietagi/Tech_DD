@@ -50,9 +50,12 @@ def test_dormant_rules_emit_unknown_signals_not_errors() -> None:
 # ------------------------------------------------------------------ 15.1 archetype mix
 
 
-def test_a1_fires_when_software_is_the_product() -> None:
-    assert "A1" in fired(make_intake(tech_is_product="Yes, the software is the product"))
-    assert "A1" not in fired(make_intake(tech_is_product="No, software supports the business"))
+def test_a1_fires_when_product_dd_is_declared() -> None:
+    """A1 re-sourced 2026-08-31: the declaration replaced the `tech_is_product` field."""
+    assert "A1" in fired(make_intake(dd_type_preference="Product Tech DD"))
+    assert "A1" not in fired(make_intake(dd_type_preference="Enterprise IT DD"))
+    # "Let the platform decide" is no declaration, so A1 stays silent by design.
+    assert "A1" not in fired(make_intake(dd_type_preference="Let the platform decide"))
 
 
 def test_a2_fires_for_digital_native() -> None:
@@ -130,10 +133,11 @@ def test_m5_fires_when_integration_is_intended() -> None:
     assert "M5" not in fired(make_intake(post_close_intent="Standalone"))
 
 
-def test_m6_fires_for_yes_and_partly() -> None:
-    assert "M6" in fired(make_intake(tech_is_product="Yes, the software is the product"))
-    assert "M6" in fired(make_intake(tech_is_product="Partly, software is a major differentiator"))
-    assert "M6" not in fired(make_intake(tech_is_product="No, software supports the business"))
+def test_m6_fires_for_product_and_blended() -> None:
+    """M6 re-sourced with A1: {Product, Blended} maps onto the former {yes, partly}."""
+    assert "M6" in fired(make_intake(dd_type_preference="Product Tech DD"))
+    assert "M6" in fired(make_intake(dd_type_preference="Blended"))
+    assert "M6" not in fired(make_intake(dd_type_preference="Enterprise IT DD"))
 
 
 def test_m7_always_fires_and_carries_the_lead_time_note() -> None:
@@ -212,7 +216,7 @@ def test_c8_injects_ai_governance_when_ai_is_material() -> None:
 
 def test_every_signal_carries_provenance_and_a_readable_line() -> None:
     intake = make_intake(
-        tech_is_product="Yes, the software is the product",
+        dd_type_preference="Product Tech DD",
         digital_maturity="Digital native",
         core_systems=["SAP"],
     )
@@ -225,7 +229,7 @@ def test_every_signal_carries_provenance_and_a_readable_line() -> None:
 
 
 def test_extraction_is_deterministic() -> None:
-    intake = make_intake(tech_is_product="Yes, the software is the product")
+    intake = make_intake(dd_type_preference="Product Tech DD")
     first = [s.model_dump() for s in extract_signals(intake)]
     second = [s.model_dump() for s in extract_signals(intake)]
     assert first == second

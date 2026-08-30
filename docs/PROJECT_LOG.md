@@ -13,15 +13,21 @@ future session would otherwise get wrong.
 | | |
 |---|---|
 | **Phase 1 (intake)** | Done, committed, pushed |
-| **Phase 2 (scope engine)** | Done, **not yet committed** |
+| **Phase 2 (scope engine)** | Done, committed (`62ac027`, `61399a6`) |
 | **Phase 3+** | Not started, not planned |
-| **Backend** | pytest 204/204 · ruff clean · mypy clean (51 files) |
-| **Frontend** | tsc clean · eslint clean · vitest 19/19 |
-| **API** | 13 routes, OpenAPI clean |
+| **Backend** | pytest 218/218 · ruff clean · mypy clean (52 files) |
+| **Frontend** | tsc clean · eslint clean · vitest 19/19 · `next build` clean |
+| **API** | 14 routes, OpenAPI clean |
+| **DB** | at `0002_drop_tech_is_product` |
 | **Git** | `master`, remote `origin` = `git@github.com:rishietagi/Tech_DD.git` |
 
-**Uncommitted:** the entire Phase 2 engine plus this restructure. Rishi does all
+**Uncommitted:** the UI fixes and the `tech_is_product` removal below. Rishi does all
 committing and pushing — never run `git push`.
+
+**Pre-existing, not introduced here:** `black --check` reports 13 backend files needing
+reformatting. This is true on a clean checkout of `1848ec2` as well — it was not caused
+by the current changes and was left alone rather than folded into an unrelated diff.
+`ruff` and `mypy` are both clean.
 
 ### Run it
 
@@ -107,6 +113,51 @@ Only `target.sector` and `target.line_of_business` are required to file.
 Rishi on code access: *"remove code access we will not need that to generate scope of
 work anything code related we wont be using."*
 
+### `tech_is_product` removed as redundant (2026-08-31)
+
+Rishi: *"we ask this question if software is the product yes or no in technology
+profile, but isnt this question redundant as we are asking for the engagement to be
+product or enterprise in objective and logistics"* — correct, and it is now gone from
+the intake.
+
+The overlap was real but not total, so the fix was not a plain deletion. The field fed
+two rules, one of them the heaviest in the engine:
+
+| Rule | Was | Now |
+|---|---|---|
+| **A1** | `tech_is_product = yes` → mix **+35** | `dd_type_preference = Product Tech DD` → mix +35 |
+| **M6** | `tech_is_product ∈ {yes, partly}` → W-PROD Tier ≥ 2 | `dd_type_preference ∈ {Product Tech DD, Blended}` → W-PROD Tier ≥ 2 |
+
+Weights and page citations are unchanged; only the input moved. Declaring "Product Tech
+DD" is a *stronger* statement of the same fact than the removed question was.
+
+**The trade, stated plainly.** `dd_type_preference` is an override — it decides which
+deck ships — while the mix decides which rows open and at what tier *within* that deck.
+Under **"Let the platform decide"** no declaration exists, so A1 and M6 are now silent
+by design and the computed mix rests on A2 (digital-native), A5 (in-house build) and
+A6 (engineering share). That path is weaker than it was. It still classifies correctly
+on ordinary evidence — `test_platform_decide_still_classifies_from_the_evidence` pins
+this: G1's shape without a declaration still computes product at mix ≥ 66. If it ever
+needs strengthening, the lever is A2/A5/A6 weights in `scope_rules.yaml`, not a new
+intake field.
+
+**G6's confidence moved `high` → `medium`, and that is correct.** G6 is G1 with the
+declaration flipped to "Enterprise IT DD". A1 used to fire off `tech_is_product`
+regardless of the declaration, so G6 scored the same four signals as G1. A1 now reads
+the declaration, so on G6 it correctly does not fire, leaving `[A2, A5, A6]` — 3
+signals, weight 50, the same profile that rates G2 "medium". G6 is precisely the case
+where the user contradicts the evidence, which is when the engine *should* report less
+confidence, not the same confidence as when they agree. The golden-case snapshot did
+its job: it caught the change and named it.
+
+**Also changed:** the Technology Profile step's hint no longer claims to be where
+Enterprise vs Product is decided — it isn't, and hasn't been since `dd_type_preference`
+was re-added. Migration `0002_drop_tech_is_product` strips the key from stored
+`technology_json` (4 existing rows migrated); it must be stripped rather than ignored
+because the section schemas are `extra="forbid"` and a stale key would fail validation
+on the next read. The migration's `downgrade()` is a documented no-op — the answers are
+not retained anywhere, and the field was optional in every version that had it.
+
 ### The §9.3 intake fields were declined (2026-08-30)
 
 `PHASE2_SPEC.md` §9.3 asks for seven new fields (`deal_type`, `perspective`,
@@ -131,6 +182,12 @@ as met as written.
 tuning against real engagements. `tests/test_golden_cases.py` is what makes tuning
 safe — change a weight, and the case that breaks tells you what you broke.
 
+**"Let the platform decide" is the weakest classification path**, since A1 and M6 were
+re-sourced to `dd_type_preference` (2026-08-31). With no declaration, the computed mix
+rests on A2/A5/A6 alone. This is a deliberate trade for removing a redundant question,
+not an oversight — see the decision entry above. Tune A2/A5/A6 if it needs
+strengthening; do not reintroduce the intake field.
+
 ---
 
 ## Bugs found and fixed (worth remembering)
@@ -154,6 +211,97 @@ done.
 ---
 
 ## Session log
+
+### 2026-08-31 — PDF export
+
+A **Download PDF** button on the scope page, backed by
+`GET /engagements/{id}/scope/export.pdf`. Renderer at
+`backend/app/services/scope/export_pdf.py`.
+
+**Two decisions Rishi made when asked:**
+
+*ReportLab, not WeasyPrint or browser print.* WeasyPrint gives better typographic
+fidelity by reusing the CSS, but needs GTK/Pango system libraries on Windows — that
+would have broken the clean `conda env create` story in the README. Browser print needs
+no dependencies but the output varies by viewer and cannot be produced by an API call.
+ReportLab is pure Python and behaves identically on Windows and any Linux deploy. New
+pins: `reportlab==5.0.1`, `pillow==12.3.0` (its image backend, for the cover logo).
+
+*Client-facing content, not the full audit trail.* **This is the one thing to know
+before editing this file.** The PDF deliberately omits the Signals and Provenance
+sections that the Markdown export carries. Markdown is the internal artefact; the PDF
+is what goes to a client. `test_the_internal_audit_trail_is_omitted` guards the split —
+if that test starts failing, the PDF has silently become the Markdown export and the
+"client-facing" claim in the module docstring is no longer true. Exclusions are *not*
+part of the internal layer and are never dropped (DD_master G4).
+
+**Notes for a future session:**
+
+- The route is declared **before** `/{version}` in `routes/scope.py`. FastAPI matches in
+  declaration order, so moving it below would make `export.pdf` parse as a version.
+  `test_export_pdf_route_is_not_shadowed_by_the_version_route` pins this.
+- ReportLab ships no type stubs, so under mypy `strict` every call into it is an
+  untyped call. Handled with two targeted `pyproject.toml` overrides rather than
+  scattered `# type: ignore`; the exporter's own signatures stay fully typed.
+- `_escape()` is load-bearing. ReportLab's `Paragraph` parses a mini-HTML dialect, so an
+  unescaped `&` or `<` in a company name raises mid-render and takes out the whole
+  export. `test_special_characters_do_not_break_the_render` covers it.
+- Tests set `reportlab.rl_config.pageCompression = 0`. ReportLab writes page streams as
+  **ASCII85 + Flate**, which no simple regex can read back — `zlib.decompress` alone
+  fails on it. With compression off the text stays as plain literals and the assertions
+  can check what the document actually says. This changes only the byte encoding.
+- The determinism test masks `/CreationDate`, `/ModDate` and the trailer `/ID` (a hash
+  seeded from the timestamp). Everything else is byte-identical between renders —
+  verified, not assumed.
+
+**Found by looking at the output, not by the tests passing:** the bullet glyphs rendered
+floating level with the ascenders (`bulletOffsetY=1` lifts the glyph *above* the
+baseline; it needed a small negative value). Every test passed while this was wrong.
+The same lesson as the Phase 2 bugs below — generate the artefact and *look at it*.
+
+### 2026-08-31 — UI fixes and the `tech_is_product` removal
+
+Four items from Rishi, all done.
+
+**1. Sidebar logo.** `public/kpmg-logo-white.png` was the old 690×362 asset with heavy
+internal padding, declared at those dimensions — hence the small, off-centre mark.
+Replaced with Rishi's tight-cropped 336×140 file from `assets/`, dimensions corrected,
+box height `h-8` → `h-9`.
+
+**2. Content did not fill the screen.** Every page hard-capped at
+`max-w-[880px]`/`[920px]`/`[1120px]`, which left the content marooned beside the 248px
+rail on a wide monitor. Main working columns are now `max-w-[1600px]` with `w-full`.
+Deliberately *not* changed: the `720px` centred error/empty/loading states, and the
+`~70–72ch` prose measures inside the scope document — a scope row stretched to 1600px
+is unreadable. Methodology went `760px` → `900px`; it is a pure prose page.
+
+**3. Sidebar stopped on scroll.** It was `h-screen` in normal flex flow — exactly one
+viewport tall, scrolling away with the page. Now `sticky top-0 … self-start`, with
+`items-start` on the shell row (default `stretch` would defeat `position: sticky`) and
+`min-h-screen` moved onto the content column so the footer still sits at the bottom.
+
+**4. `tech_is_product` removed** — see the decision entry above for the rule
+re-sourcing and the trade it makes.
+
+**Verified, not assumed.** Backend 205/205 (was 204; one added), ruff and mypy clean.
+Frontend tsc, eslint, vitest 19/19, and a clean `next build`. Migration applied to the
+dev DB and the stored rows checked directly: 4 intake rows, 0 still carrying the key.
+`/api/v1/meta/enums` no longer serves `techIsProduct`. A full engagement was created
+through the API and a scope generated: classification `product`, mix 100, confidence
+high, **A1 and M6 both firing from the declaration**, all 10 KPMG rows rendered at
+correct tiers.
+
+Two things worth knowing:
+
+- The generated scope came back as `generator: "rules (llm error)"`. **Not a
+  regression** — the Gemini free tier's 20-requests-per-day quota was exhausted
+  (`429 RESOURCE_EXHAUSTED`). The fallback did exactly what it is designed to do: logged
+  a warning, shipped the complete deterministic scope, and recorded the reason in the
+  payload. The "model is an improvement, never a dependency" property held under a real
+  failure rather than a mocked one.
+- `position:sticky` was missing from the dev server's CSS bundle while every other new
+  utility compiled. That was a stale incremental cache, not a code fault — confirmed by
+  a clean `next build`, where it is present.
 
 ### 2026-08-31 — Confidential PDF removed from tracking
 

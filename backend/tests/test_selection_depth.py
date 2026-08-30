@@ -7,7 +7,6 @@ from app.services.scope.signals import extract_signals
 from tests.factories import make_intake
 
 PRODUCT_HEAVY = dict(
-    tech_is_product="Yes, the software is the product",
     digital_maturity="Digital native",
     build_vs_buy="Predominantly in-house build",
 )

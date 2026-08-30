@@ -1,7 +1,7 @@
 import re
 
 from fastapi import APIRouter, Depends
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
@@ -16,6 +16,7 @@ from app.schemas.scope_api import (
 from app.services.engagements import get_engagement
 from app.services.scope import service as scope_service
 from app.services.scope.export import render_markdown_from_payload
+from app.services.scope.export_pdf import pdf_filename, render_pdf_from_payload
 
 router = APIRouter(prefix="/engagements/{engagement_id}/scope", tags=["scope"])
 
@@ -78,6 +79,31 @@ def export_latest_scope(engagement_id: str, db: Session = Depends(get_db)) -> Pl
     return PlainTextResponse(
         markdown,
         media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# Declared BEFORE /{version}: FastAPI matches in declaration order, and "export.pdf"
+# would otherwise be captured by the version path parameter.
+@router.get("/export.pdf")
+def export_latest_scope_pdf(engagement_id: str, db: Session = Depends(get_db)) -> Response:
+    """The latest scope as a client-facing PDF, as a file download.
+
+    Narrower than the Markdown export by design: the internal audit trail (signals,
+    rule provenance) is omitted. See `services/scope/export_pdf.py`.
+    """
+    engagement = get_engagement(db, engagement_id)
+    scope = scope_service.get_latest_scope(db, engagement_id)
+
+    try:
+        pdf = render_pdf_from_payload(scope.payload_json, engagement.deal_name, scope.version)
+    except ValueError as exc:
+        raise AppError(code="not_exportable", message=str(exc), status_code=409) from exc
+
+    filename = pdf_filename(engagement.deal_name, scope.version)
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 

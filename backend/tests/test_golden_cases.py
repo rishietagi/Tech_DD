@@ -40,7 +40,6 @@ G1 = dict(
     company_name="Northwind Software",
     line_of_business="Sells a B2B SaaS workflow platform to mid-market logistics operators.",
     dd_type_preference="Product Tech DD",
-    tech_is_product="Yes, the software is the product",
     digital_maturity="Digital native",
     build_vs_buy="Predominantly in-house build",
     engineering_share_pct=50,
@@ -85,7 +84,6 @@ G2 = dict(
     company_name="Kestrel Industrial",
     line_of_business="Manufactures and distributes industrial fastening components to OEM customers.",
     dd_type_preference="Enterprise IT DD",
-    tech_is_product="No, software supports the business",
     digital_maturity="Traditional",
     build_vs_buy="Predominantly COTS/packaged (ERP, CRM, etc.)",
     core_systems=["SAP", "Salesforce"],
@@ -132,7 +130,6 @@ G3 = dict(
     company_name="Corvus Health",
     line_of_business="Operates a patient-scheduling and records platform used by private clinics.",
     dd_type_preference="Blended",
-    tech_is_product="Partly, software is a major differentiator",
     digital_maturity="Digitally enabled",
     data_sensitivity=["Health data (PHI)", "Personal data (PII)"],
     compliance_regimes=["HIPAA", "SOC 2"],
@@ -307,7 +304,16 @@ EXPECTED_CONFIDENCE = {
     "G3": "low",     # genuinely mixed, 1 signal
     "G4": "high",    # same shape as G1
     "G5": "low",     # sparse intake, 0 signals
-    "G6": "high",    # same shape as G1, archetype overridden
+    # G6 was "high" until A1 was re-sourced (2026-08-31). A1 used to read
+    # `tech_is_product`, which was independent of the declaration, so G6 fired the same
+    # four signals as G1. A1 now reads the declaration itself — and G6 declares
+    # "Enterprise IT DD" — so it correctly does not fire, leaving [A2, A5, A6]:
+    # 3 signals, weight 50, the same profile that rates G2 "medium".
+    #
+    # This is the right answer, not a regression. G6 is the case where the user's
+    # declaration contradicts the evidence; that is precisely when the engine should
+    # report less confidence, not the same confidence as the case where they agree.
+    "G6": "medium",  # same evidence as G1, archetype overridden against it
 }
 
 
@@ -315,6 +321,19 @@ EXPECTED_CONFIDENCE = {
 def test_confidence_matches_the_settled_calibration(name: str) -> None:
     scope = scope_for(**ALL_CASES[name])
     assert scope.classification.confidence == EXPECTED_CONFIDENCE[name]
+
+
+def test_platform_decide_still_classifies_from_the_evidence() -> None:
+    """A1/M6 are silent without a declaration, so A2/A5/A6 must carry the computation.
+
+    Guards the trade made when `tech_is_product` was removed (2026-08-31): the
+    "Let the platform decide" path lost its heaviest single rule, and this asserts it
+    can still reach a product verdict on the remaining evidence alone.
+    """
+    scope = scope_for(**{**G1, "dd_type_preference": "Let the platform decide"})
+    assert scope.classification.override_applied is False
+    assert scope.classification.dd_type is DdType.product
+    assert scope.classification.computed_dd_mix >= 66
 
 
 @pytest.mark.parametrize("name", sorted(ALL_CASES))

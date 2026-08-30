@@ -2,7 +2,7 @@ import { WorkstreamLibraryView } from "@/components/engagement/workstream-librar
 
 export default function MethodologyPage() {
   return (
-    <main className="mx-auto max-w-[760px] px-7 pt-14 pb-24">
+    <main className="mx-auto w-full max-w-[900px] px-7 pt-14 pb-24">
       <div className="mb-3 font-sans text-xs font-semibold tracking-[0.08em] text-kpmg-blue uppercase">Methodology</div>
       <h1 className="mb-6 font-display font-semibold text-4xl">The Enterprise / Product axis</h1>
       <p className="mb-10 font-sans text-[17px] leading-[1.6] text-muted">

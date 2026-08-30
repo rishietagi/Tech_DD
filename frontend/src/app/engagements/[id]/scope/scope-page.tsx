@@ -47,7 +47,7 @@ export function ScopePage({ engagementId }: { engagementId: string }) {
 
   if (isLoadingEngagement || isLoadingScope) {
     return (
-      <main className="mx-auto max-w-[920px] px-7 pt-12 pb-24">
+      <main className="mx-auto w-full max-w-[1600px] px-7 pt-12 pb-24">
         <Skeleton className="mb-6 h-10 w-1/3" />
         <Skeleton className="h-64 w-full" />
       </main>
@@ -56,7 +56,7 @@ export function ScopePage({ engagementId }: { engagementId: string }) {
 
   if (engagement && engagement.status === "draft") {
     return (
-      <main className="mx-auto max-w-[720px] px-7 py-20">
+      <main className="mx-auto w-full max-w-[720px] px-7 py-20">
         <EmptyState
           title="This engagement hasn't been filed yet"
           description="A scope of work can only be generated once the intake is complete and filed."
@@ -75,7 +75,7 @@ export function ScopePage({ engagementId }: { engagementId: string }) {
 
   if (noScopeYet) {
     return (
-      <main className="mx-auto max-w-[720px] px-7 py-20">
+      <main className="mx-auto w-full max-w-[720px] px-7 py-20">
         <EmptyState
           title="No scope generated yet"
           description="Derive the scope of work from this engagement's intake."
@@ -96,14 +96,14 @@ export function ScopePage({ engagementId }: { engagementId: string }) {
 
   if (isError || !scope) {
     return (
-      <main className="mx-auto max-w-[720px] px-7 py-20">
+      <main className="mx-auto w-full max-w-[720px] px-7 py-20">
         <ErrorState title="Couldn't load the scope of work" />
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-[920px] px-7 pt-12 pb-24">
+    <main className="mx-auto w-full max-w-[1600px] px-7 pt-12 pb-24">
       <div className="mb-6 flex items-center justify-between gap-4">
         <span className="font-sans text-[13px] text-muted">
           Version {scope.version}
@@ -112,12 +112,23 @@ export function ScopePage({ engagementId }: { engagementId: string }) {
         </span>
         <div className="flex items-center gap-2">
           {isV2Payload(scope.payload) && (
-            <a
-              href={`${API_BASE_URL}/engagements/${engagementId}/scope/export`}
-              className="rounded-full border border-line-strong px-4 py-2 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2"
-            >
-              Export Markdown
-            </a>
+            <>
+              {/* The client-facing deliverable, so it leads. `download` names the file
+                  if the browser handles the Content-Disposition itself. */}
+              <a
+                href={`${API_BASE_URL}/engagements/${engagementId}/scope/export.pdf`}
+                download
+                className="rounded-full bg-kpmg-blue px-4 py-2 font-sans text-[13px] font-medium text-paper-on-ink transition-colors hover:bg-kpmg-blue-dark"
+              >
+                Download PDF
+              </a>
+              <a
+                href={`${API_BASE_URL}/engagements/${engagementId}/scope/export`}
+                className="rounded-full border border-line-strong px-4 py-2 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2"
+              >
+                Export Markdown
+              </a>
+            </>
           )}
           <button
             type="button"

@@ -39,9 +39,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen">
+    // items-start keeps the sticky sidebar from being stretched to the full page
+    // height by the default flex `stretch`, which would defeat `position: sticky`.
+    <div className="flex min-h-screen items-start">
       <SidebarNav />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <div className="flex-1">{children}</div>
         <SiteFooter />
       </div>

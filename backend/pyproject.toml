@@ -17,6 +17,17 @@ exclude = ["alembic/versions", "tests"]
 module = "alembic.*"
 ignore_missing_imports = true
 
+# ReportLab ships no type stubs and no py.typed marker, so under `strict` every call
+# into it reads as an untyped call in a typed context. The PDF exporter is the only
+# consumer; its own signatures stay fully typed and checked.
+[[tool.mypy.overrides]]
+module = "reportlab.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "app.services.scope.export_pdf"
+disallow_untyped_calls = false
+
 [tool.black]
 line-length = 120
 target-version = ["py311"]

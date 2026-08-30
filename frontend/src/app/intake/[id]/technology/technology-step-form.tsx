@@ -13,7 +13,6 @@ import { SectionHeader } from "@/components/ui/section-header";
 import { Select } from "@/components/ui/select";
 import { TextArea } from "@/components/ui/text-area";
 import { TextInput } from "@/components/ui/text-input";
-import { ToggleCardGroup } from "@/components/ui/toggle-card-group";
 import { useAutosaveSection } from "@/lib/hooks/use-autosave-section";
 import {
   AI_ML_DEPENDENCE,
@@ -27,12 +26,6 @@ import {
 } from "@/lib/schemas/enums";
 import { technologyProfileSchema, type TechnologyProfileValues } from "@/lib/schemas/intake";
 import { useIntakeStore } from "@/lib/store/intake-store";
-
-const TECH_IS_PRODUCT_OPTIONS = [
-  { value: "Yes, the software is the product", title: "Yes — it's the product", description: "The single strongest signal for a Product Tech DD." },
-  { value: "Partly, software is a major differentiator", title: "Partly", description: "Software is a major differentiator, not the whole business." },
-  { value: "No, software supports the business", title: "No", description: "Software supports operations; the business isn't software." },
-];
 
 export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
   const router = useRouter();
@@ -76,26 +69,8 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
         <SectionHeader
           num="05"
           title="Technology Profile"
-          hint="Load-bearing: this is where Enterprise vs Product Tech DD is decided."
+          hint="The shape of the estate. These answers weight the Enterprise/Product mix; the archetype itself is declared in step 06."
         />
-
-        <Field label="Is the software the product?">
-          {() => (
-            <Controller
-              name="tech_is_product"
-              control={control}
-              render={({ field }) => (
-                <ToggleCardGroup
-                  name="tech_is_product"
-                  columns={1}
-                  options={TECH_IS_PRODUCT_OPTIONS}
-                  value={field.value}
-                  onChange={field.onChange}
-                />
-              )}
-            />
-          )}
-        </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Build vs buy">

@@ -117,12 +117,6 @@ class CustomerConcentration(str, Enum):
     high = "High — few customers dominate revenue"
 
 
-class TechIsProduct(str, Enum):
-    yes_is_product = "Yes, the software is the product"
-    partly_differentiator = "Partly, software is a major differentiator"
-    no_supports_business = "No, software supports the business"
-
-
 class BuildVsBuy(str, Enum):
     predominantly_build = "Predominantly in-house build"
     balanced = "Balanced build and buy"

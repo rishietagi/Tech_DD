@@ -37,7 +37,7 @@ export function IntakeShell({ engagementId, children }: { engagementId: string; 
 
   if (isLoading || storeEngagementId !== engagementId) {
     return (
-      <main className="mx-auto max-w-[880px] px-8 pt-10 pb-24">
+      <main className="mx-auto w-full max-w-[1600px] px-8 pt-10 pb-24">
         <div className="space-y-4">
           <Skeleton className="h-8 w-1/3" />
           <Skeleton className="h-32 w-full" />
@@ -49,7 +49,7 @@ export function IntakeShell({ engagementId, children }: { engagementId: string; 
 
   if (isError || !engagement) {
     return (
-      <main className="mx-auto max-w-[720px] px-8 py-20">
+      <main className="mx-auto w-full max-w-[720px] px-8 py-20">
         <ErrorState
           title="Couldn't load this engagement"
           description="It may not exist, or the API may be unreachable."
@@ -69,7 +69,7 @@ export function IntakeShell({ engagementId, children }: { engagementId: string; 
 
   return (
     <div>
-      <section className="mx-auto max-w-[880px] px-8 pt-10 pb-6">
+      <section className="mx-auto w-full max-w-[1600px] px-8 pt-10 pb-6">
         <div className="mb-3 flex items-start justify-between gap-4">
           <div className="font-sans text-xs font-semibold tracking-[0.08em] text-kpmg-blue uppercase">{engagement.deal_name}</div>
           <Stamp state={stampStateFor(engagement.status, visitedSteps.size)} />
@@ -80,7 +80,7 @@ export function IntakeShell({ engagementId, children }: { engagementId: string; 
         </div>
       </section>
 
-      <main className="mx-auto max-w-[880px] px-8 pb-24">{children}</main>
+      <main className="mx-auto w-full max-w-[1600px] px-8 pb-24">{children}</main>
     </div>
   );
 }

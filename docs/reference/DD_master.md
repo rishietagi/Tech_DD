@@ -1145,7 +1145,7 @@ added to the intake before the engine can run.
 | Field | Values | Why | Cite |
 |---|---|---|---|
 | `digital_maturity` *(have)* | digital_native · digitally_enabled · traditional | Strongest single archetype signal | p. 76–77 |
-| `tech_is_product` *(have)* | yes · partly · no | Triggers W-PROD | p. 76–77 |
+| ~~`tech_is_product`~~ **(REMOVED 2026-08-31)** | ~~yes · partly · no~~ | Redundant with `dd_type_preference`, which the user declares in Diligence Objectives. A1 and M6 now read that field. See docs/PROJECT_LOG.md | p. 76–77 |
 | `build_vs_buy` *(have)* | in_house · balanced · cots | Weights custom vs commercial application modules | p. 75 |
 | `core_systems` *(have)* | SAP, Oracle, Dynamics, Salesforce, NetSuite, Workday, ServiceNow, custom, other | ERP-heavy estate → enterprise weighting; ERP ≈ 80% of integration cost | p. 197 |
 | `hosting_model` *(have)* | public_cloud · hybrid · on_prem · colo · unknown | Infrastructure depth; DR and data-centre modules | p. 76, 92 |
@@ -1222,7 +1222,7 @@ against real engagements.
 ### 15.1 Archetype mix
 | Rule | Condition | Effect | Cite |
 |---|---|---|---|
-| A1 | `tech_is_product = yes` | mix += 35 | p. 76–77 |
+| A1 | `dd_type_preference = Product Tech DD` *(re-sourced 2026-08-31; was `tech_is_product = yes`)* | mix += 35 | p. 76–77 |
 | A2 | `digital_maturity = digital_native` | mix += 25 | p. 76–77 |
 | A3 | `digital_maturity = traditional` | mix −= 20 | p. 72 |
 | A4 | `build_vs_buy = cots` OR ERP in `core_systems` | mix −= 20 | p. 197 |
@@ -1245,7 +1245,7 @@ falls when few rules fire or when rules conflict strongly.
 | M3 | `compliance_regimes` non-empty | W-PROC at Tier ≥ 2 | p. 288–289 |
 | M4 | `deal_type = carve_out` OR `carve_out_or_tsa = true` | W-SEP at Tier ≥ 2; add licence-transferability and interface-disentanglement questions | p. 78 |
 | M5 | `post_close_intent = integrate` | W-INT at Tier ≥ 2, incl. scalability assessment of the receiving platform | p. 71 |
-| M6 | `tech_is_product ∈ {yes, partly}` | W-PROD at Tier ≥ 2 | p. 76–77 |
+| M6 | `dd_type_preference ∈ {Product Tech DD, Blended}` *(re-sourced 2026-08-31; was `tech_is_product ∈ {yes, partly}`)* | W-PROD at Tier ≥ 2 | p. 76–77 |
 | M7 | any contract transfer implied (`deal_type ≠ minority_growth`) | W-VEN at Tier ≥ 2; flag the six-month supplier lead time | p. 222 |
 
 ### 15.3 Depth and access gates

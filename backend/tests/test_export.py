@@ -11,7 +11,6 @@ PRODUCT = dict(
     company_name="Meridian Analytics",
     line_of_business="Sells a usage-based analytics platform to mid-market e-commerce retailers.",
     dd_type_preference="Product Tech DD",
-    tech_is_product="Yes, the software is the product",
     digital_maturity="Digital native",
     data_sensitivity=["Personal data (PII)"],
     compliance_regimes=["SOC 2"],

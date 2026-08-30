@@ -43,7 +43,6 @@ export interface TargetCompany {
 }
 
 export interface TechnologyProfile {
-  tech_is_product?: string;
   build_vs_buy?: string;
   core_systems?: string[];
   hosting_model?: string;

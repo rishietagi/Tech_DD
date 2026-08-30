@@ -143,8 +143,8 @@ model. `*` = required.
 - `maHistory` — textarea, optional: prior acquisitions, unintegrated estates
 
 ### Step 6 — Technology Profile (`/intake/[id]/technology`)  ← new, load-bearing
-- `techIsProduct*` — enum: Yes, the software is the product / Partly, software is a
-  major differentiator / No, software supports the business
+- ~~`techIsProduct*`~~ — **REMOVED 2026-08-31** as redundant with `ddTypePreference`
+  in Step 7. Rules A1 and M6 now read that field. See `docs/PROJECT_LOG.md`.
 - `buildVsBuy*` — enum: Predominantly in-house build / Balanced build and buy /
   Predominantly COTS/packaged (ERP, CRM, etc.)
 - `coreSystems` — multi-select, optional: SAP, Oracle, Microsoft Dynamics,

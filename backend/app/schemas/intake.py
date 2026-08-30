@@ -36,7 +36,6 @@ from app.reference.enums import (
     RevenueStage,
     Sector,
     Stake,
-    TechIsProduct,
     ValueCreationLever,
 )
 
@@ -120,7 +119,6 @@ class TargetCompanyRequired(TargetCompany):
 
 
 class TechnologyProfile(SectionBase):
-    tech_is_product: TechIsProduct | None = None
     build_vs_buy: BuildVsBuy | None = None
     core_systems: list[CoreSystem] | None = None
     hosting_model: HostingModel | None = None

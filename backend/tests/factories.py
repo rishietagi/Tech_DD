@@ -3,7 +3,7 @@
 `make_intake()` returns a valid IntakeFull with neutral answers; keyword overrides go
 to the section they belong to, so a test can say exactly what it is varying:
 
-    make_intake(tech_is_product="Yes, the software is the product")
+    make_intake(dd_type_preference="Product Tech DD")
 """
 
 from typing import Any
@@ -56,7 +56,6 @@ _NEUTRAL: dict[str, dict[str, Any]] = {
         "hq_location": "London, UK",
     },
     "technology": {
-        "tech_is_product": "No, software supports the business",
         "hosting_model": "Hybrid",
         "ai_ml_dependence": "None",
         "data_sensitivity": ["None"],

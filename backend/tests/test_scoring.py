@@ -7,7 +7,6 @@ from app.services.scope.signals import extract_signals
 from tests.factories import make_intake
 
 PRODUCT_HEAVY = dict(
-    tech_is_product="Yes, the software is the product",
     digital_maturity="Digital native",
     build_vs_buy="Predominantly in-house build",
     engineering_share_pct=45,
@@ -15,7 +14,6 @@ PRODUCT_HEAVY = dict(
 )
 
 ENTERPRISE_HEAVY = dict(
-    tech_is_product="No, software supports the business",
     digital_maturity="Traditional",
     build_vs_buy="Predominantly COTS/packaged (ERP, CRM, etc.)",
     core_systems=["SAP"],
@@ -62,7 +60,6 @@ def test_damping_keeps_realistic_engagements_off_the_extremes() -> None:
 
 def test_a_mixed_target_lands_in_the_blended_band() -> None:
     mix = mix_of(
-        tech_is_product="Partly, software is a major differentiator",
         digital_maturity="Digitally enabled",
         build_vs_buy="Predominantly in-house build",
     )
@@ -93,7 +90,6 @@ def test_confidence_falls_when_few_signals_fire() -> None:
 def test_confidence_notes_conflicting_signals() -> None:
     # Software is the product (+35) but the estate is COTS/ERP (-20): a real conflict.
     intake = make_intake(
-        tech_is_product="Yes, the software is the product",
         build_vs_buy="Predominantly COTS/packaged (ERP, CRM, etc.)",
         digital_maturity="Digital native",
     )
@@ -130,7 +126,7 @@ def test_confidence_discriminates_between_engagements() -> None:
 
 def test_confidence_reason_reports_both_count_and_weight() -> None:
     """When the signals fall short of "high", the reason names the count and weight."""
-    sparse = make_intake(tech_is_product="Yes, the software is the product")
+    sparse = make_intake(dd_type_preference="Product Tech DD")
     _, reasons = assess_confidence(extract_signals(sparse))
     assert any("combined weight" in r for r in reasons)
 

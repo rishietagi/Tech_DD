@@ -30,7 +30,6 @@ SECTIONS_PAYLOAD = {
         "hq_location": "Austin, TX",
     },
     "technology": {
-        "tech_is_product": "Yes, the software is the product",
         "hosting_model": "Public cloud",
         "ai_ml_dependence": "Embedded in the product",
         "data_sensitivity": ["Personal data (PII)"],

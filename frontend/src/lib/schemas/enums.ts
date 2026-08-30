@@ -65,12 +65,6 @@ export const CUSTOMER_CONCENTRATION = [
   "High — few customers dominate revenue",
 ] as const;
 
-export const TECH_IS_PRODUCT = [
-  "Yes, the software is the product",
-  "Partly, software is a major differentiator",
-  "No, software supports the business",
-] as const;
-
 export const BUILD_VS_BUY = [
   "Predominantly in-house build",
   "Balanced build and buy",

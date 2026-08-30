@@ -18,7 +18,7 @@ export default async function HomePage() {
   const recent = await getRecentEngagements();
 
   return (
-    <main className="mx-auto max-w-[920px] px-8 pt-16 pb-24">
+    <main className="mx-auto w-full max-w-[1600px] px-8 pt-16 pb-24">
       <div className="mb-3 font-sans text-xs font-semibold tracking-[0.14em] text-kpmg-blue uppercase">
         Technology Due Diligence
       </div>

@@ -25,7 +25,6 @@ import {
   REVENUE_STAGE,
   SECTOR,
   STAKE,
-  TECH_IS_PRODUCT,
   VALUE_CREATION_LEVER,
 } from "./enums";
 
@@ -80,7 +79,6 @@ export const targetCompanySchema = z.object({
 export type TargetCompanyValues = z.infer<typeof targetCompanySchema>;
 
 export const technologyProfileSchema = z.object({
-  tech_is_product: z.enum(TECH_IS_PRODUCT).optional(),
   build_vs_buy: z.enum(BUILD_VS_BUY).optional(),
   core_systems: z.array(z.enum(CORE_SYSTEM)).optional(),
   hosting_model: z.enum(HOSTING_MODEL).optional(),

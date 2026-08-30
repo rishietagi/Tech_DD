@@ -4,7 +4,7 @@ import { EngagementTable } from "@/components/engagement/engagement-table";
 
 export default function EngagementsPage() {
   return (
-    <main className="mx-auto max-w-[1120px] px-7 pt-12 pb-24">
+    <main className="mx-auto w-full max-w-[1600px] px-7 pt-12 pb-24">
       <div className="mb-8 flex items-center justify-between gap-4">
         <div>
           <div className="mb-1 font-sans text-xs font-semibold tracking-[0.08em] text-kpmg-blue uppercase">Engagements</div>
