@@ -378,10 +378,15 @@ def render_pdf(
         story.append(Paragraph("Sequencing", st["h1"]))
         data = [["Phase", "Weeks", "Focus"]]
         for phase in scope.sequencing:
+            focus = _escape(phase.focus)
+            if phase.output:
+                # The handoff between passes is the point of the plan, so it travels
+                # with the phase rather than being dropped from the export.
+                focus += f'<br/><br/><font color="#0091DA"><b>Output:</b> {_escape(phase.output)}</font>'
             data.append([
                 Paragraph(f"<b>{_escape(phase.name)}</b>", st["muted"]),
                 Paragraph(_escape(phase.weeks), st["muted"]),
-                Paragraph(_escape(phase.focus), st["muted"]),
+                Paragraph(focus, st["muted"]),
             ])
         t = Table(data, colWidths=[38 * mm, 22 * mm, content_w - 60 * mm], repeatRows=1)
         t.setStyle(

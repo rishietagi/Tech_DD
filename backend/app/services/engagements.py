@@ -94,6 +94,29 @@ def archive_engagement(db: Session, engagement_id: str) -> None:
     db.commit()
 
 
+def delete_engagement(db: Session, engagement_id: str) -> None:
+    """Permanently remove an engagement and everything hanging off it.
+
+    Intake, denorm and every scope version go with it: all three relationships are
+    `cascade="all, delete-orphan"`, so the ORM deletes the children rather than leaving
+    orphans behind. This is irreversible — there is no recycle bin.
+
+    Any status can be deleted (Rishi's call, 2026-08-31). An earlier version required
+    filed and scoped work to be archived first, but archived rows are invisible to both
+    `get_engagement` and `list_engagements`, which made that path unreachable from the
+    UI. The confirmation dialog is the guard instead.
+
+    Deliberately does NOT use `get_engagement`, which treats an archived row as a 404 —
+    an already-archived engagement must still be deletable.
+    """
+    engagement = db.get(Engagement, engagement_id)
+    if engagement is None:
+        raise NotFoundError(f"Engagement {engagement_id} not found")
+
+    db.delete(engagement)
+    db.commit()
+
+
 def patch_intake_section(db: Session, engagement_id: str, section: str, data: dict[str, object]) -> Engagement:
     engagement = get_engagement(db, engagement_id)
     intake = engagement.intake

@@ -113,12 +113,20 @@ export function ScopePage({ engagementId }: { engagementId: string }) {
         <div className="flex items-center gap-2">
           {isV2Payload(scope.payload) && (
             <>
-              {/* The client-facing deliverable, so it leads. `download` names the file
-                  if the browser handles the Content-Disposition itself. */}
+              {/* A scope of work is usually circulated as a deck, so PPT leads.
+                  `download` names the file if the browser handles the
+                  Content-Disposition itself. */}
+              <a
+                href={`${API_BASE_URL}/engagements/${engagementId}/scope/export.pptx`}
+                download
+                className="rounded-full bg-kpmg-blue px-4 py-2 font-sans text-[13px] font-medium text-paper-on-ink transition-colors hover:bg-kpmg-blue-dark"
+              >
+                Download PPT
+              </a>
               <a
                 href={`${API_BASE_URL}/engagements/${engagementId}/scope/export.pdf`}
                 download
-                className="rounded-full bg-kpmg-blue px-4 py-2 font-sans text-[13px] font-medium text-paper-on-ink transition-colors hover:bg-kpmg-blue-dark"
+                className="rounded-full border border-line-strong px-4 py-2 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2"
               >
                 Download PDF
               </a>

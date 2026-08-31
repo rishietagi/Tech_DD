@@ -16,6 +16,10 @@ _PREFERENCE_TO_TYPE = {
     DdTypePreference.product.value: DdType.product,
     DdTypePreference.enterprise.value: DdType.enterprise,
     DdTypePreference.blended.value: DdType.blended,
+    # "AI-heavy Tech DD" is absent on purpose, alongside "Let the platform decide":
+    # there is no AI-heavy deck yet, so declaring it applies no override and the
+    # engagement classifies from the computed mix. The lookup below uses .get(), so an
+    # unmapped declaration degrades to "no override" rather than raising.
 }
 
 # A mix rule counts as "strong" when it moves the needle by this much or more. Used to

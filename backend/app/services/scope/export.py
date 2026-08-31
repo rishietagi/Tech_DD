@@ -146,6 +146,9 @@ def render_markdown(scope: ScopeOfWorkPayloadV2, deal_name: str | None = None, v
             lines.append(f"**{phase.name}** — {phase.weeks}")
             lines.append("")
             lines.append(phase.focus)
+            if phase.output:
+                lines.append("")
+                lines.append(f"*Output: {phase.output}*")
             if phase.row_ids:
                 lines.append("")
                 lines.append(f"*{len(phase.row_ids)} area(s)*")

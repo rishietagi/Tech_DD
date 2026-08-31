@@ -84,6 +84,11 @@ class SequencePhase(BaseModel):
     name: str
     weeks: str
     focus: str
+    # What the phase hands to the next one. The broad pass exists to produce the areas
+    # of focus that the deep dive then works on, and a plan that does not state that
+    # handoff reads as two unrelated activities. Optional: the closing phase produces
+    # the report itself, not an input to anything further.
+    output: str | None = None
     row_ids: list[str] = Field(default_factory=list)
 
 

@@ -28,6 +28,15 @@ ignore_missing_imports = true
 module = "app.services.scope.export_pdf"
 disallow_untyped_calls = false
 
+# python-pptx is likewise stub-less under `strict`.
+[[tool.mypy.overrides]]
+module = "pptx.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "app.services.scope.export_pptx"
+disallow_untyped_calls = false
+
 [tool.black]
 line-length = 120
 target-version = ["py311"]

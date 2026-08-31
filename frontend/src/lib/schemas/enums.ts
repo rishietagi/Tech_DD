@@ -149,4 +149,5 @@ export const DD_TYPE_PREFERENCE = [
   "Product Tech DD",
   "Enterprise IT DD",
   "Blended",
+  "AI-heavy Tech DD",
 ] as const;

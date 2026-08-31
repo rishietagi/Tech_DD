@@ -27,10 +27,12 @@ Objectives & Logistics. Autosaves as you type; resumable by URL.
   deviation is rejected and the deterministic scope ships instead.
 - **Everything is auditable.** Classification, signals, tier reasoning, exclusions and
   a provenance footer, all exportable to Markdown.
-- **Two exports, deliberately different.** Markdown is the internal artefact and carries
-  the whole audit trail. **Download PDF** produces the client-facing document — the same
-  scope, sequencing, cost, team and exclusions, but without the signals and rule
-  provenance. See `docs/PROJECT_LOG.md` before changing what either one contains.
+- **Three exports, deliberately different.** Markdown is the internal artefact and
+  carries the whole audit trail. **Download PPT** (the primary deliverable — a scope of
+  work is normally circulated as a deck) and **Download PDF** produce the client-facing
+  document: the same scope, sequencing, cost, team and exclusions, but without the
+  signals and rule provenance. See `docs/PROJECT_LOG.md` before changing what any of
+  them contains.
 
 The deterministic engine produces a complete, publishable scope with the LLM entirely
 disabled. The model is an improvement to the wording, never a dependency.
@@ -111,15 +113,15 @@ App at `http://localhost:3000`.
 
 Click **Start an intake**, work through the six steps, then **File engagement**. The
 scope page offers **Generate scope**, and the result can be regenerated (each run is a
-new version, prior versions are never destroyed), downloaded as a client-facing PDF, or
-exported to Markdown with the full audit trail.
+new version, prior versions are never destroyed), downloaded as a client-facing PPT or
+PDF, or exported to Markdown with the full audit trail.
 
 ## Tests and quality gates
 
 Backend (from `backend/`):
 
 ```powershell
-pytest                 # 218 tests
+pytest                 # 242 tests
 ruff check .
 mypy app
 black --check .
@@ -195,6 +197,10 @@ Tech_DD/
 
 Recorded honestly rather than left to be discovered:
 
+- **The "Archived" status filter never returns anything.** `list_engagements` excludes
+  archived rows before applying the filter, and `get_engagement` 404s on them, so an
+  archived engagement is invisible and unrecoverable. Delete from the engagements table
+  is permanent and works on any status; archiving is best avoided until this is fixed.
 - **10 of 37 rules are dormant.** They depend on intake fields that were deliberately
   not added (`deal_type`, `perspective`, `integration_model`, `relative_size`,
   `it_landscape_complexity`, `shared_with_parent`, `management_access`) or removed

@@ -62,7 +62,12 @@ def _engagement_summary(intake: IntakeFull, classification: Classification) -> s
     if weeks:
         scoped += f", across approximately {weeks} weeks"
 
-    return f"{target} operates as follows: {business.rstrip('.')}. {scoped}."
+    # Strip whitespace BEFORE the full stop: `rstrip(".")` alone stops at a trailing
+    # newline and leaves the period in place, which produced "... per month.\n. This
+    # engagement is ..." in a real scope. Internal newlines are flattened too, since
+    # this is a single paragraph.
+    business = " ".join(business.split()).rstrip(".")
+    return f"{target} operates as follows: {business}. {scoped}."
 
 
 def _objectives(intake: IntakeFull) -> list[str]:
@@ -80,49 +85,60 @@ def _objectives(intake: IntakeFull) -> list[str]:
 
 
 def _sequencing(rows: list[SelectedRow], intake: IntakeFull) -> list[SequencePhase]:
-    """DD_master §7's tiered, iterative model expressed against the available weeks."""
-    weeks = intake.objectives.timeline_weeks or 6
-    # The sweep covers everything; each later phase names only the rows that go
-    # deeper than the phase before, so a row is not counted three times.
-    screen = [r.row.id for r in rows if r.in_scope]
-    deeper = [r.row.id for r in rows if r.tier == 2]
-    deepest = [r.row.id for r in rows if r.tier >= 3]
+    """DD_master §7's iterative model as two named passes with an explicit handoff.
 
-    sweep_end = max(1, round(weeks * 0.3))
-    assess_end = max(sweep_end + 1, round(weeks * 0.75))
+    The practice shape (confirmed with the engagement partner, 2026-08-31): a **broad
+    pass** reviews every area in scope at structural level and its deliverable is a
+    prioritised set of *areas of focus*; the **deep dive** then works only on those.
+    Stating that handoff is the point — a plan that lists the passes without naming
+    what moves between them reads as two unrelated activities.
+
+    The Tier 1/2/3 depth model is unchanged and still governs individual rows; it is
+    the phase *names* that follow the two-pass vocabulary. Tier 2 areas are assessed
+    within the broad pass, Tier 3 areas carry into the deep dive.
+    """
+    weeks = intake.objectives.timeline_weeks or 6
+    # Each phase names only the rows it actually acts on, so a row that goes deep is
+    # not counted twice.
+    in_scope = [r.row.id for r in rows if r.in_scope]
+    focus_areas = [r.row.id for r in rows if r.tier >= 3]
+
+    # The broad pass takes roughly the first half; the deep dive runs to the final
+    # week, which is reserved for reporting.
+    broad_end = max(1, round(weeks * 0.45))
 
     phases = [
         SequencePhase(
-            name="Tier 1 — sweep",
-            weeks=f"Weeks 1-{sweep_end}",
+            name="Broad pass",
+            weeks=f"Weeks 1-{broad_end}",
             focus=(
-                "Document review across every area in scope, to surface issues at the "
-                "lowest cost of effort before committing depth."
+                "Structural review across every area in scope — document review and "
+                "orientation interviews — to surface issues at the lowest cost of effort "
+                "before committing depth."
             ),
-            row_ids=screen,
+            output=(
+                "A prioritised set of areas of focus, agreed with the deal team, that "
+                "determines where the deep dive spends its time."
+            ),
+            row_ids=in_scope,
         )
     ]
-    if deeper:
+
+    if focus_areas:
         phases.append(
             SequencePhase(
-                name="Tier 2 — assess",
-                weeks=f"Weeks {sweep_end + 1}-{assess_end}",
+                name="Deep dive",
+                weeks=f"Weeks {broad_end + 1}-{max(broad_end + 1, weeks - 1)}",
                 focus=(
-                    "Management interviews and order-of-magnitude sizing on the areas the "
-                    "sweep flagged."
+                    "Detailed analysis of the areas of focus the broad pass identified: "
+                    "artefact-level review, management and specialist sessions, and "
+                    "order-of-magnitude sizing of the issues found."
                 ),
-                row_ids=deeper,
+                output="Findings and quantification on each area of focus.",
+                row_ids=focus_areas,
             )
         )
-    if deepest:
-        phases.append(
-            SequencePhase(
-                name="Tier 3 — deep dive",
-                weeks=f"Weeks {assess_end + 1}-{weeks}",
-                focus="Artefact-level analysis and specialist input on the highest-risk areas.",
-                row_ids=deepest,
-            )
-        )
+
     phases.append(
         SequencePhase(
             name="Reporting",

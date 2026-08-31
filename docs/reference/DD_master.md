@@ -1196,8 +1196,15 @@ A generated SOW must contain, at minimum:
    - common findings to test for;
    - indicative effort band and dependencies on other workstreams;
    - explicit **out of scope** statement where access constrains it.
-5. **Sequencing** — Tier 1 sweep, then Tier 2/3 drill-downs, mapped against the
-   available weeks and the deal stage; the iterative model of §7 made concrete.
+5. **Sequencing** — a **broad pass** then a **deep dive**, mapped against the available
+   weeks and the deal stage; the iterative model of §7 made concrete.
+   **[EXT — practice vocabulary, confirmed with the engagement partner 2026-08-31]** The
+   two passes are named as the practice names them, and the handoff between them is
+   explicit: the broad pass reviews every area in scope at structural level and its
+   *deliverable is the prioritised areas of focus*; the deep dive then works only on
+   those. A plan that lists the passes without naming what moves between them reads as
+   two unrelated activities. The Tier 1/2/3 depth model above is unchanged and still
+   governs individual areas — only the phase vocabulary follows the two-pass framing.
 6. **Cost-estimation plan** — which one-time and recurring cost lines this scope will
    produce, and the assumptions register that will accompany them (§8.3).
 7. **Team shape** — core team + named SMA specialisms required (§8.1).

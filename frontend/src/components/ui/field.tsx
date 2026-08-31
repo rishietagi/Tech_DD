@@ -2,13 +2,16 @@ import { useId } from "react";
 
 interface FieldProps {
   label: string;
+  /** Marks the field with a red asterisk. Only the two fields the backend actually
+   *  enforces on file should set this — see `SECTION_REQUIRED_MODELS`. */
+  required?: boolean;
   optional?: boolean;
   hint?: string;
   error?: string;
   children: (id: string, describedBy: string | undefined) => React.ReactNode;
 }
 
-export function Field({ label, optional, hint, error, children }: FieldProps) {
+export function Field({ label, required, optional, hint, error, children }: FieldProps) {
   const id = useId();
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
@@ -18,6 +21,11 @@ export function Field({ label, optional, hint, error, children }: FieldProps) {
     <div className="mb-5">
       <label htmlFor={id} className="mb-1.5 block font-sans text-[13px] font-semibold text-text">
         {label}
+        {required && (
+          <span className="ml-0.5 font-sans text-redline" title="Required to file">
+            *<span className="sr-only"> (required)</span>
+          </span>
+        )}
         {optional && <span className="ml-1 font-sans text-muted-2 italic">optional</span>}
       </label>
       {hint && (

@@ -60,11 +60,11 @@ export function RationaleStepForm({ engagementId }: { engagementId: string }) {
           hint="The thesis in plain terms — what does the buyer believe, and what would prove it wrong?"
         />
 
-        <Field label="Rationale">
+        <Field label="Rationale" hint="Free text passed to the model. This is what lets the scope reference the actual deal thesis rather than a generic growth case.">
           {(id) => <TextArea id={id} {...register("rationale_narrative")} />}
         </Field>
 
-        <Field label="Value creation levers">
+        <Field label="Value creation levers" hint="Context for what the buyer intends to do post-close. Passed to the model; not currently a scoring rule.">
           {() => (
             <Controller
               name="value_creation_levers"
@@ -81,7 +81,7 @@ export function RationaleStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="Deal breakers">
+        <Field label="Deal breakers" hint="Free text passed to the model, so the scope can address the buyer&apos;s stated red lines explicitly.">
           {(id) => <TextArea id={id} {...register("deal_breakers")} />}
         </Field>
 

@@ -17,6 +17,7 @@ from app.services.engagements import get_engagement
 from app.services.scope import service as scope_service
 from app.services.scope.export import render_markdown_from_payload
 from app.services.scope.export_pdf import pdf_filename, render_pdf_from_payload
+from app.services.scope.export_pptx import pptx_filename, render_pptx_from_payload
 
 router = APIRouter(prefix="/engagements/{engagement_id}/scope", tags=["scope"])
 
@@ -104,6 +105,28 @@ def export_latest_scope_pdf(engagement_id: str, db: Session = Depends(get_db)) -
     return Response(
         content=pdf,
         media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/export.pptx")
+def export_latest_scope_pptx(engagement_id: str, db: Session = Depends(get_db)) -> Response:
+    """The latest scope as a client-facing PowerPoint deck, as a file download.
+
+    Same content as the PDF export — a scope of work is usually circulated as a deck.
+    """
+    engagement = get_engagement(db, engagement_id)
+    scope = scope_service.get_latest_scope(db, engagement_id)
+
+    try:
+        deck = render_pptx_from_payload(scope.payload_json, engagement.deal_name, scope.version)
+    except ValueError as exc:
+        raise AppError(code="not_exportable", message=str(exc), status_code=409) from exc
+
+    filename = pptx_filename(engagement.deal_name, scope.version)
+    return Response(
+        content=deck,
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 

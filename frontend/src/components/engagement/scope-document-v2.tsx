@@ -77,7 +77,7 @@ export function ScopeDocumentV2({ scope }: { scope: ScopeOfWorkPayloadV2 }) {
       </Section>
 
       {scope.sequencing.length > 0 && (
-        <Section title="Sequencing" subtitle="Breadth first, then depth on what the sweep flags.">
+        <Section title="Sequencing" subtitle="A broad pass identifies the areas of focus; the deep dive works on those.">
           <ol className="space-y-3">
             {scope.sequencing.map((phase) => (
               <li key={phase.name} className="rounded-xl border border-line bg-paper-2 px-4 py-3">
@@ -86,6 +86,11 @@ export function ScopeDocumentV2({ scope }: { scope: ScopeOfWorkPayloadV2 }) {
                   <span className="font-sans text-[12.5px] font-medium text-kpmg-blue">{phase.weeks}</span>
                 </div>
                 <p className="font-sans text-[13.5px] leading-[1.55] text-muted">{phase.focus}</p>
+                {phase.output && (
+                  <p className="mt-1.5 font-sans text-[13px] leading-[1.5] text-steel">
+                    <span className="font-semibold">Output:</span> {phase.output}
+                  </p>
+                )}
                 {phase.row_ids.length > 0 && (
                   <p className="mt-1 font-sans text-[12px] text-muted-2">
                     {phase.row_ids.length} area{phase.row_ids.length === 1 ? "" : "s"}

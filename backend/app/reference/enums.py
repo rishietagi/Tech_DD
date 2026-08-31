@@ -221,6 +221,12 @@ class DdTypePreference(str, Enum):
     product = "Product Tech DD"
     enterprise = "Enterprise IT DD"
     blended = "Blended"
+    # PLACEHOLDER (2026-08-31). Selectable and persisted, but the engine does not yet
+    # act on it: there is no AI-heavy scope library, and `_PREFERENCE_TO_TYPE` in
+    # scoring.py deliberately omits it, so an engagement declaring this classifies from
+    # the computed mix exactly as "Let the platform decide" would. The scope content is
+    # to be defined — see docs/PROJECT_LOG.md.
+    ai_heavy = "AI-heavy Tech DD"
 
 
 class BudgetBand(str, Enum):

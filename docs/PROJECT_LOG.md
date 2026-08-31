@@ -15,9 +15,9 @@ future session would otherwise get wrong.
 | **Phase 1 (intake)** | Done, committed, pushed |
 | **Phase 2 (scope engine)** | Done, committed (`62ac027`, `61399a6`) |
 | **Phase 3+** | Not started, not planned |
-| **Backend** | pytest 218/218 · ruff clean · mypy clean (52 files) |
+| **Backend** | pytest 242/242 · ruff clean · mypy clean (53 files) |
 | **Frontend** | tsc clean · eslint clean · vitest 19/19 · `next build` clean |
-| **API** | 14 routes, OpenAPI clean |
+| **API** | 15 routes, OpenAPI clean |
 | **DB** | at `0002_drop_tech_is_product` |
 | **Git** | `master`, remote `origin` = `git@github.com:rishietagi/Tech_DD.git` |
 
@@ -182,6 +182,13 @@ as met as written.
 tuning against real engagements. `tests/test_golden_cases.py` is what makes tuning
 safe — change a weight, and the case that breaks tells you what you broke.
 
+**The "Archived" status filter returns nothing, ever.** `list_engagements` excludes
+archived rows *before* applying the status filter, so the dropdown option ANDs two
+contradictory conditions; `get_engagement` also 404s on archived. An archived engagement
+is invisible and unrecoverable through the API. Found 2026-08-31 while adding the delete
+button — pre-existing, documented, not yet fixed. Fix both together or archiving stays a
+one-way disappearance.
+
 **"Let the platform decide" is the weakest classification path**, since A1 and M6 were
 re-sourced to `dd_type_preference` (2026-08-31). With no declaration, the computed mix
 rests on A2/A5/A6 alone. This is a deliberate trade for removing a redundant question,
@@ -211,6 +218,119 @@ done.
 ---
 
 ## Session log
+
+### 2026-08-31 — Delete button on the engagements table
+
+A **Delete** action on every row of the engagements table, backed by
+`DELETE /engagements/{id}?permanent=true`.
+
+**The endpoint was already misleading.** `DELETE /engagements/{id}` called
+`archive_engagement` — a *soft* delete that sets status to `archived`. Rishi asked to
+"delete from database", so permanent removal is now available behind `?permanent=true`.
+Archiving stays the default so any existing caller keeps the behaviour it had.
+
+Deletion cascades: `intake`, `denorm` and every `ScopeOfWork` version go with the
+engagement, because all three relationships are `cascade="all, delete-orphan"`.
+`test_permanent_delete_takes_the_children_with_it` checks the child tables directly
+rather than trusting the 204.
+
+**A guardrail was added and then removed, on Rishi's call.** The first version refused
+to delete a `filed` or `scoped` engagement (409) and required archiving first. That
+turned out to be **unreachable from the UI** because of the bug below, so Rishi chose to
+allow deleting any status directly. The confirmation dialog is the only guard: it names
+the deal and states that the intake and every scope version go with it. `Cancel` is
+verified to destroy nothing.
+
+`delete_engagement` deliberately does **not** use `get_engagement`, which treats an
+archived row as a 404 — an already-archived engagement must still be deletable.
+
+### Known bug, found here, deliberately not fixed
+
+**The "Archived" status filter can never return anything.** `list_engagements` starts
+with `where(Engagement.status != archived)` and *then* applies the status filter, so
+selecting "Archived" in the dropdown ANDs two contradictory conditions. Combined with
+`get_engagement` treating archived as a 404, an archived engagement is completely
+invisible: not in the list, not fetchable by id, not restorable.
+
+Archiving is therefore a **one-way disappearance** from the UI. That is why the
+archive-first delete flow could not work, and why the Archive button was dropped from
+the table rather than shipped as a trap.
+
+Fixing it means letting `list_engagements` include archived rows when the caller asks
+for them explicitly, and relaxing `get_engagement`. Left alone for now because it is
+pre-existing and outside what was asked for — but it should be fixed before anyone
+relies on archiving.
+
+
+### 2026-08-31 — Review round: required markers, field help, AI-heavy stub, two-pass sequencing, PPT export
+
+Six pointers from Rishi's review. All done.
+
+**1. Required fields are marked.** `Field` gained a `required` prop rendering a red
+asterisk with an `sr-only` "(required)" for screen readers. Only **two** fields carry
+it — `target.line_of_business` and `target.sector` — because those are the only two the
+backend actually enforces (`SECTION_REQUIRED_MODELS`). Marking anything else would be a
+lie the API would not back up.
+
+**2. Every intake field explains how it is used.** Hints on all six steps, written from
+`scope_rules.yaml` rather than invented: a field that drives a rule names it and its
+weight ("Rules A4/A5 — in-house pulls the mix toward Product (+15)"), and a field that
+does not is honest about it ("Context only. Not currently a scoring rule."). That
+distinction matters — it tells a user which answers actually change the output.
+
+**3. AI-heavy Tech DD is a working stub.** Fourth card in step 06, persisted to the
+intake and surviving a reload. `_PREFERENCE_TO_TYPE` in `scoring.py` deliberately omits
+it, so it applies no override and the engagement classifies from the computed mix
+exactly as "Let the platform decide" would. The lookup uses `.get()`, so an unmapped
+declaration degrades rather than raising. **When the AI-heavy scope content is defined**,
+the work is: a new `reference/kpmg_scope/ai_heavy.yaml`, an entry in
+`_PREFERENCE_TO_TYPE`, and a `DdType` member. Nothing else should need to change.
+
+**4. Empty draft fields read "No information entered"** in muted italics, replacing the
+bare em-dash. `formatValue` in `cover-sheet.tsx` now returns `None` for empty rather
+than a dash string, so the caller can style it — a dash is something the reader has to
+interpret.
+
+**5. Sequencing is now BROAD PASS → DEEP DIVE.** Rishi's partner's framing: the first
+pass reviews every area at structural level and **its deliverable is the areas of
+focus**; the deep dive then works only on those. `SequencePhase` gained an `output`
+field so that handoff is stated rather than implied — a plan that lists the passes
+without naming what moves between them reads as two unrelated activities. Surfaced in
+the UI, the Markdown export and both binary exports. The Tier 1/2/3 depth model is
+unchanged and still governs individual rows; only the phase vocabulary moved.
+
+**6. PPT export — yes, and it is now the primary artefact.** Rishi confirmed a scope of
+work is usually circulated as a deck. `python-pptx==1.0.2`, pure Python, no system
+libraries — same profile as ReportLab. **Download PPT** is now the filled primary button
+on the scope page; PDF is secondary.
+
+`export_pptx.py` keeps **styling separate from content**: every colour, size and font
+lives in the `Theme` dataclass and `build_deck` only decides what goes on which slide.
+Rishi chose "build from scratch now, template later" — when a KPMG template .pptx
+arrives, the change is to load it as the presentation base and map `Theme` onto its
+masters. The slide-building code should not need to change.
+
+**Found by reading the generated deck, not by a failing test:** the engagement summary
+rendered as `"... per month.
+. This engagement is scoped as ..."`. `_engagement_summary`
+used `business.rstrip(".")`, which stops at a trailing **newline** and leaves the full
+stop in place — then the template added its own. Every test passed while this was wrong.
+Fixed by normalising whitespace before stripping;
+`test_engagement_summary_survives_a_trailing_newline_in_the_business` pins it. That is
+now three sessions running where reading the output caught something the suite did not.
+
+**Verified in the browser, not assumed:** 2 required asterisks on the target step, 14
+hint paragraphs, the AI-heavy card still selected after a reload, "No information
+entered" with zero bare dashes remaining, both download buttons present, and a real PPT
+downloaded by clicking. Backend 236/236, ruff and mypy clean; frontend tsc, eslint,
+vitest 19/19.
+
+**Note on mypy:** `pptx.Presentation` at package level is a *factory function*, not a
+class, so it is not valid as a type annotation. The real class is
+`pptx.presentation.Presentation`; the module imports both (the factory aliased as
+`open_presentation`). Two `pyproject.toml` overrides handle the missing stubs, matching
+the ReportLab precedent.
+
 
 ### 2026-08-31 — PDF export
 

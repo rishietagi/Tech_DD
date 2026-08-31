@@ -63,20 +63,20 @@ export function TargetStepForm({ engagementId }: { engagementId: string }) {
         />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Company name">
+          <Field label="Company name" hint="Names the target throughout the generated scope and its filename.">
             {(id) => <TextInput id={id} {...register("company_name")} />}
           </Field>
-          <Field label="Website">
+          <Field label="Website" hint="Reference only. Not used by the rules engine.">
             {(id) => <TextInput id={id} {...register("website")} />}
           </Field>
         </div>
 
-        <Field label="Line of business" error={errors.line_of_business?.message}>
+        <Field label="Line of business" required hint="The single most important free-text field: it is what the model reads to make every scope line specific to this business rather than generic." error={errors.line_of_business?.message}>
           {(id) => <TextArea id={id} invalid={!!errors.line_of_business} {...register("line_of_business")} />}
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Sector" error={errors.sector?.message}>
+          <Field label="Sector" required hint="Sets the industry frame for the engagement summary." error={errors.sector?.message}>
             {(id) => (
               <Select
                 id={id}
@@ -87,7 +87,7 @@ export function TargetStepForm({ engagementId }: { engagementId: string }) {
               />
             )}
           </Field>
-          <Field label="Business model">
+          <Field label="Business model" hint="Passed to the model as context for how the target earns revenue.">
             {(id) => (
               <Select
                 id={id}
@@ -99,7 +99,7 @@ export function TargetStepForm({ engagementId }: { engagementId: string }) {
           </Field>
         </div>
 
-        <Field label="Digital maturity" hint="If known — the single strongest signal for what kind of DD this is.">
+        <Field label="Digital maturity" hint="Rules A2/A3 — digital-native pulls the mix toward Product (+25), traditional pulls toward Enterprise (-20).">
           {(id) => (
             <Select
               id={id}
@@ -111,7 +111,7 @@ export function TargetStepForm({ engagementId }: { engagementId: string }) {
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Headcount">
+          <Field label="Headcount" hint="Read together with engineering headcount in step 05 to judge how engineering-weighted the business is.">
             {(id) => (
               <Controller
                 name="headcount"
@@ -122,7 +122,7 @@ export function TargetStepForm({ engagementId }: { engagementId: string }) {
               />
             )}
           </Field>
-          <Field label="Revenue stage">
+          <Field label="Revenue stage" hint="Context for scale expectations. Not currently a scoring rule.">
             {(id) => (
               <Select
                 id={id}
@@ -134,15 +134,15 @@ export function TargetStepForm({ engagementId }: { engagementId: string }) {
           </Field>
         </div>
 
-        <Field label="Company revenue">
+        <Field label="Company revenue" hint="Context only. Not currently a scoring rule.">
           {(id) => <TextInput id={id} {...register("company_revenue")} />}
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="HQ location">
+          <Field label="HQ location" hint="Context only. Not currently a scoring rule.">
             {(id) => <TextInput id={id} {...register("hq_location")} />}
           </Field>
-          <Field label="Founded year">
+          <Field label="Founded year" hint="Context only. Not currently a scoring rule.">
             {(id) => (
               <Controller
                 name="founded_year"
@@ -155,11 +155,11 @@ export function TargetStepForm({ engagementId }: { engagementId: string }) {
           </Field>
         </div>
 
-        <Field label="Office / plant locations" hint="Physical locations of offices, plants or facilities">
+        <Field label="Office / plant locations" hint="Physical locations of offices, plants or facilities. Context for infrastructure and data-centre scope.">
           {(id) => <TextInput id={id} {...register("office_locations")} />}
         </Field>
 
-        <Field label="Customer concentration">
+        <Field label="Customer concentration" hint="Context only. Not currently a scoring rule.">
           {(id) => (
             <Select
               id={id}
@@ -170,7 +170,7 @@ export function TargetStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="M&A history" hint="Prior acquisitions, unintegrated estates">
+        <Field label="M&A history" hint="Prior acquisitions and unintegrated estates. Passed to the model as context for integration debt.">
           {(id) => <TextArea id={id} {...register("ma_history")} />}
         </Field>
       </div>

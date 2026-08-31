@@ -101,6 +101,7 @@ Glossary the code should use consistently: `engagement`, `intake`, `workstream`,
 | LLM (Phase 2) | **Google Gemini** (`google-genai`), model `gemini-2.5-flash` — see note below |
 | ORM / DB | SQLAlchemy 2.0 (declarative, typed) + Alembic; SQLite in dev, Postgres in prod via `DATABASE_URL` |
 | PDF export | **ReportLab** (`reportlab` + `pillow`) — pure Python, no system libraries |
+| PPT export | **python-pptx** — pure Python. The primary client-facing artefact: a SOW is normally circulated as a deck |
 | Testing | Vitest + Testing Library (FE), pytest + httpx (BE), Playwright for one smoke E2E |
 | Lint/format | ESLint + Prettier (FE); ruff + black + mypy (BE) |
 | Env | **conda** environment named `techdd`, Python 3.11 and Node 20 both installed into it |
@@ -159,7 +160,8 @@ Tech_DD/
 │   │   ├── api/v1/            # router.py + routes/{engagements,scope,meta}.py
 │   │   ├── services/
 │   │   │   └── scope/         # the engine: signals, scoring, selection, depth,
-│   │   │                      #   composer, llm, export, export_pdf + prompts/
+│   │   │                      #   composer, llm, export, export_pdf,
+│   │   │                      #   export_pptx + prompts/
 │   │   └── reference/         # enums + kpmg_scope/*.yaml + scope_rules.yaml
 │   ├── alembic/
 │   └── tests/                 # incl. golden cases and mocked LLM tests

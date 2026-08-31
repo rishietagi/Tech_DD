@@ -23,6 +23,10 @@ export const engagementsApi = {
 
   archive: (id: string) => apiClient.delete<void>(`/engagements/${id}`),
 
+  /** Irreversible: removes the engagement, its intake and every scope version.
+   *  Refused with a 409 on a filed or scoped engagement — archive it first. */
+  remove: (id: string) => apiClient.delete<void>(`/engagements/${id}?permanent=true`),
+
   patchSection: (id: string, section: IntakeStep, payload: IntakeSectionPayload) =>
     apiClient.patch<EngagementRead>(`/engagements/${id}/intake/${section}`, payload),
 

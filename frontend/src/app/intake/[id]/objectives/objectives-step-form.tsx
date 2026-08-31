@@ -39,6 +39,14 @@ const DD_TYPE_OPTIONS = [
     title: "Blended",
     description: "Both decks, weighted by how the engagement scores.",
   },
+  // PLACEHOLDER (2026-08-31). The choice is captured and persisted, but the engine does
+  // not act on it yet: there is no AI-heavy scope library, so generation still produces
+  // the product or enterprise deck from the computed mix. See docs/PROJECT_LOG.md.
+  {
+    value: "AI-heavy Tech DD",
+    title: "AI-heavy Tech DD",
+    description: "Coming soon — the choice is saved, but the scope content is not yet defined.",
+  },
 ];
 
 export function ObjectivesStepForm({ engagementId }: { engagementId: string }) {
@@ -107,7 +115,7 @@ export function ObjectivesStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="Diligence objectives">
+        <Field label="Diligence objectives" hint="Each objective selected raises the tier of the scope areas whose primary workstream it matches, so the areas you care about get more depth.">
           {() => (
             <Controller
               name="dd_objectives"
@@ -124,7 +132,7 @@ export function ObjectivesStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="Access level">
+        <Field label="Access level" hint="Rule D2 — limited or public information alone caps every area at a screen, no matter what else the intake says.">
           {(id) => (
             <Select
               id={id}
@@ -135,7 +143,7 @@ export function ObjectivesStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="Deliverable format">
+        <Field label="Deliverable format" hint="What the engagement produces. Context for the reporting phase.">
           {() => (
             <Controller
               name="deliverable_format"
@@ -153,7 +161,7 @@ export function ObjectivesStepForm({ engagementId }: { engagementId: string }) {
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Timeline (weeks)">
+          <Field label="Timeline (weeks)" hint="Rule D5 — drives the effort budget and the phase split. A short timeline forces areas down to shallower tiers.">
             {(id) => (
               <Controller
                 name="timeline_weeks"
@@ -164,7 +172,7 @@ export function ObjectivesStepForm({ engagementId }: { engagementId: string }) {
               />
             )}
           </Field>
-          <Field label="Budget band">
+          <Field label="Budget band" hint="Context for team shape and effort. Not currently a scoring rule.">
             {(id) => (
               <Select
                 id={id}
@@ -177,10 +185,10 @@ export function ObjectivesStepForm({ engagementId }: { engagementId: string }) {
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Bid date">
+          <Field label="Bid date" hint="Context only. Not currently a scoring rule.">
             {(id) => <DateInput id={id} {...register("bid_date")} />}
           </Field>
-          <Field label="IC date">
+          <Field label="IC date" hint="Investment committee date. Context only; not currently a scoring rule.">
             {(id) => <DateInput id={id} {...register("ic_date")} />}
           </Field>
         </div>

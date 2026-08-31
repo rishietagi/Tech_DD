@@ -111,6 +111,8 @@ export interface SequencePhase {
   name: string;
   weeks: string;
   focus: string;
+  /** What this phase hands to the next one. Absent on the closing phase. */
+  output?: string | null;
   row_ids: string[];
 }
 

@@ -60,16 +60,16 @@ export function ContextStepForm({ engagementId }: { engagementId: string }) {
           hint="What is happening, and why now? This becomes the opening line of the diligence file."
         />
 
-        <Field label="Deal codename" error={errors.deal_name?.message}>
+        <Field label="Deal codename" hint="Titles the scope document and its export filename." error={errors.deal_name?.message}>
           {(id) => <TextInput id={id} invalid={!!errors.deal_name} {...register("deal_name")} />}
         </Field>
 
-        <Field label="Context" error={errors.context_narrative?.message}>
+        <Field label="Context" hint="Free text passed to the model. Shapes the engagement summary that opens the scope." error={errors.context_narrative?.message}>
           {(id) => <TextArea id={id} invalid={!!errors.context_narrative} {...register("context_narrative")} />}
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Deal stage" error={errors.deal_stage?.message}>
+          <Field label="Deal stage" hint="Rules D6/D7 — exploratory and bid situations cap depth to a red-flag screen; exclusivity allows confirmatory work." error={errors.deal_stage?.message}>
             {(id) => (
               <Select
                 id={id}
@@ -80,7 +80,7 @@ export function ContextStepForm({ engagementId }: { engagementId: string }) {
               />
             )}
           </Field>
-          <Field label="Process type" error={errors.process_type?.message}>
+          <Field label="Process type" hint="Context for how competitive the process is. Not currently a scoring rule." error={errors.process_type?.message}>
             {(id) => (
               <Select
                 id={id}
@@ -93,11 +93,11 @@ export function ContextStepForm({ engagementId }: { engagementId: string }) {
           </Field>
         </div>
 
-        <Field label="Source of deal">
+        <Field label="Source of deal" hint="Context only. Not currently a scoring rule.">
           {(id) => <TextInput id={id} {...register("source_of_deal")} />}
         </Field>
 
-        <Field label="Investor / firm name">
+        <Field label="Investor / firm name" hint="Names the investor in the document. Note: investor type (VC, growth equity) would drive rule A7, but that field is not captured.">
           {(id) => <TextInput id={id} {...register("investor_firm_name")} />}
         </Field>
       </div>

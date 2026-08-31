@@ -2,9 +2,13 @@ import Link from "next/link";
 
 import { INTAKE_STEP_LABELS, INTAKE_STEPS, type IntakeDraft, type IntakeStep } from "@/types/intake";
 
-function formatValue(value: unknown): string {
-  if (value === null || value === undefined || value === "") return "—";
-  if (Array.isArray(value)) return value.length ? value.join(", ") : "—";
+const NOT_ENTERED = "No information entered";
+
+/** `null` means the field is empty, so the caller can render it as muted italics
+ *  rather than printing a bare dash the reader has to interpret. */
+function formatValue(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (Array.isArray(value)) return value.length ? value.join(", ") : null;
   if (typeof value === "boolean") return value ? "Yes" : "No";
   return String(value);
 }
@@ -31,14 +35,25 @@ function SectionCard({ engagementId, step, data }: { engagementId: string; step:
         <p className="font-sans text-sm text-muted italic">Not started</p>
       ) : (
         <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-          {entries.map(([key, value]) => (
-            <div key={key}>
-              <dt className="mb-0.5 font-sans text-[11px] font-medium text-muted-2 uppercase">
-                {humanizeKey(key)}
-              </dt>
-              <dd className="font-sans text-[14px] text-text">{formatValue(value)}</dd>
-            </div>
-          ))}
+          {entries.map(([key, value]) => {
+            const formatted = formatValue(value);
+            return (
+              <div key={key}>
+                <dt className="mb-0.5 font-sans text-[11px] font-medium text-muted-2 uppercase">
+                  {humanizeKey(key)}
+                </dt>
+                <dd
+                  className={
+                    formatted === null
+                      ? "font-sans text-[14px] text-muted-2 italic"
+                      : "font-sans text-[14px] text-text"
+                  }
+                >
+                  {formatted ?? NOT_ENTERED}
+                </dd>
+              </div>
+            );
+          })}
         </dl>
       )}
     </div>

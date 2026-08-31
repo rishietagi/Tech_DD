@@ -52,8 +52,20 @@ def update_engagement(engagement_id: str, payload: EngagementUpdate, db: Session
 
 
 @router.delete("/{engagement_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_engagement(engagement_id: str, db: Session = Depends(get_db)) -> None:
-    engagement_service.archive_engagement(db, engagement_id)
+def delete_engagement(
+    engagement_id: str,
+    permanent: bool = False,
+    db: Session = Depends(get_db),
+) -> None:
+    """Archive by default; `?permanent=true` removes the row and its children for good.
+
+    Archiving stays the default so an existing caller keeps the behaviour it had.
+    Permanent deletion works on any status, including already-archived rows.
+    """
+    if permanent:
+        engagement_service.delete_engagement(db, engagement_id)
+    else:
+        engagement_service.archive_engagement(db, engagement_id)
 
 
 @router.patch("/{engagement_id}/intake/{section}", response_model=EngagementRead)

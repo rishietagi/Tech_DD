@@ -323,6 +323,56 @@ def test_confidence_matches_the_settled_calibration(name: str) -> None:
     assert scope.classification.confidence == EXPECTED_CONFIDENCE[name]
 
 
+def test_engagement_summary_survives_a_trailing_newline_in_the_business() -> None:
+    """Regression: a line_of_business ending in ".\\n" produced ".\\n. This engagement".
+
+    `rstrip(".")` stops at the newline and leaves the full stop in place, so the
+    template's own full stop doubled it. Found by reading a generated deck, not by a
+    failing test.
+    """
+    scope = scope_for(
+        **{
+            **G1,
+            "line_of_business": (
+                "Sells a cloud-based freight routing platform to mid-size regional carriers.\n"
+            ),
+        }
+    )
+    assert ".\n" not in scope.engagement_summary
+    assert ". ." not in scope.engagement_summary
+    assert ".." not in scope.engagement_summary
+
+
+def test_sequencing_is_a_broad_pass_then_a_deep_dive() -> None:
+    """The practice shape: a broad pass produces areas of focus, the deep dive uses them.
+
+    Guards the vocabulary *and* the handoff — a plan that names the passes without
+    stating what moves between them reads as two unrelated activities.
+    """
+    scope = scope_for(**G1)
+    names = [p.name for p in scope.sequencing]
+    assert names[0] == "Broad pass"
+    assert names[-1] == "Reporting"
+    assert "Deep dive" in names
+
+    broad = scope.sequencing[0]
+    assert broad.output is not None
+    assert "areas of focus" in broad.output
+    # The broad pass covers everything in scope; the deep dive is a subset of it.
+    deep = next(p for p in scope.sequencing if p.name == "Deep dive")
+    assert set(deep.row_ids) <= set(broad.row_ids)
+    assert len(deep.row_ids) < len(broad.row_ids)
+
+
+def test_sequencing_omits_the_deep_dive_when_nothing_reaches_tier_3() -> None:
+    """A screen-only engagement has no areas of focus, so it has no deep dive."""
+    scope = scope_for(**G4)  # 2 weeks, data room only, exploratory
+    names = [p.name for p in scope.sequencing]
+    assert "Broad pass" in names
+    if not any(r.tier >= 3 for r in scope.rows):
+        assert "Deep dive" not in names
+
+
 def test_platform_decide_still_classifies_from_the_evidence() -> None:
     """A1/M6 are silent without a declaration, so A2/A5/A6 must carry the computation.
 

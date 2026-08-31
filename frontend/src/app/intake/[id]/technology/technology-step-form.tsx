@@ -73,7 +73,7 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
         />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Build vs buy">
+          <Field label="Build vs buy" hint="Rules A4/A5 — predominantly in-house pulls the mix toward Product (+15); COTS/packaged pulls toward Enterprise (-20).">
             {(id) => (
               <Select
                 id={id}
@@ -83,7 +83,7 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
               />
             )}
           </Field>
-          <Field label="Hosting model">
+          <Field label="Hosting model" hint="Rules A10/C6 — a predominantly on-premise estate pulls toward Enterprise (-10) and opens data-centre and DR scope.">
             {(id) => (
               <Select
                 id={id}
@@ -95,7 +95,7 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
           </Field>
         </div>
 
-        <Field label="Core systems">
+        <Field label="Core systems" hint="Rules A4/C5 — naming SAP, Oracle, Dynamics, NetSuite or Workday marks an ERP-heavy estate and injects the note that ERP is roughly 80% of integration cost.">
           {() => (
             <Controller
               name="core_systems"
@@ -112,7 +112,7 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="Cloud providers">
+        <Field label="Cloud providers" hint="Context for the infrastructure and cloud-cost areas. Passed to the model.">
           {() => (
             <Controller
               name="cloud_providers"
@@ -129,12 +129,12 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="Known tech stack">
+        <Field label="Known tech stack" hint="Free text passed to the model. This is what lets scope lines name the actual languages, frameworks and datastores instead of saying &quot;the technology stack&quot;.">
           {(id) => <TextInput id={id} {...register("known_tech_stack")} />}
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Engineering headcount">
+          <Field label="Engineering headcount" hint="Read against total headcount in step 04 to gauge how engineering-weighted the business is.">
             {(id) => (
               <Controller
                 name="engineering_headcount"
@@ -143,7 +143,7 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
               />
             )}
           </Field>
-          <Field label="Engineering share of headcount (%)">
+          <Field label="Engineering share of headcount (%)" hint="Rule A6 — 30% or more pulls the mix toward Product (+10).">
             {(id) => (
               <Controller
                 name="engineering_share_pct"
@@ -156,7 +156,7 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
           </Field>
         </div>
 
-        <Field label="Outsourcing reliance">
+        <Field label="Outsourcing reliance" hint="Context for key-person and vendor-dependency risk. Passed to the model.">
           {(id) => (
             <Select
               id={id}
@@ -167,7 +167,7 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="AI/ML dependence">
+        <Field label="AI/ML dependence" hint="Rules A11/C9 — embedded or core AI pulls toward Product (+10) and opens model governance, data rights and inference-cost scope.">
           {(id) => (
             <Select
               id={id}
@@ -178,7 +178,7 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="Data sensitivity">
+        <Field label="Data sensitivity" hint="Rule M2 — any regulated data (PII, PHI, PCI, financial) makes security and data governance mandatory at Tier 2 or deeper, whatever the archetype.">
           {() => (
             <Controller
               name="data_sensitivity"
@@ -195,7 +195,7 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="Compliance regimes">
+        <Field label="Compliance regimes" hint="Rule M3 — naming any regime makes the regulatory workstream mandatory at Tier 2 or deeper.">
           {() => (
             <Controller
               name="compliance_regimes"
@@ -212,7 +212,7 @@ export function TechnologyStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="Known incidents" hint="Outages, breaches, audit findings">
+        <Field label="Known incidents" hint="Outages, breaches and audit findings. Passed to the model so the scope can address them by name.">
           {(id) => <TextArea id={id} {...register("known_incidents")} />}
         </Field>
       </div>

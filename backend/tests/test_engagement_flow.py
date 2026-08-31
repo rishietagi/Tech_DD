@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 SECTIONS_PAYLOAD = {
     "context": {
@@ -172,3 +173,97 @@ def test_health_and_enums(client: TestClient) -> None:
     assert "ddTypePreference" in enums.json()["enums"]
     assert "investorType" not in enums.json()["enums"]
     assert "codeAccess" not in enums.json()["enums"]
+
+
+# ----------------------------------------------------------------------- deletion
+
+
+def _filed_engagement(client: TestClient) -> str:
+    engagement_id = _create_engagement(client)
+    for section, payload in SECTIONS_PAYLOAD.items():
+        client.patch(f"/api/v1/engagements/{engagement_id}/intake/{section}", json=payload)
+    client.post(f"/api/v1/engagements/{engagement_id}/submit")
+    return engagement_id
+
+
+def test_delete_without_permanent_archives(
+    client: TestClient, db_session: Session
+) -> None:
+    """The default stays a soft delete, so existing callers keep their behaviour.
+
+    Note the archived row is *invisible to the API* — `get_engagement` and
+    `list_engagements` both exclude archived — so its survival is checked in the
+    database directly rather than over HTTP.
+    """
+    from app.models.engagement import Engagement
+
+    engagement_id = _create_engagement(client)
+
+    response = client.delete(f"/api/v1/engagements/{engagement_id}")
+    assert response.status_code == 204
+
+    db_session.expire_all()
+    row = db_session.get(Engagement, engagement_id)
+    assert row is not None, "archiving must not remove the row"
+    assert row.status == "archived"
+
+    # Archived engagements drop out of both the detail route and the listing.
+    assert client.get(f"/api/v1/engagements/{engagement_id}").status_code == 404
+    assert all(item["id"] != engagement_id for item in client.get("/api/v1/engagements").json()["items"])
+
+
+def test_permanent_delete_removes_a_draft(client: TestClient) -> None:
+    engagement_id = _create_engagement(client)
+
+    response = client.delete(f"/api/v1/engagements/{engagement_id}?permanent=true")
+    assert response.status_code == 204
+    assert client.get(f"/api/v1/engagements/{engagement_id}").status_code == 404
+
+
+def test_permanent_delete_works_on_a_filed_engagement(client: TestClient) -> None:
+    """Any status can be deleted outright (Rishi's call) — the dialog is the guard."""
+    engagement_id = _filed_engagement(client)
+
+    response = client.delete(f"/api/v1/engagements/{engagement_id}?permanent=true")
+    assert response.status_code == 204
+    assert client.get(f"/api/v1/engagements/{engagement_id}").status_code == 404
+
+
+def test_an_archived_engagement_can_still_be_deleted(client: TestClient) -> None:
+    """Archived rows are a 404 to `get_engagement`, so delete must not rely on it."""
+    engagement_id = _filed_engagement(client)
+
+    assert client.delete(f"/api/v1/engagements/{engagement_id}").status_code == 204
+    assert client.delete(f"/api/v1/engagements/{engagement_id}?permanent=true").status_code == 204
+    assert client.get(f"/api/v1/engagements/{engagement_id}").status_code == 404
+
+
+def test_permanent_delete_takes_the_children_with_it(
+    client: TestClient, db_session: Session
+) -> None:
+    """The cascade must remove intake, denorm and scopes, not leave orphaned rows."""
+    from app.models.engagement import EngagementDenorm, EngagementIntake
+    from app.models.scope_of_work import ScopeOfWork
+
+    engagement_id = _filed_engagement(client)
+    client.post(f"/api/v1/engagements/{engagement_id}/scope")
+
+    def counts() -> tuple[int, int, int]:
+        db_session.expire_all()
+        return (
+            db_session.query(ScopeOfWork).filter_by(engagement_id=engagement_id).count(),
+            db_session.query(EngagementIntake).filter_by(engagement_id=engagement_id).count(),
+            db_session.query(EngagementDenorm).filter_by(engagement_id=engagement_id).count(),
+        )
+
+    assert counts() == (1, 1, 1)
+
+    client.delete(f"/api/v1/engagements/{engagement_id}")
+    assert client.delete(f"/api/v1/engagements/{engagement_id}?permanent=true").status_code == 204
+
+    assert counts() == (0, 0, 0)
+
+
+def test_permanent_delete_of_a_missing_engagement_is_404(client: TestClient) -> None:
+    response = client.delete("/api/v1/engagements/does-not-exist?permanent=true")
+    assert response.status_code == 404

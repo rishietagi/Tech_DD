@@ -67,7 +67,7 @@ export function StructureStepForm({ engagementId }: { engagementId: string }) {
       <div className="border-t border-line-strong py-8">
         <SectionHeader num="03" title="Deal Structure" hint="Strategic vs financial, majority vs minority — the modifiers that set access and depth." />
 
-        <Field label="Investment type" error={errors.investment_type?.message}>
+        <Field label="Investment type" hint="Rules D8/A9 — a strategic buyer opens integration and interoperability work and floors every area at Tier 2; a financial buyer scopes for standalone viability." error={errors.investment_type?.message}>
           {() => (
             <Controller
               name="investment_type"
@@ -84,7 +84,7 @@ export function StructureStepForm({ engagementId }: { engagementId: string }) {
           )}
         </Field>
 
-        <Field label="Stake" error={errors.stake?.message}>
+        <Field label="Stake" hint="Majority allows control-oriented workstreams (org change, cost takeout); minority leans on management representations." error={errors.stake?.message}>
           {() => (
             <Controller
               name="stake"
@@ -97,7 +97,7 @@ export function StructureStepForm({ engagementId }: { engagementId: string }) {
         </Field>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Stake percent" error={errors.stake_percent?.message}>
+          <Field label="Stake percent" hint="Context only. Not currently a scoring rule." error={errors.stake_percent?.message}>
             {(id) => (
               <Controller
                 name="stake_percent"
@@ -108,7 +108,7 @@ export function StructureStepForm({ engagementId }: { engagementId: string }) {
               />
             )}
           </Field>
-          <Field label="Hold period">
+          <Field label="Hold period" hint="The horizon the architecture has to survive. Passed to the model as context.">
             {(id) => (
               <Select
                 id={id}
@@ -120,7 +120,7 @@ export function StructureStepForm({ engagementId }: { engagementId: string }) {
           </Field>
         </div>
 
-        <Field label="Post-close intent" error={errors.post_close_intent?.message}>
+        <Field label="Post-close intent" hint="Rules M5/A9 — &quot;Integrate into existing platform&quot; opens the integration workstream at Tier 2 and pulls the mix toward Enterprise." error={errors.post_close_intent?.message}>
           {(id) => (
             <Select
               id={id}
