@@ -111,6 +111,31 @@ def test_the_internal_audit_trail_is_omitted() -> None:
     assert "Signals" not in text
 
 
+def test_tier_badges_and_reasons_are_not_shown_on_the_scope_rows() -> None:
+    """Depth is an internal decision (Rishi, 2026-08-31) and is not badged on rows.
+
+    The badges are gone entirely, and so is the "core coverage; mandatory at Tier N"
+    reason line that sat under each title. "Deep dive" survives only as a sequencing
+    phase name, which is why that string is not asserted against here.
+    """
+    text = pdf_text(scope_pdf())
+
+    # The tier-reason line that used to sit under every title.
+    assert "mandatory at Tier" not in text
+    assert "core coverage" not in text
+
+    # The badge rendered each tier name as a standalone upper-case token. A plain
+    # substring check would be useless — the KPMG source wording legitimately contains
+    # "assessment", "screening" and so on — so this matches whole words only.
+    from app.schemas.selection import TIER_NAMES
+
+    for tier_name in TIER_NAMES.values():
+        badge = tier_name.upper()
+        assert not re.search(rf"\b{re.escape(badge)}\b", text), (
+            f"tier badge leaked into the PDF: {badge}"
+        )
+
+
 def test_exclusions_are_never_dropped() -> None:
     """DD_master G4 — a scope that does not say what it excludes is not a scope."""
     assert "does not say what it excludes" in pdf_text(scope_pdf())

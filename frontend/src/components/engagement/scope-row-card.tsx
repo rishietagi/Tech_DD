@@ -4,13 +4,6 @@ import { useState } from "react";
 
 import type { ScopedRow } from "@/types/engagement";
 
-const TIER_STYLE: Record<number, string> = {
-  0: "border-line-strong text-muted-2",
-  1: "border-muted-2 text-muted",
-  2: "border-steel text-steel",
-  3: "border-kpmg-blue bg-kpmg-blue-tint text-kpmg-blue",
-};
-
 export function ScopeRowCard({ row }: { row: ScopedRow }) {
   const [open, setOpen] = useState(false);
   const isOutOfScope = row.tier === 0;
@@ -19,20 +12,16 @@ export function ScopeRowCard({ row }: { row: ScopedRow }) {
     <article
       className={`border-t border-line py-5 first:border-t-0 ${isOutOfScope ? "opacity-60" : ""}`}
     >
-      <div className="mb-2 flex flex-wrap items-start justify-between gap-3">
-        <h3 className="flex-1 font-display text-[17px] font-semibold text-text">
+      {/* No tier badge (Rishi, 2026-08-31): depth is an internal decision, so it is not
+          shown as a label on the row. It still governs which rows open and how deep, and
+          the reasoning stays available under "Why this depth" below. */}
+      <div className="mb-2">
+        <h3 className="font-display text-[17px] font-semibold text-text">
           <span className="mr-2.5 font-sans text-[13px] font-medium text-muted-2">
             {String(row.sn).padStart(2, "0")}
           </span>
           {row.title}
         </h3>
-        <span
-          className={`flex-none rounded-full border px-3 py-1 font-sans text-[11px] font-semibold uppercase ${
-            TIER_STYLE[row.tier] ?? TIER_STYLE[1]
-          }`}
-        >
-          {row.tier_name}
-        </span>
       </div>
 
       {row.lines.map((line, index) => (

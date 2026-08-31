@@ -17,7 +17,7 @@ Deterministic and offline: read off the stored payload, no recomputation, no net
 
 import io
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -30,7 +30,7 @@ from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.presentation import Presentation
 from pptx.util import Emu, Inches, Pt
 
-from app.schemas.scope import ScopedRow, ScopeOfWorkPayloadV2
+from app.schemas.scope import ScopeOfWorkPayloadV2
 
 _DECK_LABEL = {
     "product": "Product Tech DD",
@@ -65,16 +65,6 @@ class Theme:
     slide_w: float = 13.333
     slide_h: float = 7.5
     margin: float = 0.62
-
-    # Tier chip fills, keyed by tier. Tier 0 is out of scope but still shown.
-    tier_colors: dict[int, RGBColor] = field(
-        default_factory=lambda: {
-            0: RGBColor(0x80, 0x87, 0xA0),
-            1: RGBColor(0x4A, 0x55, 0x68),
-            2: RGBColor(0x00, 0x91, 0xDA),
-            3: RGBColor(0x00, 0x33, 0x8D),
-        }
-    )
 
     @property
     def content_w(self) -> float:
@@ -179,31 +169,6 @@ def _footer(slide: Any, text: str, page: int | None, theme: Theme = THEME) -> No
         pf = _textbox(slide, theme.slide_w - theme.margin - 0.6, theme.slide_h - 0.46, 0.6, 0.26)
         pp = _write(pf, str(page), size=8, color=theme.muted_2, first=True, theme=theme)
         pp.alignment = PP_ALIGN.RIGHT
-
-
-def _tier_chip(slide: Any, row: ScopedRow, left: float, top: float, theme: Theme = THEME) -> None:
-    from pptx.enum.shapes import MSO_SHAPE
-
-    chip = slide.shapes.add_shape(
-        MSO_SHAPE.ROUNDED_RECTANGLE, Inches(left), Inches(top), Inches(1.15), Inches(0.24)
-    )
-    chip.fill.solid()
-    chip.fill.fore_color.rgb = theme.tier_colors.get(row.tier, theme.muted)
-    chip.line.fill.background()
-    chip.shadow.inherit = False
-
-    frame = chip.text_frame
-    frame.word_wrap = False
-    frame.margin_left = frame.margin_right = 0
-    frame.margin_top = frame.margin_bottom = 0
-    para = frame.paragraphs[0]
-    run = para.add_run()
-    run.text = row.tier_name.upper()
-    run.font.size = Pt(8)
-    run.font.bold = True
-    run.font.name = theme.font
-    run.font.color.rgb = theme.white
-    para.alignment = PP_ALIGN.CENTER
 
 
 def _table(
@@ -339,9 +304,11 @@ def _row_slides(
         for i, row in enumerate(chunk):
             y = top + i * row_h
 
-            tf = _textbox(slide, theme.margin, y, theme.content_w - 1.35, 0.32)
+            # No tier badge (Rishi, 2026-08-31): depth is an internal decision and the
+            # client-facing document states the work, not the engine's grading of it.
+            # The title reclaims the width the chip used to occupy.
+            tf = _textbox(slide, theme.margin, y, theme.content_w, 0.32)
             _write(tf, f"{row.sn:02d}.  {row.title}", size=12, bold=True, first=True, theme=theme)
-            _tier_chip(slide, row, theme.slide_w - theme.margin - 1.15, y + 0.02, theme)
 
             bf = _textbox(slide, theme.margin, y + 0.34, theme.content_w - 0.2, row_h - 0.42)
             first = True

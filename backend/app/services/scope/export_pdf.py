@@ -60,12 +60,7 @@ _DECK_LABEL = {
 
 # Tier 0 rows are out of scope. They are NOT dropped: a scope that silently omits what
 # it considered is less useful than one that says "looked at, deliberately not opened".
-_TIER_COLOR = {
-    0: MUTED_2,
-    1: MUTED,
-    2: KPMG_BLUE_LIGHT,
-    3: KPMG_BLUE,
-}
+# Their `out_of_scope_note` still carries that, without a coloured tier badge.
 
 _LOGO = Path(__file__).resolve().parents[4] / "assets" / "kpmg-logo-blue.png"
 
@@ -138,10 +133,6 @@ def _styles() -> dict[str, ParagraphStyle]:
             name="label", fontName="Helvetica-Bold", fontSize=8.5, leading=12,
             textColor=MUTED, spaceBefore=3, spaceAfter=2,
         ),
-        "tier": mk(
-            name="tier", fontName="Helvetica-Bold", fontSize=7.5, leading=10,
-            textColor=colors.white,
-        ),
     }
 
 
@@ -161,47 +152,18 @@ def _bullets(items: list[str], st: dict[str, ParagraphStyle], style: str = "body
     )
 
 
-def _tier_badge(row: ScopedRow, st: dict[str, ParagraphStyle]) -> Table:
-    """The tier chip, coloured as it is on screen."""
-    fill = _TIER_COLOR.get(row.tier, MUTED)
-    cell = Paragraph(f"<b>{_escape(row.tier_name.upper())}</b>", st["tier"])
-    t = Table([[cell]], colWidths=[26 * mm], rowHeights=[6.4 * mm])
-    t.setStyle(
-        TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), fill),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 2),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 2),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ])
-    )
-    return t
+def _row_block(row: ScopedRow, st: dict[str, ParagraphStyle]) -> list[Any]:
+    """One scope row. Kept together so a heading never strands at a page foot.
 
+    No tier badge and no tier reason (Rishi, 2026-08-31): depth is an internal decision
+    and the client-facing document states the work, not the engine's grading of it. The
+    tier still governs which rows open and how deep — it is simply not shown. The
+    Markdown export keeps both, since that is the internal artefact.
 
-def _row_block(row: ScopedRow, st: dict[str, ParagraphStyle], content_w: float) -> list[Any]:
-    """One scope row. Kept together so a heading never strands at a page foot."""
-    title = Paragraph(f"{row.sn:02d}.&nbsp;&nbsp;{_escape(row.title)}", st["row_title"])
-    header = Table(
-        [[title, _tier_badge(row, st)]],
-        colWidths=[content_w - 28 * mm, 28 * mm],
-    )
-    header.setStyle(
-        TableStyle([
-            ("VALIGN", (0, 0), (0, 0), "TOP"),
-            ("VALIGN", (1, 0), (1, 0), "TOP"),
-            ("ALIGN", (1, 0), (1, 0), "RIGHT"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ])
-    )
-
-    parts: list[Any] = [header]
-    if row.tier_reason:
-        parts.append(Paragraph(_escape(row.tier_reason), st["italic"]))
+    """
+    parts: list[Any] = [
+        Paragraph(f"{row.sn:02d}.&nbsp;&nbsp;{_escape(row.title)}", st["row_title"])
+    ]
     parts.extend(Paragraph(_escape(line.text), st["body"]) for line in row.lines)
 
     if row.adjustments:
@@ -371,7 +333,7 @@ def render_pdf(
         if is_blended:
             story.append(Paragraph(heading, st["h2"]))
         for row in rows:
-            story.extend(_row_block(row, st, content_w))
+            story.extend(_row_block(row, st))
 
     # --- sequencing -----------------------------------------------------------------
     if scope.sequencing:

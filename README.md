@@ -121,7 +121,7 @@ PDF, or exported to Markdown with the full audit trail.
 Backend (from `backend/`):
 
 ```powershell
-pytest                 # 242 tests
+pytest                 # 244 tests
 ruff check .
 mypy app
 black --check .

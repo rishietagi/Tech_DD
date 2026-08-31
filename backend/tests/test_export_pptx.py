@@ -184,6 +184,30 @@ def test_human_edits_survive_into_the_deck(client: TestClient) -> None:
 
     response = client.get(f"/api/v1/engagements/{engagement_id}/scope/export.pptx")
     text = deck_text(Presentation(io.BytesIO(response.content)))
-    # The row is still present and now carries the hand-set tier.
-    assert any(r["id"] == row_id for r in scope["payload"]["rows"])
-    assert "SCREEN" in text.upper() or "SWEEP" in text.upper()
+    # The edited row still ships; only its depth changed, which the deck does not label.
+    edited = next(r for r in scope["payload"]["rows"] if r["id"] == row_id)
+    assert edited["title"] in text
+
+
+def test_tier_badges_are_not_shown_on_the_scope_slides() -> None:
+    """Depth is an internal decision (Rishi, 2026-08-31) and is not badged on rows.
+
+    Scoped to the scope-of-work slides only: "Broad pass" and "Deep dive" are the
+    sequencing *phase names* and must still appear on the sequencing slide.
+    """
+    prs = scope_deck()
+    row_slides = [
+        s for s in prs.slides
+        if any(
+            sh.has_text_frame and sh.text_frame.text.startswith("Scope of work")
+            for sh in s.shapes
+        )
+    ]
+    assert row_slides, "no scope-of-work slides found"
+
+    for slide in row_slides:
+        text = " ".join(
+            sh.text_frame.text for sh in slide.shapes if sh.has_text_frame
+        ).upper()
+        for label in ("DEEP DIVE", "ASSESS", "SCREEN", "SWEEP"):
+            assert label not in text, f"tier badge leaked onto a scope slide: {label}"

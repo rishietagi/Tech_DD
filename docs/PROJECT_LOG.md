@@ -15,7 +15,7 @@ future session would otherwise get wrong.
 | **Phase 1 (intake)** | Done, committed, pushed |
 | **Phase 2 (scope engine)** | Done, committed (`62ac027`, `61399a6`) |
 | **Phase 3+** | Not started, not planned |
-| **Backend** | pytest 242/242 · ruff clean · mypy clean (53 files) |
+| **Backend** | pytest 244/244 · ruff clean · mypy clean (53 files) |
 | **Frontend** | tsc clean · eslint clean · vitest 19/19 · `next build` clean |
 | **API** | 15 routes, OpenAPI clean |
 | **DB** | at `0002_drop_tech_is_product` |
@@ -218,6 +218,46 @@ done.
 ---
 
 ## Session log
+
+### 2026-08-31 — Tier badges removed from the client-facing scope
+
+Rishi: *"i dont want this assess deep dive indicators in the SOW part of the generated
+SOW like just remove it"* — the `DEEP DIVE` / `ASSESS` chips beside each scope row.
+
+Removed from **all three** surfaces, on Rishi's call: the PPT deck, the PDF, and the
+on-screen scope view. The PDF also loses the italic tier-reason line ("core coverage;
+mandatory at Tier 2") that sat under each title.
+
+**The tier itself is untouched.** It still governs which rows open and how deep, it is
+still stored on every row, and it still drives the sequencing split. Only the *label*
+is gone from the client-facing document — depth is an internal decision, and the scope
+states the work rather than the engine's grading of it. The Markdown export keeps
+`tier_name` and `tier_reason`, since that is the internal artefact.
+
+The on-screen card also keeps the collapsible **"Why this depth"** panel, which carries
+`tier_reason` and the adjustments. Only the coloured chip beside the title went.
+
+**Cleanup that came with it:** `_tier_chip` and `Theme.tier_colors` (pptx), `_tier_badge`,
+`_TIER_COLOR` and the `"tier"` paragraph style (pdf), `TIER_STYLE` (frontend). The PDF's
+`_row_block` lost its `content_w` parameter — the header table existed only to hold the
+badge, so the title is now a plain paragraph spanning the full width.
+
+**Two test traps worth remembering**, both of which I hit:
+
+1. A blanket `"DEEP DIVE" not in deck_text` fails, because **"Deep dive" is also a
+   sequencing phase name** — the one Rishi's partner asked for. The assertion has to be
+   scoped to the scope-of-work slides only.
+2. A blanket `"ASSESS" not in pdf_text` fails on the KPMG source wording itself:
+   *"key-person **assess**ment"*, *"**Assess** IT infrastructure"*. The PDF test now
+   matches whole words with a word-boundary regex against `TIER_NAMES`.
+
+### Noticed but not changed
+
+The PDF still prints row adjustments verbatim, e.g. `+1 tier: you asked to "Validate
+scalability"`. That is tier language on a client-facing document, so it may want the
+same treatment — but it was outside what was asked, and it carries real information
+(why an area got more depth), so it was left alone. Raise it if it should go.
+
 
 ### 2026-08-31 — Delete button on the engagements table
 
