@@ -14,11 +14,11 @@ future session would otherwise get wrong.
 |---|---|
 | **Phase 1 (intake)** | Done, committed, pushed |
 | **Phase 2 (scope engine)** | Done, committed (`62ac027`, `61399a6`) |
-| **Phase 3+** | Not started, not planned |
-| **Backend** | pytest 244/244 · ruff clean · mypy clean (53 files) |
+| **Phase 3 (IRL + research)** | Built, uncommitted |
+| **Backend** | pytest 284/284 · ruff clean · mypy clean (68 files) |
 | **Frontend** | tsc clean · eslint clean · vitest 19/19 · `next build` clean |
-| **API** | 15 routes, OpenAPI clean |
-| **DB** | at `0002_drop_tech_is_product` |
+| **API** | 22 routes, OpenAPI clean |
+| **DB** | at `0003_add_irl_and_research` |
 | **Git** | `master`, remote `origin` = `git@github.com:rishietagi/Tech_DD.git` |
 
 **Uncommitted:** the UI fixes and the `tech_is_product` removal below. Rishi does all
@@ -218,6 +218,79 @@ done.
 ---
 
 ## Session log
+
+### 2026-08-31 — Phase 3: Initial Request List and company research
+
+The step after the scope: the **IRL** the buyer sends the target, and the **company
+research** that informs it. Plan at `docs/phases/PHASE3_PLAN.md`.
+
+**The engagement was NOT renamed to "project".** Rishi asked that a project hold its
+name, intake, SOW, IRL and more later. The engagement already *is* that container; 66
+files reference the name, so renaming would be a large cosmetic diff with real
+regression risk and zero behaviour change. What it lacked was room for modules, so each
+deliverable is now its own versioned child table hanging off `engagements` — the pattern
+`scope_of_work` already used. **Adding a module later is one more table + service +
+router.** Nothing existing has to change.
+
+**Seeds are the reason the IRL is defensible.** Every KPMG scope row already carries an
+`evidence` list, which reaches the payload as `ScopedRow.evidence_requests`. Those become
+the deterministic seeds, so every seeded question traces to a scope area a rule opened,
+and the IRL generates fully with the LLM off. The model rewrites seeds into client-ready
+wording and *adds* questions for the non-tech functions a tech scope never reaches —
+marked `source: "llm"` with no `source_row_id`, so a reviewer can always tell which is
+which.
+
+**The LLM contract differs from the scope engine in one way**: the model may *add*
+questions (an IRL that only asks what a tech scope covers is not a real IRL), but may not
+drop or invent a seed. Every seed id must come back exactly once, or the whole response
+is discarded for the deterministic list.
+
+**Research feeds the IRL.** Rishi confirmed mid-build that the questions must take the
+research and the intake context as input. `LlmIrlGenerator` passes the research summary,
+findings, and the full engagement context into the prompt;
+`test_research_and_context_reach_the_model` asserts all three actually appear in what is
+sent, rather than trusting the wiring.
+
+**Responses live in their own table** (`irl_response`), not in `payload_json`. They are
+user data with a different lifecycle from the generated document: regenerating must never
+clobber typed answers. Answers on stable ids are carried forward to the new version;
+`test_responses_survive_a_regeneration` pins it. This also avoids the shallow-copy /
+`flag_modified` trap recorded below.
+
+**Research refuses rather than fabricating.** Gemini's `GoogleSearch` grounding tool
+returns the pages it actually read; if a response comes back with no grounding metadata,
+the run is **rejected, not stored**. Ungrounded research with invented citations looks
+identical to the real thing and would reach a deal team carrying the same authority.
+There is deliberately **no deterministic fallback** here — unlike a scope, research
+without web access is not a degraded version of itself, it is fabrication. Dangling
+citation ids the model invents are stripped, so the UI never renders a source that does
+not exist.
+
+Every research payload **stores its own disclaimer** rather than relying on the page that
+renders it, so a re-read or exported run still carries the warning.
+
+**Excel**: `xlsxwriter` was already installed (a python-pptx dependency) and is now pinned
+explicitly. Three columns exactly — `Function | Question | Response` — with Response blank
+for the client, header frozen, autofilter on. Answers already typed in the app are written
+back so the workbook round-trips. `openpyxl` was added as a **test-only** dependency to
+read the workbook back and verify the columns rather than trusting the writer.
+
+**Function names are model-invented per target** (Rishi's call over a fixed list), which
+is what makes them fit the business — a manufacturer gets "Plant Operations", a bank
+"Treasury". The consequence is drift between regenerations; mitigated by storing the
+resolved list and feeding it back into the prompt. It reduces drift, it does not eliminate
+it. If that proves annoying, the fix is a practitioner-editable `irl_functions.yaml`.
+
+**Verified by running it**, not only by tests: generated a real IRL (30 questions, 8
+functions, each traceable to a scope row), opened the exported workbook (three columns, 29
+blank rows, 1 answer round-tripped), and drove the page in a browser — typed a response,
+saw "Saved", reloaded, it persisted.
+
+**Also fixed while here:** the sidebar's active-engagement regex only matched `/intake/`,
+so the per-engagement section vanished on every `/engagements/{id}` route. Widened to
+match both, with `/intake/new` excluded. The `Engagements` workspace link was tightened
+from `startsWith` to an exact match so it stops highlighting inside a sub-route.
+
 
 ### 2026-08-31 — Tier badges removed from the client-facing scope
 

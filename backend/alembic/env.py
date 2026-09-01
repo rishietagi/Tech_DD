@@ -10,7 +10,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.core.config import get_settings  # noqa: E402
 from app.db.base import Base  # noqa: E402
-from app.models import Engagement, EngagementDenorm, EngagementIntake, ScopeOfWork  # noqa: E402,F401
+from app.models import (  # noqa: E402,F401
+    CompanyResearch,
+    Engagement,
+    EngagementDenorm,
+    EngagementIntake,
+    InformationRequestList,
+    IrlResponse,
+    ScopeOfWork,
+)
 
 config = context.config
 

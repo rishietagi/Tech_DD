@@ -18,8 +18,13 @@ The flow the product owns:
 2. **Scope of Work generation** — from that intake, produce a tailored technical
    diligence scope: which areas open, at what depth, what evidence is requested.
    Built in Phase 2 — see §9.
-3. **Execution & reporting** — run the workstreams, collect findings, produce the
-   report. *(Phase 3+, not planned yet.)*
+3. **Company research** — search public sources for what is known about the target,
+   with citations, to inform the request list. Built in Phase 3 — see §9.
+4. **Initial Request List (IRL)** — from the scope, produce the list of artefacts the
+   target must supply, grouped by business function and exported to Excel for the
+   client to complete. Built in Phase 3 — see §9.
+5. **Execution & reporting** — run the workstreams, collect findings, produce the
+   report. *(Phase 4+, not planned yet.)*
 
 The central intellectual claim of the product: **the scope of a tech DD is not
 generic.** It is a function of (a) the target's line of business and how central
@@ -102,6 +107,8 @@ Glossary the code should use consistently: `engagement`, `intake`, `workstream`,
 | ORM / DB | SQLAlchemy 2.0 (declarative, typed) + Alembic; SQLite in dev, Postgres in prod via `DATABASE_URL` |
 | PDF export | **ReportLab** (`reportlab` + `pillow`) — pure Python, no system libraries |
 | PPT export | **python-pptx** — pure Python. The primary client-facing artefact: a SOW is normally circulated as a deck |
+| XLSX export | **xlsxwriter** — the IRL workbook (Function / Question / Response) |
+| Web research | Gemini's `GoogleSearch` grounding tool — sources come back as citations |
 | Testing | Vitest + Testing Library (FE), pytest + httpx (BE), Playwright for one smoke E2E |
 | Lint/format | ESLint + Prettier (FE); ruff + black + mypy (BE) |
 | Env | **conda** environment named `techdd`, Python 3.11 and Node 20 both installed into it |
@@ -138,7 +145,8 @@ Tech_DD/
 │   ├── phases/
 │   │   ├── PHASE1_PLAN.md     # Phase 1 build plan (intake)
 │   │   ├── PHASE2_SPEC.md     # Phase 2 build spec (scope engine)
-│   │   └── PHASE2_PROMPT.md   # the Phase 2 handoff prompt
+│   │   ├── PHASE2_PROMPT.md   # the Phase 2 handoff prompt
+│   │   └── PHASE3_PLAN.md     # Phase 3 build plan (IRL + research)
 │   └── reference/
 │       ├── DD_master.md       # the domain authority (Roehl-Anderson 2013)
 │       ├── KPMG_SOW_LANGUAGE.md  # house scope-of-work voice, from the source deck
@@ -162,6 +170,8 @@ Tech_DD/
 │   │   │   └── scope/         # the engine: signals, scoring, selection, depth,
 │   │   │                      #   composer, llm, export, export_pdf,
 │   │   │                      #   export_pptx + prompts/
+│   │   ├── irl/               # seeds, composer, llm, export_xlsx + prompts/
+│   │   └── research/          # grounded web search + prompts/
 │   │   └── reference/         # enums + kpmg_scope/*.yaml + scope_rules.yaml
 │   ├── alembic/
 │   └── tests/                 # incl. golden cases and mocked LLM tests
@@ -290,7 +300,18 @@ now read the declaration instead. Consequence: under "Let the platform decide" b
 silent by design and the computed mix rests on A2/A5/A6. Do not reintroduce the intake
 field — tune those weights instead. Full reasoning in `docs/PROJECT_LOG.md`.
 
-**Phase 3+ — not planned.** Execution, evidence collection, findings, reporting,
+**Phase 3 — BUILT.** The Initial Request List and company research. The IRL derives from
+the scope: every KPMG row's `evidence` list seeds a request, so each question traces to a
+scope area a rule opened and the list generates with the LLM off. Research is a grounded
+web search that **refuses rather than fabricating** — no grounding metadata, no stored
+run — and feeds the IRL so its questions and function names fit the actual business. Plan
+at `docs/phases/PHASE3_PLAN.md`.
+
+**Each deliverable is its own versioned child table** hanging off `engagements`
+(`scope_of_work`, `information_request_list`, `company_research`, plus `irl_response`).
+Adding a module later is one more table + service + router — do not reshape what exists.
+
+**Phase 4+ — not planned.** Execution, evidence collection, findings, reporting,
 multi-user auth.
 
 **Reference documents:**

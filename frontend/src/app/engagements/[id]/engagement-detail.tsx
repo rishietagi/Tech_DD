@@ -58,12 +58,28 @@ export function EngagementDetail({ engagementId }: { engagementId: string }) {
             </span>
           </div>
         </div>
-        <Link
-          href={`/engagements/${engagementId}/scope`}
-          className="rounded-full border border-ink bg-ink px-5 py-3 font-sans text-[13px] font-medium text-paper-on-ink transition-colors hover:border-kpmg-blue-dark hover:bg-kpmg-blue-dark"
-        >
-          View scope of work
-        </Link>
+        {/* The modules this engagement contains. More will be added here as the
+            project grows; each is its own route under /engagements/[id]. */}
+        <div className="flex flex-none flex-wrap items-center gap-2">
+          <Link
+            href={`/engagements/${engagementId}/scope`}
+            className="rounded-full border border-ink bg-ink px-5 py-3 font-sans text-[13px] font-medium text-paper-on-ink transition-colors hover:border-kpmg-blue-dark hover:bg-kpmg-blue-dark"
+          >
+            Scope of work
+          </Link>
+          <Link
+            href={`/engagements/${engagementId}/research`}
+            className="rounded-full border border-line-strong px-5 py-3 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2"
+          >
+            Company research
+          </Link>
+          <Link
+            href={`/engagements/${engagementId}/irl`}
+            className="rounded-full border border-line-strong px-5 py-3 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2"
+          >
+            Request list
+          </Link>
+        </div>
       </div>
 
       <CoverSheet engagementId={engagementId} intake={engagement.intake} />

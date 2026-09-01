@@ -37,6 +37,18 @@ Objectives & Logistics. Autosaves as you type; resumable by URL.
 The deterministic engine produces a complete, publishable scope with the LLM entirely
 disabled. The model is an improvement to the wording, never a dependency.
 
+**Phase 3 — the request list.** A scoped engagement can produce the **Initial Request
+List**: the document the buyer sends the target, listing every artefact the team needs.
+
+- **It derives from the scope.** Each KPMG row's evidence list seeds a request, so every
+  question traces back to an area the scope opened — and the list generates with the LLM
+  switched off.
+- **Company research informs it.** A grounded web search over the target returns findings
+  with real source links, which shape the questions and the function names. If the model
+  returns no sources the run is refused, not stored.
+- **Excel out.** Three columns — Function, Question, Response — with Response blank for
+  the client to fill and return.
+
 ## Stack
 
 - Frontend: Next.js 15 (App Router) + React 19 + TypeScript (strict) + Tailwind v4
@@ -121,7 +133,7 @@ PDF, or exported to Markdown with the full audit trail.
 Backend (from `backend/`):
 
 ```powershell
-pytest                 # 244 tests
+pytest                 # 284 tests
 ruff check .
 mypy app
 black --check .

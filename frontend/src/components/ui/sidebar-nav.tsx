@@ -6,10 +6,14 @@ import { usePathname } from "next/navigation";
 
 import { INTAKE_STEPS, INTAKE_STEP_LABELS } from "@/types/intake";
 
+/** The engagement currently being worked on, from either the intake wizard or one of
+ *  the engagement modules. `/intake/new` and the `/engagements` list route have no id,
+ *  so both are excluded. */
 function useActiveEngagementId(): string | null {
   const pathname = usePathname();
-  const match = pathname?.match(/^\/intake\/([^/]+)/);
-  return match ? match[1] : null;
+  const match = pathname?.match(/^\/(?:intake|engagements)\/([^/]+)/);
+  if (!match) return null;
+  return match[1] === "new" ? null : match[1];
 }
 
 function NavSectionLabel({ children }: { children: React.ReactNode }) {
@@ -86,9 +90,43 @@ export function SidebarNav() {
           )}
         </div>
 
+        {activeEngagementId && (
+          <>
+            <NavSectionLabel>Engagement</NavSectionLabel>
+            <div className="space-y-0.5">
+              <NavLink
+                href={`/engagements/${activeEngagementId}`}
+                active={pathname === `/engagements/${activeEngagementId}`}
+              >
+                Overview
+              </NavLink>
+              <NavLink
+                href={`/engagements/${activeEngagementId}/scope`}
+                active={pathname === `/engagements/${activeEngagementId}/scope`}
+              >
+                Scope of work
+              </NavLink>
+              <NavLink
+                href={`/engagements/${activeEngagementId}/research`}
+                active={pathname === `/engagements/${activeEngagementId}/research`}
+              >
+                Company research
+              </NavLink>
+              <NavLink
+                href={`/engagements/${activeEngagementId}/irl`}
+                active={pathname === `/engagements/${activeEngagementId}/irl`}
+              >
+                Initial request list
+              </NavLink>
+            </div>
+          </>
+        )}
+
         <NavSectionLabel>Workspace</NavSectionLabel>
         <div className="space-y-0.5">
-          <NavLink href="/engagements" active={pathname?.startsWith("/engagements") ?? false}>
+          {/* Exact match: this is the list route, and it should not stay lit while the
+              user is inside one engagement's modules. */}
+          <NavLink href="/engagements" active={pathname === "/engagements"}>
             Engagements
           </NavLink>
           <NavLink href="/about/methodology" active={pathname?.startsWith("/about") ?? false}>

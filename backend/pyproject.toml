@@ -37,6 +37,15 @@ ignore_missing_imports = true
 module = "app.services.scope.export_pptx"
 disallow_untyped_calls = false
 
+# xlsxwriter is likewise stub-less under `strict`.
+[[tool.mypy.overrides]]
+module = "xlsxwriter.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "app.services.irl.export_xlsx"
+disallow_untyped_calls = false
+
 [tool.black]
 line-length = 120
 target-version = ["py311"]

@@ -8,6 +8,8 @@ from app.db.base import Base, TimestampMixin, new_uuid
 from app.reference.enums import EngagementStatus
 
 if TYPE_CHECKING:
+    from app.models.irl import InformationRequestList
+    from app.models.research import CompanyResearch
     from app.models.scope_of_work import ScopeOfWork
 
 
@@ -26,8 +28,22 @@ class Engagement(TimestampMixin, Base):
     denorm: Mapped["EngagementDenorm"] = relationship(
         back_populates="engagement", uselist=False, cascade="all, delete-orphan"
     )
+    # Each deliverable is its own versioned child table. Adding a module later (findings,
+    # report, vendor tracker) is one more table + service + router, with no change here
+    # beyond another relationship. `delete-orphan` means the permanent-delete path picks
+    # every one of them up without extra work.
     scopes: Mapped[list["ScopeOfWork"]] = relationship(
         back_populates="engagement", cascade="all, delete-orphan", order_by="ScopeOfWork.version"
+    )
+    irls: Mapped[list["InformationRequestList"]] = relationship(
+        back_populates="engagement",
+        cascade="all, delete-orphan",
+        order_by="InformationRequestList.version",
+    )
+    research_runs: Mapped[list["CompanyResearch"]] = relationship(
+        back_populates="engagement",
+        cascade="all, delete-orphan",
+        order_by="CompanyResearch.version",
     )
 
 
