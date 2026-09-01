@@ -16,6 +16,7 @@ from app.models import (  # noqa: E402,F401
     EngagementDenorm,
     EngagementIntake,
     InformationRequestList,
+    IrlDocumentStatus,
     IrlResponse,
     ScopeOfWork,
 )

@@ -48,3 +48,8 @@ Thumbs.db
 # engine actually reads; the PDF itself stays local.
 *.pdf
 docs/reference/*.pdf
+
+# Test fixture for the checklist's shared-drive scanner. Local scaffolding only — the
+# repo should not carry fake documents that could later be mistaken for real ones.
+# See docs/phases/PHASE4_PLAN.md.
+shared-drive/

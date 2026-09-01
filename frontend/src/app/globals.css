@@ -25,6 +25,22 @@
   --color-kpmg-blue-tint: var(--kpmg-blue-tint);
   --color-kpmg-blue-tint-strong: var(--kpmg-blue-tint-strong);
 
+  --color-priority-critical: var(--priority-critical);
+  --color-priority-critical-tint: var(--priority-critical-tint);
+  --color-priority-high: var(--priority-high);
+  --color-priority-high-tint: var(--priority-high-tint);
+  --color-priority-medium: var(--priority-medium);
+  --color-priority-medium-tint: var(--priority-medium-tint);
+  --color-priority-low: var(--priority-low);
+  --color-priority-low-tint: var(--priority-low-tint);
+
+  --color-status-received: var(--status-received);
+  --color-status-received-tint: var(--status-received-tint);
+  --color-status-partial: var(--status-partial);
+  --color-status-partial-tint: var(--status-partial-tint);
+  --color-status-missing: var(--status-missing);
+  --color-status-missing-tint: var(--status-missing-tint);
+
   --radius-token: var(--radius);
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);

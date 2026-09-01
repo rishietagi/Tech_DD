@@ -49,6 +49,16 @@ List**: the document the buyer sends the target, listing every artefact the team
 - **Excel out.** Three columns — Function, Question, Response — with Response blank for
   the client to fill and return.
 
+**Phase 4 — the checklist.** Tracks what has actually arrived against each request:
+`Documents Requested | Document Type | Status`, with every item ranked
+Critical/High/Medium/Low and a legend explaining the colours. The ranking comes from the
+scope — security and regulatory evidence is critical, deep-dive areas are high — so it
+is explainable rather than a guess.
+
+Two parts are **deliberately deferred to deployment** and documented in
+`docs/phases/PHASE4_PLAN.md`: automatic shared-drive scanning (the endpoint returns 501
+with an explanation) and email reminders to the consultant (frontend stub only).
+
 ## Stack
 
 - Frontend: Next.js 15 (App Router) + React 19 + TypeScript (strict) + Tailwind v4
@@ -133,7 +143,7 @@ PDF, or exported to Markdown with the full audit trail.
 Backend (from `backend/`):
 
 ```powershell
-pytest                 # 284 tests
+pytest                 # 300 tests
 ruff check .
 mypy app
 black --check .

@@ -23,8 +23,10 @@ The flow the product owns:
 4. **Initial Request List (IRL)** — from the scope, produce the list of artefacts the
    target must supply, grouped by business function and exported to Excel for the
    client to complete. Built in Phase 3 — see §9.
-5. **Execution & reporting** — run the workstreams, collect findings, produce the
-   report. *(Phase 4+, not planned yet.)*
+5. **Checklist** — track which requested documents have actually arrived, ranked by
+   importance. Built in Phase 4 — see §9.
+6. **Execution & reporting** — run the workstreams, collect findings, produce the
+   report. *(Phase 5+, not planned yet.)*
 
 The central intellectual claim of the product: **the scope of a tech DD is not
 generic.** It is a function of (a) the target's line of business and how central
@@ -146,7 +148,8 @@ Tech_DD/
 │   │   ├── PHASE1_PLAN.md     # Phase 1 build plan (intake)
 │   │   ├── PHASE2_SPEC.md     # Phase 2 build spec (scope engine)
 │   │   ├── PHASE2_PROMPT.md   # the Phase 2 handoff prompt
-│   │   └── PHASE3_PLAN.md     # Phase 3 build plan (IRL + research)
+│   │   ├── PHASE3_PLAN.md     # Phase 3 build plan (IRL + research)
+│   │   └── PHASE4_PLAN.md     # Phase 4 build plan (checklist)
 │   └── reference/
 │       ├── DD_master.md       # the domain authority (Roehl-Anderson 2013)
 │       ├── KPMG_SOW_LANGUAGE.md  # house scope-of-work voice, from the source deck
@@ -171,7 +174,8 @@ Tech_DD/
 │   │   │                      #   composer, llm, export, export_pdf,
 │   │   │                      #   export_pptx + prompts/
 │   │   ├── irl/               # seeds, composer, llm, export_xlsx + prompts/
-│   │   └── research/          # grounded web search + prompts/
+│   │   ├── research/          # grounded web search + prompts/
+│   │   └── checklist/         # ranking, service, scanner (deferred stub)
 │   │   └── reference/         # enums + kpmg_scope/*.yaml + scope_rules.yaml
 │   ├── alembic/
 │   └── tests/                 # incl. golden cases and mocked LLM tests
@@ -311,7 +315,17 @@ at `docs/phases/PHASE3_PLAN.md`.
 (`scope_of_work`, `information_request_list`, `company_research`, plus `irl_response`).
 Adding a module later is one more table + service + router — do not reshape what exists.
 
-**Phase 4+ — not planned.** Execution, evidence collection, findings, reporting,
+**Phase 4 — BUILT, with two pieces deferred.** The Checklist tracks what has arrived
+against each IRL request, ranked Critical/High/Medium/Low from the scope tier and the
+workstream, with a colour legend. Plan at `docs/phases/PHASE4_PLAN.md`.
+
+**Deferred and in scope — do not treat as missing work:**
+- **Shared-drive scanning** — `services/checklist/scanner.py` holds the contract and the
+  rules it must follow; the endpoint returns 501 rather than being absent. Wired at
+  deployment. Test fixture at `shared-drive/project-lighthouse/` (gitignored).
+- **Email reminders** — frontend stub only, honestly badged "Not connected yet".
+
+**Phase 5+ — not planned.** Execution, evidence collection, findings, reporting,
 multi-user auth.
 
 **Reference documents:**

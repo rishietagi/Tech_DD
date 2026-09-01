@@ -15,10 +15,11 @@ future session would otherwise get wrong.
 | **Phase 1 (intake)** | Done, committed, pushed |
 | **Phase 2 (scope engine)** | Done, committed (`62ac027`, `61399a6`) |
 | **Phase 3 (IRL + research)** | Built, uncommitted |
-| **Backend** | pytest 284/284 · ruff clean · mypy clean (68 files) |
+| **Phase 4 (checklist)** | Built, uncommitted; scanner + email deferred |
+| **Backend** | pytest 300/300 · ruff clean · mypy clean (74 files) |
 | **Frontend** | tsc clean · eslint clean · vitest 19/19 · `next build` clean |
-| **API** | 22 routes, OpenAPI clean |
-| **DB** | at `0003_add_irl_and_research` |
+| **API** | 25 routes, OpenAPI clean |
+| **DB** | at `0004_add_irl_document_status` |
 | **Git** | `master`, remote `origin` = `git@github.com:rishietagi/Tech_DD.git` |
 
 **Uncommitted:** the UI fixes and the `tech_is_product` removal below. Rishi does all
@@ -218,6 +219,70 @@ done.
 ---
 
 ## Session log
+
+### 2026-08-31 — Phase 4: the Checklist
+
+Tracks what has actually arrived against each IRL request. Plan at
+`docs/phases/PHASE4_PLAN.md`.
+
+**Named "Checklist", not "IRL Checklist".** Rishi's original wording was *"name this
+feature IRL"*, but the request list already carries that name — two things sharing it
+would be confusing in code, docs and conversation. Asked, and he chose the short name.
+
+**The ranking needed recalibrating against real data, and that mattered.** The first
+version made every Tier 3 (deep dive) request critical. Run against the real 45-request
+Meridian Analytics list it put **24 of 45 items (53%) in one bucket** — at which point
+the colour coding stops telling a consultant anything. Critical is now reserved for
+security, privacy and regulatory evidence (`W-SEC`/`W-PROC`/`W-DATA`), where a gap is a
+deal issue rather than a depth question; depth alone maps to high. The spread became
+**9 / 25 / 6 / 5**. `test_the_scale_actually_discriminates` fails if any single level
+ever swallows the list again.
+
+Found by generating the thing and looking at the distribution — not by a failing test.
+
+**The tier is not stored on `IrlQuestion`** (only `source_row_id` is), so the ranker
+joins back to the scope payload. That avoided changing the IRL schema and means the
+lists generated before this feature existed rank correctly with no regeneration.
+
+**Status lives in its own table** (`irl_document_status`), separate from
+`irl_response`: a response is what the client wrote, a status is what the deal team
+observes. Rows exist only once a status is set, so absence means `not_received` and no
+backfill was needed.
+
+**`set_by_human` exists for the scanner that does not exist yet.** When the shared-drive
+walk is built it must never overwrite a status a person set deliberately. Recording that
+intent now is cheaper than retrofitting it later.
+
+### Deferred, deliberately — both in scope, neither built
+
+**Shared-drive scanning.** `services/checklist/scanner.py` holds the contract and the
+four rules it must follow; the endpoint returns **501 with an explanation** rather than
+being a missing route, so the shape is visible in OpenAPI and the UI has something real
+to call. The matching rules need real files in front of us to calibrate, and a scanner
+that guesses wrong is worse than none: it would mark a request satisfied when the
+document is missing, and nobody would notice until the team went looking.
+
+**Email reminders.** Frontend stub only — live preview from real data, Send visibly
+disabled, panel badged "Not connected yet". A button that looks functional and silently
+does nothing is worse in a demo than one honestly marked pending.
+
+**Test fixture**: `shared-drive/project-lighthouse/` — **gitignored** (Rishi's call), 24
+files across 6 function folders, built from the real Lighthouse IRL. Deliberately
+partial so every status is demonstrable: clear matches, three files marked `-ONLY` that
+should read as *received partially* (one quarter where the request asks for twelve
+months, a register without its contracts, one year of attrition where two were asked
+for), and roughly half the list with nothing at all.
+
+**New colour tokens.** The house palette was blue/red/neutral only. A four-step priority
+ramp cannot be carried by blue alone, so `--priority-*` and `--status-*` were added to
+`tokens.css` and mapped in `globals.css` — green appears only where "arrived" genuinely
+means good. No raw hex in components (CLAUDE.md §8).
+
+**Verified in a browser**, not just by tests: correct three columns, legend covering all
+four levels, four distinct badge colours actually rendering, a status change persisting
+across a reload, summary counts updating, the reminder preview matching the table, Send
+disabled, and the scan surfacing its 501 message.
+
 
 ### 2026-08-31 — Phase 3: Initial Request List and company research
 

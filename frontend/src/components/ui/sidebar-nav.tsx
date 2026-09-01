@@ -118,6 +118,12 @@ export function SidebarNav() {
               >
                 Initial request list
               </NavLink>
+              <NavLink
+                href={`/engagements/${activeEngagementId}/checklist`}
+                active={pathname === `/engagements/${activeEngagementId}/checklist`}
+              >
+                Checklist
+              </NavLink>
             </div>
           </>
         )}

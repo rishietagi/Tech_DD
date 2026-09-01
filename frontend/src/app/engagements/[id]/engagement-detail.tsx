@@ -79,6 +79,12 @@ export function EngagementDetail({ engagementId }: { engagementId: string }) {
           >
             Request list
           </Link>
+          <Link
+            href={`/engagements/${engagementId}/checklist`}
+            className="rounded-full border border-line-strong px-5 py-3 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2"
+          >
+            Checklist
+          </Link>
         </div>
       </div>
 
