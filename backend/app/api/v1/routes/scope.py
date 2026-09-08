@@ -16,7 +16,6 @@ from app.schemas.scope_api import (
 from app.services.engagements import get_engagement
 from app.services.scope import service as scope_service
 from app.services.scope.export import render_markdown_from_payload
-from app.services.scope.export_pdf import pdf_filename, render_pdf_from_payload
 from app.services.scope.export_pptx import pptx_filename, render_pptx_from_payload
 
 router = APIRouter(prefix="/engagements/{engagement_id}/scope", tags=["scope"])
@@ -66,7 +65,13 @@ def list_scope_versions(engagement_id: str, db: Session = Depends(get_db)) -> li
 
 @router.get("/export", response_class=PlainTextResponse)
 def export_latest_scope(engagement_id: str, db: Session = Depends(get_db)) -> PlainTextResponse:
-    """The latest scope as Markdown, as a file download."""
+    """The latest scope as Markdown — the **internal** artefact.
+
+    Kept deliberately although it has no button in the UI (Rishi, 2026-09-02): this is the
+    only export carrying the audit trail — the signals that fired, the rule provenance and
+    the tier reasoning. Removing it would leave no readable record of *why* the scope says
+    what it says. The client-facing artefact is the PowerPoint deck.
+    """
     engagement = get_engagement(db, engagement_id)
     scope = scope_service.get_latest_scope(db, engagement_id)
 
@@ -84,31 +89,8 @@ def export_latest_scope(engagement_id: str, db: Session = Depends(get_db)) -> Pl
     )
 
 
-# Declared BEFORE /{version}: FastAPI matches in declaration order, and "export.pdf"
+# Declared BEFORE /{version}: FastAPI matches in declaration order, and "export.pptx"
 # would otherwise be captured by the version path parameter.
-@router.get("/export.pdf")
-def export_latest_scope_pdf(engagement_id: str, db: Session = Depends(get_db)) -> Response:
-    """The latest scope as a client-facing PDF, as a file download.
-
-    Narrower than the Markdown export by design: the internal audit trail (signals,
-    rule provenance) is omitted. See `services/scope/export_pdf.py`.
-    """
-    engagement = get_engagement(db, engagement_id)
-    scope = scope_service.get_latest_scope(db, engagement_id)
-
-    try:
-        pdf = render_pdf_from_payload(scope.payload_json, engagement.deal_name, scope.version)
-    except ValueError as exc:
-        raise AppError(code="not_exportable", message=str(exc), status_code=409) from exc
-
-    filename = pdf_filename(engagement.deal_name, scope.version)
-    return Response(
-        content=pdf,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
-
-
 @router.get("/export.pptx")
 def export_latest_scope_pptx(engagement_id: str, db: Session = Depends(get_db)) -> Response:
     """The latest scope as a client-facing PowerPoint deck, as a file download.

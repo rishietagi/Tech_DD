@@ -2,7 +2,9 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRef, useState } from "react";
 
+import { IrlAddQuestion } from "@/components/engagement/irl-add-question";
 import { IrlTable } from "@/components/engagement/irl-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -11,6 +13,7 @@ import { useToast } from "@/components/ui/toast";
 import { API_BASE_URL, ApiError } from "@/lib/api/client";
 import { engagementsApi } from "@/lib/api/engagements";
 import { irlApi } from "@/lib/api/irl";
+import type { ImportResponsesResult, IrlRead } from "@/types/irl";
 
 export function IrlPage({ engagementId }: { engagementId: string }) {
   const queryClient = useQueryClient();
@@ -43,6 +46,62 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
         err instanceof ApiError ? err.message : "Could not generate a request list",
         "error",
       );
+    },
+  });
+
+  // The edit endpoints all return the whole list, so the cache is replaced wholesale and
+  // the counts stay consistent with the row that just changed.
+  const replace = (fresh: IrlRead) => queryClient.setQueryData(["irl", engagementId], fresh);
+
+  const updateQuestion = async (
+    questionId: string,
+    patch: { question?: string; function?: string; scope_area?: string },
+  ) => {
+    try {
+      replace(await irlApi.updateQuestion(engagementId, questionId, patch));
+    } catch {
+      show("Could not save that change", "error");
+    }
+  };
+
+  const deleteQuestion = async (questionId: string) => {
+    try {
+      replace(await irlApi.deleteQuestion(engagementId, questionId));
+      show("Request removed");
+    } catch {
+      show("Could not remove that request", "error");
+    }
+  };
+
+  const addQuestion = async (body: {
+    question: string;
+    function: string;
+    scope_area?: string;
+  }) => {
+    replace(await irlApi.addQuestion(engagementId, body));
+    show("Request added");
+  };
+
+  const [importResult, setImportResult] = useState<ImportResponsesResult | null>(null);
+  const fileInput = useRef<HTMLInputElement | null>(null);
+
+  const importMutation = useMutation({
+    mutationFn: (file: File) => irlApi.importResponses(engagementId, file),
+    onSuccess: async (result) => {
+      setImportResult(result);
+      // Responses live in their own table, so the list has to be refetched to show them.
+      replace(await irlApi.getLatest(engagementId));
+      if (result.updated > 0) {
+        show(`${result.updated} response${result.updated === 1 ? "" : "s"} imported`);
+      } else {
+        // Not a thrown error — the file was readable, it just changed nothing. The
+        // summary panel below explains why, so the toast only has to flag it.
+        show("No responses were imported", "error");
+      }
+    },
+    onError: (err: unknown) => {
+      setImportResult(null);
+      show(err instanceof ApiError ? err.message : "Could not read that workbook", "error");
     },
   });
 
@@ -126,6 +185,27 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
           >
             Download Excel
           </a>
+          {/* The completed workbook comes back here. The input is hidden because a bare
+              file input cannot be styled to match, and the button is the real control. */}
+          <input
+            ref={fileInput}
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) importMutation.mutate(file);
+              event.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            disabled={importMutation.isPending}
+            className="rounded-full border border-line-strong px-4 py-2 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2 disabled:opacity-50"
+          >
+            {importMutation.isPending ? "Reading…" : "Upload responses"}
+          </button>
           <button
             type="button"
             onClick={() => generateMutation.mutate()}
@@ -165,7 +245,57 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
         )}
       </div>
 
-      <IrlTable engagementId={engagementId} payload={payload} responses={irl.responses} />
+      {/* What the upload actually changed. Reported rather than assumed: an import that
+          matched nothing looks identical to one that worked. */}
+      {importResult && (
+        <div className="mb-5 rounded-xl border border-line-strong bg-paper-2 px-5 py-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="font-sans text-[14px] text-text">
+                {importResult.updated} response
+                {importResult.updated === 1 ? "" : "s"} imported from{" "}
+                {importResult.matched} matched row
+                {importResult.matched === 1 ? "" : "s"}
+                {importResult.skipped_blank > 0 &&
+                  ` · ${importResult.skipped_blank} left blank`}
+              </p>
+              {importResult.note && (
+                <p className="mt-1 max-w-[80ch] font-sans text-[12.5px] text-muted">
+                  {importResult.note}
+                </p>
+              )}
+              {importResult.unmatched_rows.length > 0 && (
+                <ul className="mt-2 max-w-[80ch] list-disc space-y-0.5 pl-5 font-sans text-[12px] text-muted-2">
+                  {importResult.unmatched_rows.map((row) => (
+                    <li key={row}>{row}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setImportResult(null)}
+              className="flex-none font-sans text-[12px] text-muted hover:text-text"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      <IrlTable
+        engagementId={engagementId}
+        payload={payload}
+        responses={irl.responses}
+        onUpdate={updateQuestion}
+        onDelete={deleteQuestion}
+      />
+
+      <IrlAddQuestion
+        scopeAreas={payload.functions.map((f) => f.name)}
+        functions={Array.from(new Set(payload.questions.map((q) => q.function))).sort()}
+        onAdd={addQuestion}
+      />
     </main>
   );
 }

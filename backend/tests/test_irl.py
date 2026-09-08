@@ -239,14 +239,27 @@ def test_export_is_a_valid_workbook() -> None:
     assert len(raw) > 2_000
 
 
-def test_export_has_exactly_three_columns_with_response_empty() -> None:
+def test_export_columns_and_response_ships_blank() -> None:
+    """Four columns since 2026-09-02, plus a hidden id the importer matches on."""
     payload = rules_irl()
     rows = _sheet_rows(render_xlsx(payload))
 
-    assert rows[0] == ["Function", "Question", "Response"]
+    assert rows[0] == ["Scope Area", "Function", "Question", "Response", "Request ID"]
     assert len(rows) == len(payload.questions) + 1
     # Response is the client's column: it must ship blank.
-    assert all(row[2] == "" for row in rows[1:])
+    assert all(row[3] == "" for row in rows[1:])
+    # Every row carries its id, or an upload cannot match it back.
+    assert all(row[4] for row in rows[1:])
+
+
+def test_export_groups_by_scope_area() -> None:
+    """The IRL follows the scope of work's headings, so a request traces to its area."""
+    payload = rules_irl()
+    rows = _sheet_rows(render_xlsx(payload))
+
+    areas = {row[0] for row in rows[1:]}
+    row_titles = {q.scope_area for q in payload.questions if q.scope_area}
+    assert areas & row_titles, "scope areas must reach the workbook"
 
 
 def test_export_writes_back_answers_already_typed() -> None:
@@ -254,9 +267,9 @@ def test_export_writes_back_answers_already_typed() -> None:
     first = payload.questions[0]
     rows = _sheet_rows(render_xlsx(payload, {first.id: "Attached as Appendix A."}))
 
-    answered = [r for r in rows[1:] if r[2]]
+    answered = [r for r in rows[1:] if r[3]]
     assert len(answered) == 1
-    assert answered[0][2] == "Attached as Appendix A."
+    assert answered[0][3] == "Attached as Appendix A."
 
 
 def test_filename_is_slugged() -> None:
@@ -462,3 +475,226 @@ def test_research_and_context_reach_the_model() -> None:
     assert "six-hour outage in March 2025" in sent, "the research summary must reach the model"
     assert "line_of_business" in sent, "the engagement context must reach the model"
     assert "seeds" in sent, "the scope-derived seeds must reach the model"
+
+
+# ------------------------------------------------- editing and import (2026-09-02)
+
+
+def _engagement_with_irl(client: TestClient) -> str:
+    """A scoped engagement with a generated request list to edit."""
+    engagement_id = _scoped_engagement(client)
+    response = client.post(f"/api/v1/engagements/{engagement_id}/irl", json={})
+    assert response.status_code == 200, response.text
+    return engagement_id
+
+
+def test_a_question_can_be_added_by_hand(client: TestClient) -> None:
+    engagement_id = _engagement_with_irl(client)
+    before = client.get(f"/api/v1/engagements/{engagement_id}/irl").json()
+    count = len(before["payload"]["questions"])
+
+    response = client.post(
+        f"/api/v1/engagements/{engagement_id}/irl/questions",
+        json={
+            "question": "Provide the depot stock-take reconciliation for the last quarter.",
+            "function": "Operations",
+            "scope_area": "Applications",
+        },
+    )
+    assert response.status_code == 200
+
+    questions = response.json()["payload"]["questions"]
+    assert len(questions) == count + 1
+    added = [q for q in questions if q["source"] == "manual"]
+    assert len(added) == 1
+    assert added[0]["function"] == "Operations"
+    assert added[0]["scope_area"] == "Applications"
+
+
+def test_an_edited_question_keeps_the_original_wording(client: TestClient) -> None:
+    """The engine's text is kept beside the edit, as the scope rows already do."""
+    engagement_id = _engagement_with_irl(client)
+    irl = client.get(f"/api/v1/engagements/{engagement_id}/irl").json()
+    target = irl["payload"]["questions"][0]
+
+    response = client.patch(
+        f"/api/v1/engagements/{engagement_id}/irl/questions/{target['id']}",
+        json={"question": "Provide the current architecture diagram set."},
+    )
+    assert response.status_code == 200
+
+    edited = next(
+        q for q in response.json()["payload"]["questions"] if q["id"] == target["id"]
+    )
+    assert edited["question"] == "Provide the current architecture diagram set."
+    assert edited["edited_by_human"] is True
+    assert edited["original_question"] == target["question"]
+
+
+def test_a_question_can_be_deleted_and_takes_its_response(client: TestClient) -> None:
+    engagement_id = _engagement_with_irl(client)
+    irl = client.get(f"/api/v1/engagements/{engagement_id}/irl").json()
+    target = irl["payload"]["questions"][0]["id"]
+
+    client.patch(
+        f"/api/v1/engagements/{engagement_id}/irl/responses/{target}",
+        json={"response_text": "Attached."},
+    )
+
+    response = client.delete(
+        f"/api/v1/engagements/{engagement_id}/irl/questions/{target}"
+    )
+    assert response.status_code == 200
+
+    fresh = response.json()
+    assert all(q["id"] != target for q in fresh["payload"]["questions"])
+    assert target not in fresh["responses"], "an orphan response must not survive"
+
+
+def test_editing_an_unknown_question_is_rejected(client: TestClient) -> None:
+    engagement_id = _engagement_with_irl(client)
+    response = client.patch(
+        f"/api/v1/engagements/{engagement_id}/irl/questions/NOPE-001",
+        json={"question": "x"},
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "unknown_question"
+
+
+def test_manual_questions_and_edits_survive_a_regeneration(client: TestClient) -> None:
+    """Rishi's call: carry them forward, keep the edits."""
+    engagement_id = _engagement_with_irl(client)
+    irl = client.get(f"/api/v1/engagements/{engagement_id}/irl").json()
+    target = irl["payload"]["questions"][0]["id"]
+
+    client.post(
+        f"/api/v1/engagements/{engagement_id}/irl/questions",
+        json={"question": "Provide the depot stock-take.", "function": "Operations"},
+    )
+    client.patch(
+        f"/api/v1/engagements/{engagement_id}/irl/questions/{target}",
+        json={"question": "Provide the architecture diagrams, current versions only."},
+    )
+
+    regenerated = client.post(f"/api/v1/engagements/{engagement_id}/irl", json={}).json()
+    questions = regenerated["payload"]["questions"]
+
+    manual = [q for q in questions if q["source"] == "manual"]
+    assert len(manual) == 1, "an added question must survive regeneration"
+    assert manual[0]["question"] == "Provide the depot stock-take."
+
+    carried = next(q for q in questions if q["id"] == target)
+    assert carried["question"] == "Provide the architecture diagrams, current versions only."
+    assert carried["edited_by_human"] is True
+
+
+def test_a_completed_workbook_round_trips_into_responses(client: TestClient) -> None:
+    """Export, fill in the Response column, upload, and the answers land."""
+    import io
+
+    from openpyxl import load_workbook
+
+    engagement_id = _engagement_with_irl(client)
+    raw = client.get(f"/api/v1/engagements/{engagement_id}/irl/export.xlsx").content
+
+    workbook = load_workbook(io.BytesIO(raw))
+    sheet = workbook.active
+    filled: dict[str, str] = {}
+    for row in range(2, min(sheet.max_row, 6) + 1):
+        question_id = sheet.cell(row=row, column=5).value
+        answer = f"Provided - see data room folder {row - 1}."
+        sheet.cell(row=row, column=4, value=answer)
+        filled[str(question_id)] = answer
+
+    buf = io.BytesIO()
+    workbook.save(buf)
+
+    response = client.post(
+        f"/api/v1/engagements/{engagement_id}/irl/import",
+        files={
+            "file": (
+                "responses.xlsx",
+                buf.getvalue(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
+    )
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert result["updated"] == len(filled)
+
+    stored = client.get(f"/api/v1/engagements/{engagement_id}/irl").json()["responses"]
+    for question_id, answer in filled.items():
+        assert stored[question_id] == answer
+
+
+def test_a_blank_response_cell_never_clears_an_existing_answer(client: TestClient) -> None:
+    """A blank cell means "not answered yet", never "delete what you have"."""
+    import io
+
+    from openpyxl import load_workbook
+
+    engagement_id = _engagement_with_irl(client)
+    irl = client.get(f"/api/v1/engagements/{engagement_id}/irl").json()
+    target = irl["payload"]["questions"][0]["id"]
+
+    client.patch(
+        f"/api/v1/engagements/{engagement_id}/irl/responses/{target}",
+        json={"response_text": "Already answered in the app."},
+    )
+
+    raw = client.get(f"/api/v1/engagements/{engagement_id}/irl/export.xlsx").content
+    workbook = load_workbook(io.BytesIO(raw))
+    sheet = workbook.active
+    for row in range(2, sheet.max_row + 1):
+        sheet.cell(row=row, column=4, value=None)
+    buf = io.BytesIO()
+    workbook.save(buf)
+
+    client.post(
+        f"/api/v1/engagements/{engagement_id}/irl/import",
+        files={"file": ("blank.xlsx", buf.getvalue(), "application/vnd.ms-excel")},
+    )
+
+    stored = client.get(f"/api/v1/engagements/{engagement_id}/irl").json()["responses"]
+    assert stored[target] == "Already answered in the app."
+
+
+def test_an_unreadable_upload_is_a_clear_error(client: TestClient) -> None:
+    engagement_id = _engagement_with_irl(client)
+    response = client.post(
+        f"/api/v1/engagements/{engagement_id}/irl/import",
+        files={"file": ("notes.txt", b"this is not a workbook", "text/plain")},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "import_failed"
+
+
+def test_an_import_that_matches_nothing_says_so(client: TestClient) -> None:
+    """Silence would look identical to success. It must not."""
+    import io
+
+    import xlsxwriter
+
+    engagement_id = _engagement_with_irl(client)
+
+    buf = io.BytesIO()
+    workbook = xlsxwriter.Workbook(buf, {"in_memory": True})
+    sheet = workbook.add_worksheet("Sheet1")
+    sheet.write(0, 0, "Question")
+    sheet.write(0, 1, "Response")
+    sheet.write(1, 0, "A question from an entirely different engagement")
+    sheet.write(1, 1, "Some answer")
+    workbook.close()
+
+    response = client.post(
+        f"/api/v1/engagements/{engagement_id}/irl/import",
+        files={"file": ("other.xlsx", buf.getvalue(), "application/vnd.ms-excel")},
+    )
+    assert response.status_code == 200
+    result = response.json()
+    assert result["matched"] == 0
+    assert result["updated"] == 0
+    assert "No row" in result["note"]
+    assert result["unmatched_rows"]
+

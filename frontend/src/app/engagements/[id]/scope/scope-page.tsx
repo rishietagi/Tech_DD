@@ -113,7 +113,10 @@ export function ScopePage({ engagementId }: { engagementId: string }) {
         <div className="flex items-center gap-2">
           {isV2Payload(scope.payload) && (
             <>
-              {/* A scope of work is usually circulated as a deck, so PPT leads.
+              {/* A scope of work is circulated as a deck, so the PPT is the only
+                  client-facing download. PDF was removed and the Markdown export is
+                  now internal-only — still served at /scope/export for the audit
+                  trail, but with no button (Rishi, 2026-09-02).
                   `download` names the file if the browser handles the
                   Content-Disposition itself. */}
               <a
@@ -122,19 +125,6 @@ export function ScopePage({ engagementId }: { engagementId: string }) {
                 className="rounded-full bg-kpmg-blue px-4 py-2 font-sans text-[13px] font-medium text-paper-on-ink transition-colors hover:bg-kpmg-blue-dark"
               >
                 Download PPT
-              </a>
-              <a
-                href={`${API_BASE_URL}/engagements/${engagementId}/scope/export.pdf`}
-                download
-                className="rounded-full border border-line-strong px-4 py-2 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2"
-              >
-                Download PDF
-              </a>
-              <a
-                href={`${API_BASE_URL}/engagements/${engagementId}/scope/export`}
-                className="rounded-full border border-line-strong px-4 py-2 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2"
-              >
-                Export Markdown
               </a>
             </>
           )}

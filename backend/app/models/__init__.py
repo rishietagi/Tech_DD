@@ -1,3 +1,8 @@
+from app.models.assess import (
+    ProcessAnswer,
+    ProcessAssessmentScore,
+    ProcessCustomQuestion,
+)
 from app.models.engagement import Engagement, EngagementDenorm, EngagementIntake
 from app.models.irl import InformationRequestList, IrlDocumentStatus, IrlResponse
 from app.models.research import CompanyResearch
@@ -11,5 +16,8 @@ __all__ = [
     "InformationRequestList",
     "IrlDocumentStatus",
     "IrlResponse",
+    "ProcessAnswer",
+    "ProcessAssessmentScore",
+    "ProcessCustomQuestion",
     "ScopeOfWork",
 ]

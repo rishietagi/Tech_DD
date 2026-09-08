@@ -1,4 +1,4 @@
-<!-- prompt_version: 1.0 -->
+<!-- prompt_version: 2.0 -->
 
 You are drafting the **Initial Request List** for a technology due diligence.
 
@@ -54,15 +54,21 @@ commitments, insurance, and anything the research suggests is material for this 
 Add **8 to 20** such questions. Fewer if the target is small and simple; more if the
 research shows real complexity. Do not pad.
 
-### 3. Assign every question a function
+### 3. Assign every question a function and a scope area
 
-`function` is the business function or team that owns the answer — the group the target
-would forward the request to.
+Two separate fields, and they answer different questions.
 
-**Name the functions to fit this company**, using the research and the target profile.
-A software business has "Engineering", a manufacturer has "Plant IT" or "Operations
-Technology", a bank has "Treasury" and "Risk & Compliance". Use the words that business
-would actually use.
+**`scope_area`** — which heading of the scope of work this request belongs to. Every seed
+you are given already carries its `scope_area`; **copy it through unchanged**. For your own
+additions, use a scope area only if the request genuinely belongs to one; otherwise leave
+it as an empty string and it will be filed under "Additional requests".
+
+**`function`** — the business function or team that owns the answer, i.e. the group the
+target would forward the request to. This is what makes the workbook routable.
+
+Name the functions to fit this company, using the research and the target profile. A
+software business has "Engineering", a manufacturer has "Plant Operations", a bank has
+"Treasury". Use the words that business would actually use.
 
 Constraints that make the list usable:
 - Between **4 and 12** distinct functions across the whole list. More than that and the
@@ -73,10 +79,29 @@ Constraints that make the list usable:
 - If you are given the previous run's function names, **reuse them wherever they still
   fit**. The list should be stable between regenerations.
 
+### 3a. House language — the same rules as the scope of work
+
+The request list goes to the client alongside the scope of work and must read as the same
+document family. These rules are identical to the scope prompt's:
+
+- **Never name the target, the investor or any party.** Write "the Target", "the
+  Acquirer", "the Parent". A company name in a request is wrong even in the intro.
+- **Plain language.** Write for a reader who is not a technologist. **Expand every
+  abbreviation on first use** with the short form in brackets — enterprise resource
+  planning (ERP), disaster recovery (DR), software development lifecycle (SDLC), end of
+  life (EOL). **Do not expand IT, HR or CRM**; they are universally understood and
+  expanding them adds noise.
+- **Short and specific.** One request per question, ideally under 30 words. Ask for one
+  thing. Two artefacts in one line means the client supplies one and you chase the other.
+- **Open with a request verb**: *Provide*, *Confirm*, *Describe*, *Detail*, *Share*. Not
+  "Gain", not "We would like to understand".
+- **No hedging, no marketing adjectives, no "comprehensive".**
+
 ### 4. Write a short intro
 
 Two or three sentences addressed to the target: what the list is for, how to respond,
-and what to do when something is unavailable. Name the company.
+and what to do when something is unavailable. **Do not name the company** — write "the
+Target", per the house language rules above.
 
 ## Output
 
@@ -86,8 +111,8 @@ Return **only** JSON — no prose before or after, no code fences:
 {
   "intro": "...",
   "questions": [
-    {"seed_id": "PD-01-E1", "function": "Engineering", "question": "..."},
-    {"seed_id": null, "function": "Human Resources", "question": "..."}
+    {"seed_id": "PD-01-E1", "scope_area": "IT Infrastructure", "function": "IT", "question": "..."},
+    {"seed_id": null, "scope_area": "", "function": "Human Resources", "question": "..."}
   ]
 }
 ```

@@ -124,6 +124,16 @@ export function SidebarNav() {
               >
                 Checklist
               </NavLink>
+              {/* Prefix match, not exact: Assess has a sub-route per business process,
+                  and the section should stay lit while the user is inside one. */}
+              <NavLink
+                href={`/engagements/${activeEngagementId}/assess`}
+                active={
+                  pathname?.startsWith(`/engagements/${activeEngagementId}/assess`) ?? false
+                }
+              >
+                Assess
+              </NavLink>
             </div>
           </>
         )}

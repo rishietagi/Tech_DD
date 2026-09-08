@@ -21,7 +21,7 @@ function Section({
 }
 
 export function ScopeDocumentV2({ scope }: { scope: ScopeOfWorkPayloadV2 }) {
-  const { classification, cost_plan, team_shape } = scope;
+  const { classification } = scope;
   const productRows = scope.rows.filter((row) => row.deck === "product");
   const enterpriseRows = scope.rows.filter((row) => row.deck === "enterprise");
   const isBlended = productRows.length > 0 && enterpriseRows.length > 0;
@@ -76,76 +76,24 @@ export function ScopeDocumentV2({ scope }: { scope: ScopeOfWorkPayloadV2 }) {
         )}
       </Section>
 
-      {scope.sequencing.length > 0 && (
-        <Section title="Sequencing" subtitle="A broad pass identifies the areas of focus; the deep dive works on those.">
-          <ol className="space-y-3">
-            {scope.sequencing.map((phase) => (
-              <li key={phase.name} className="rounded-xl border border-line bg-paper-2 px-4 py-3">
-                <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="font-display text-[15px] font-semibold text-text">{phase.name}</span>
-                  <span className="font-sans text-[12.5px] font-medium text-kpmg-blue">{phase.weeks}</span>
-                </div>
-                <p className="font-sans text-[13.5px] leading-[1.55] text-muted">{phase.focus}</p>
-                {phase.output && (
-                  <p className="mt-1.5 font-sans text-[13px] leading-[1.5] text-steel">
-                    <span className="font-semibold">Output:</span> {phase.output}
-                  </p>
-                )}
-                {phase.row_ids.length > 0 && (
-                  <p className="mt-1 font-sans text-[12px] text-muted-2">
-                    {phase.row_ids.length} area{phase.row_ids.length === 1 ? "" : "s"}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ol>
-        </Section>
-      )}
-
-      <Section title="Cost estimation">
-        <p className="mb-3 max-w-[72ch] font-sans text-[14px] leading-[1.6] text-text">{cost_plan.approach}</p>
-        {cost_plan.lines.length > 0 && (
-          <ul className="mb-4 space-y-2">
-            {cost_plan.lines.map((line) => (
-              <li key={line.label} className="font-sans text-[14px] text-text">
-                <span className="mr-2 rounded-full border border-line-strong px-2 py-0.5 font-sans text-[11px] font-medium text-muted uppercase">
-                  {line.category === "one_time" ? "one-time" : "recurring"}
-                </span>
-                {line.label}
-                <span className="ml-1 text-muted"> — {line.basis}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <h3 className="mb-1.5 font-sans text-[11px] font-semibold text-muted-2 uppercase">
-          Assumptions register
-        </h3>
-        <ul className="list-disc space-y-1 pl-5 font-sans text-[13.5px] text-muted">
-          {cost_plan.assumptions_register.map((assumption) => (
-            <li key={assumption}>{assumption}</li>
+      {/* Sequencing, cost estimation and team shape are judgement calls the
+          engagement team makes against the specific deal, so the document shows them as
+          XXX rather than asserting them (Rishi, 2026-09-02). The underlying values are
+          still computed and still carried in the payload and the Markdown export; only
+          the client-facing surfaces stop presenting them as settled. The section is kept
+          rather than dropped so the reader can see what remains to be completed. */}
+      <Section
+        title="Delivery approach"
+        subtitle="To be confirmed by the engagement team."
+      >
+        <dl className="max-w-[52ch] divide-y divide-line rounded-xl border border-line-strong">
+          {["Sequencing", "Timeline", "Cost estimation", "Team"].map((item) => (
+            <div key={item} className="flex items-baseline justify-between px-4 py-3">
+              <dt className="font-sans text-[14px] text-text">{item}</dt>
+              <dd className="font-mono text-[13px] tracking-wide text-muted-2">XXX</dd>
+            </div>
           ))}
-        </ul>
-      </Section>
-
-      <Section title="Team">
-        <ul className="space-y-1 font-sans text-[14px] text-text">
-          {team_shape.core_team.map((member) => (
-            <li key={member}>{member}</li>
-          ))}
-        </ul>
-        {team_shape.specialists.length > 0 && (
-          <>
-            <h3 className="mt-3 mb-1.5 font-sans text-[11px] font-semibold text-muted-2 uppercase">
-              Specialists required
-            </h3>
-            <ul className="space-y-1 font-sans text-[14px] text-text">
-              {team_shape.specialists.map((specialist) => (
-                <li key={specialist}>{specialist}</li>
-              ))}
-            </ul>
-          </>
-        )}
-        {team_shape.note && <p className="mt-2 font-sans text-[13.5px] text-muted">{team_shape.note}</p>}
+        </dl>
       </Section>
 
       {scope.notes.length > 0 && (

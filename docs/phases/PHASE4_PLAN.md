@@ -105,10 +105,21 @@ Likely strategy: tokenise the filename and its folder, score against `seed_text`
 question text (both already stored on every `IrlQuestion`), and treat the per-function
 folder names as a strong hint.
 
-**Test fixture**: `shared-drive/project-lighthouse/` — gitignored, 24 files across 6
-function folders, built from the real Lighthouse IRL. Deliberately partial so every
-status is demonstrable: clear matches, three files marked `-ONLY` that should read as
-*received partially*, and roughly half the list with nothing at all.
+**Test fixtures**: two, both gitignored, each built from that engagement's real IRL and
+deliberately partial so every status is demonstrable.
+
+| Fixture | Deck | Files | Partial (`-ONLY`) | Functions |
+|---|---|---|---|---|
+| `shared-drive/project-lighthouse/` | Product (SaaS) | 24 | 3 | Engineering, Product, Finance, InfoSec, Legal, HR |
+| `shared-drive/project-kiln/` | Enterprise (distributor) | 25 | 4 | IT, Finance, Legal, HR, Operations, Commercial |
+
+**Two fixtures on purpose.** The Product and Enterprise decks generate different request
+lists with different function names, so a scanner calibrated only against Lighthouse would
+be tuned on half the problem. Kiln also carries an **empty** `06-Commercial-Department/`
+folder — a scanner must not treat an existing folder as evidence that anything arrived.
+
+Folder names match each IRL's own model-generated function names, which is the strong
+hint the matching strategy is meant to use.
 
 ## Deferred: email reminders
 

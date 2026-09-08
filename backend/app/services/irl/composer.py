@@ -55,20 +55,35 @@ def _intro(company: str | None) -> str:
     )
 
 
-def group_functions(questions: list[IrlQuestion]) -> list[IrlFunction]:
-    """Function headings in first-appearance order, each listing its question ids.
+# Where questions that belong to no scope area are collected. The model adds requests
+# covering HR, Legal and Finance that a technology scope never reaches; they are real
+# requests and must not be dropped, but they trace to no heading.
+ADDITIONAL_AREA = "Additional requests"
 
-    First-appearance rather than alphabetical keeps the technology functions that the
-    scope drove at the top, which is the order a tech DD reader expects.
+
+def group_functions(questions: list[IrlQuestion]) -> list[IrlFunction]:
+    """Grouping headings in first-appearance order, each listing its question ids.
+
+    Grouped by **scope area** since 2026-09-02 (Rishi): the IRL now uses the same
+    headings as the scope of work, so every request sits under the area that asked for
+    it. The owning business function moved to its own column.
+
+    First-appearance rather than alphabetical preserves the scope's own row order, which
+    is the order a reader of the deck already has in mind.
     """
     order: list[str] = []
     grouped: dict[str, list[str]] = {}
 
     for question in questions:
-        if question.function not in grouped:
-            grouped[question.function] = []
-            order.append(question.function)
-        grouped[question.function].append(question.id)
+        key = (question.scope_area or "").strip() or ADDITIONAL_AREA
+        if key not in grouped:
+            grouped[key] = []
+            order.append(key)
+        grouped[key].append(question.id)
+
+    # "Additional requests" always sorts last: it is the catch-all, and leading with it
+    # would bury the scope-driven requests that carry the engagement.
+    order.sort(key=lambda name: name == ADDITIONAL_AREA)
 
     return [IrlFunction(name=name, question_ids=grouped[name]) for name in order]
 
@@ -83,6 +98,9 @@ def compose_irl(
         IrlQuestion(
             id=seed.id,
             function=function_for(seed),
+            # The scope row's title is the scope area, so provenance and grouping are
+            # the same fact.
+            scope_area=seed.row_title,
             # The evidence line is an artefact name, not a question. Wrapping it in a
             # request verb is the minimum needed to make it sendable; the LLM path
             # rewrites this properly.

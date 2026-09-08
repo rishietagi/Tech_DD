@@ -1,7 +1,15 @@
 """Excel export of the IRL — the artefact that actually goes to the target.
 
-Exactly three columns, as specified: **Function | Question | Response**. Response is
-deliberately empty; that is the column the client fills in and sends back.
+Four columns since 2026-09-02: **Scope Area | Function | Question | Response**.
+
+`Scope Area` is the scope-of-work heading the request traces to, so the workbook groups by
+the same areas the deck opened. `Function` is who owns the answer, which is what makes the
+sheet routable — a function's owner can filter to their own rows. Response is the column
+the client fills in and sends back.
+
+A hidden fifth column carries the question id. It is what
+`services/irl/import_xlsx.py` matches on when the completed workbook is uploaded, so
+responses land against the right request even if rows have been reordered or reworded.
 
 Any responses already typed in the app are written into the Response column, so the
 workbook round-trips rather than discarding work.
@@ -22,9 +30,15 @@ SHEET_NAME = "Initial Request List"
 
 # Wide enough to read without resizing, narrow enough to print. Response gets the most
 # room because that is where the target writes.
-_COL_FUNCTION = 26
-_COL_QUESTION = 82
-_COL_RESPONSE = 62
+_COL_SCOPE_AREA = 30
+_COL_FUNCTION = 22
+_COL_QUESTION = 74
+_COL_RESPONSE = 58
+
+# The question id travels with the workbook so an upload can match rows back exactly.
+# Hidden rather than removed: matching on text alone breaks the moment anyone edits a
+# question, and a visible id column is noise to the client.
+ID_HEADER = "Request ID"
 
 _ROW_HEIGHT = 34
 
@@ -78,13 +92,17 @@ def render_xlsx(payload: IrlPayload, responses: dict[str, str] | None = None) ->
     )
 
     sheet = workbook.add_worksheet(SHEET_NAME)
-    sheet.set_column(0, 0, _COL_FUNCTION)
-    sheet.set_column(1, 1, _COL_QUESTION)
-    sheet.set_column(2, 2, _COL_RESPONSE)
+    sheet.set_column(0, 0, _COL_SCOPE_AREA)
+    sheet.set_column(1, 1, _COL_FUNCTION)
+    sheet.set_column(2, 2, _COL_QUESTION)
+    sheet.set_column(3, 3, _COL_RESPONSE)
+    sheet.set_column(4, 4, 18, None, {"hidden": True})
 
-    sheet.write(0, 0, "Function", header)
-    sheet.write(0, 1, "Question", header)
-    sheet.write(0, 2, "Response", header)
+    sheet.write(0, 0, "Scope Area", header)
+    sheet.write(0, 1, "Function", header)
+    sheet.write(0, 2, "Question", header)
+    sheet.write(0, 3, "Response", header)
+    sheet.write(0, 4, ID_HEADER, header)
 
     # Header stays visible while the target scrolls a long list, and the filter lets
     # each function's owner see only their own rows.
@@ -96,12 +114,14 @@ def render_xlsx(payload: IrlPayload, responses: dict[str, str] | None = None) ->
 
     for index, question in enumerate(ordered, start=1):
         sheet.set_row(index, _ROW_HEIGHT)
-        sheet.write(index, 0, question.function, function_cell)
-        sheet.write(index, 1, question.question, cell)
-        sheet.write(index, 2, answers.get(question.id, ""), response_cell)
+        sheet.write(index, 0, question.scope_area or "Additional requests", function_cell)
+        sheet.write(index, 1, question.function, cell)
+        sheet.write(index, 2, question.question, cell)
+        sheet.write(index, 3, answers.get(question.id, ""), response_cell)
+        sheet.write(index, 4, question.id, cell)
 
     last_row = max(1, len(ordered))
-    sheet.autofilter(0, 0, last_row, 2)
+    sheet.autofilter(0, 0, last_row, 4)
 
     workbook.close()
     return buf.getvalue()

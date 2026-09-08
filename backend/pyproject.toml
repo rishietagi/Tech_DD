@@ -17,18 +17,13 @@ exclude = ["alembic/versions", "tests"]
 module = "alembic.*"
 ignore_missing_imports = true
 
-# ReportLab ships no type stubs and no py.typed marker, so under `strict` every call
-# into it reads as an untyped call in a typed context. The PDF exporter is the only
-# consumer; its own signatures stay fully typed and checked.
+# openpyxl ships no type stubs. Only the response importer touches it, and that module's
+# own signatures stay fully typed and checked.
 [[tool.mypy.overrides]]
-module = "reportlab.*"
+module = "openpyxl.*"
 ignore_missing_imports = true
 
-[[tool.mypy.overrides]]
-module = "app.services.scope.export_pdf"
-disallow_untyped_calls = false
-
-# python-pptx is likewise stub-less under `strict`.
+# python-pptx ships no type stubs under `strict`.
 [[tool.mypy.overrides]]
 module = "pptx.*"
 ignore_missing_imports = true

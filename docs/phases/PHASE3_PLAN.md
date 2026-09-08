@@ -77,8 +77,13 @@ PATCH  /engagements/{id}/irl/responses/{qid} save one answer
 GET    /engagements/{id}/irl/versions        version list
 ```
 
-`export.xlsx` is declared **before** `/{version}` — FastAPI matches in declaration
-order, the same trap already recorded for `export.pdf` and `export.pptx`.
+`export.xlsx`, `questions` and `import` are all declared **before** `/{version}` —
+FastAPI matches in declaration order, the same trap already recorded for `export.pptx`.
+
+**Since 2026-09-02** the workbook has four columns — **Scope Area | Function | Question |
+Response** — plus a hidden `Request ID` that the importer matches on. The list groups by
+scope area, so every request traces to the heading that opened it; `function` stays as who
+owns the answer. See `docs/PROJECT_LOG.md` for the reasoning and the import rules.
 
 ## Frontend
 

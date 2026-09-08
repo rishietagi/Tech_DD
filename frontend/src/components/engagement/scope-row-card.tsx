@@ -24,11 +24,14 @@ export function ScopeRowCard({ row }: { row: ScopedRow }) {
         </h3>
       </div>
 
-      {row.lines.map((line, index) => (
-        <p key={index} className="mb-2 max-w-[70ch] font-sans text-[14.5px] leading-[1.6] text-text">
-          {line.text}
-        </p>
-      ))}
+      {/* Bulleted, not paragraphs (Rishi, 2026-09-02): each line is one discrete piece
+          of scope, and a run of plain paragraphs reads as prose rather than as the list
+          it is. Matches the deck. */}
+      <ul className="max-w-[70ch] list-disc space-y-1.5 pl-5 font-sans text-[14.5px] leading-[1.6] text-text marker:text-muted-2">
+        {row.lines.map((line, index) => (
+          <li key={index}>{line.text}</li>
+        ))}
+      </ul>
 
       {row.out_of_scope_note && (
         <p className="mt-2 font-sans text-[13px] text-muted italic">{row.out_of_scope_note}</p>

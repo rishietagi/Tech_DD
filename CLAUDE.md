@@ -25,8 +25,11 @@ The flow the product owns:
    client to complete. Built in Phase 3 — see §9.
 5. **Checklist** — track which requested documents have actually arrived, ranked by
    importance. Built in Phase 4 — see §9.
-6. **Execution & reporting** — run the workstreams, collect findings, produce the
-   report. *(Phase 5+, not planned yet.)*
+6. **Assess** — perform the diligence: work through a business process step by step,
+   recording what management said, and score its level of automation. Built in Phase 5 —
+   see §9.
+7. **Execution & reporting** — run the remaining workstreams, collect findings, produce
+   the report. *(Phase 6+, not planned yet.)*
 
 The central intellectual claim of the product: **the scope of a tech DD is not
 generic.** It is a function of (a) the target's line of business and how central
@@ -107,8 +110,7 @@ Glossary the code should use consistently: `engagement`, `intake`, `workstream`,
 | Backend | Python 3.11 + FastAPI + Pydantic v2 |
 | LLM (Phase 2) | **Google Gemini** (`google-genai`), model `gemini-2.5-flash` — see note below |
 | ORM / DB | SQLAlchemy 2.0 (declarative, typed) + Alembic; SQLite in dev, Postgres in prod via `DATABASE_URL` |
-| PDF export | **ReportLab** (`reportlab` + `pillow`) — pure Python, no system libraries |
-| PPT export | **python-pptx** — pure Python. The primary client-facing artefact: a SOW is normally circulated as a deck |
+| PPT export | **python-pptx** — pure Python. **The** client-facing artefact: a SOW is circulated as a deck. PDF export was removed 2026-09-02 |
 | XLSX export | **xlsxwriter** — the IRL workbook (Function / Question / Response) |
 | Web research | Gemini's `GoogleSearch` grounding tool — sources come back as citations |
 | Testing | Vitest + Testing Library (FE), pytest + httpx (BE), Playwright for one smoke E2E |
@@ -171,12 +173,14 @@ Tech_DD/
 │   │   ├── api/v1/            # router.py + routes/{engagements,scope,meta}.py
 │   │   ├── services/
 │   │   │   └── scope/         # the engine: signals, scoring, selection, depth,
-│   │   │                      #   composer, llm, export, export_pdf,
+│   │   │                      #   composer, llm, export (internal Markdown),
 │   │   │                      #   export_pptx + prompts/
-│   │   ├── irl/               # seeds, composer, llm, export_xlsx + prompts/
+│   │   ├── irl/               # seeds, composer, llm, export_xlsx, import_xlsx + prompts/
+│   │   ├── assess/            # process questionnaires, scoring, llm + prompts/
 │   │   ├── research/          # grounded web search + prompts/
 │   │   └── checklist/         # ranking, service, scanner (deferred stub)
 │   │   └── reference/         # enums + kpmg_scope/*.yaml + scope_rules.yaml
+│   │                          #   + processes/*.yaml (the Assess questionnaires)
 │   ├── alembic/
 │   └── tests/                 # incl. golden cases and mocked LLM tests
 └── frontend/
@@ -304,7 +308,10 @@ now read the declaration instead. Consequence: under "Let the platform decide" b
 silent by design and the computed mix rests on A2/A5/A6. Do not reintroduce the intake
 field — tune those weights instead. Full reasoning in `docs/PROJECT_LOG.md`.
 
-**Phase 3 — BUILT.** The Initial Request List and company research. The IRL derives from
+**Phase 3 — BUILT**, extended 2026-09-02: requests can be added, reworded and deleted by
+hand (edits survive regeneration); the list groups by the **scope of work's own headings**
+with the owning function as its own column; and a completed workbook can be **uploaded** to
+auto-fill responses. The Initial Request List and company research. The IRL derives from
 the scope: every KPMG row's `evidence` list seeds a request, so each question traces to a
 scope area a rule opened and the list generates with the LLM off. Research is a grounded
 web search that **refuses rather than fabricating** — no grounding metadata, no stored
@@ -324,8 +331,33 @@ workstream, with a colour legend. Plan at `docs/phases/PHASE4_PLAN.md`.
   rules it must follow; the endpoint returns 501 rather than being absent. Wired at
   deployment. Test fixture at `shared-drive/project-lighthouse/` (gitignored).
 - **Email reminders** — frontend stub only, honestly badged "Not connected yet".
+- **A client-facing export of the Assess score** — the view is internal-facing by decision;
+  the payload carries everything a PPT/PDF would need. Not built rather than guessed at.
+- **The four undefined business processes** — named only, by instruction.
 
-**Phase 5+ — not planned.** Execution, evidence collection, findings, reporting,
+**Phase 5 — BUILT, for Procure to Pay only.** The Assess module: a questionnaire with
+conditional **nudges** (if X is the answer, ask Y) covering the nine steps of P2P, a blank
+response against every question, analyst-added questions, and a deterministic 0-100
+automation index with an executive summary and pointers. The other four processes (Order to
+Cash, Plan to Make, Hire to Retire, Record to Report) are **named and listed with nothing
+behind them**, by instruction — a 409, never a 404. Plan at `docs/phases/PHASE5_PLAN.md`;
+the domain model at `docs/reference/P2P_AUTOMATION_MODEL.md`.
+
+**Assess is the one module where the LLM may move a number** (2026-09-02, Rishi's explicit
+choice). It may refine a step score by **at most ±1**, with a stated reason, and the
+deterministic score is always kept beside it. Everywhere else the model writes prose only.
+Do not "simplify" this back to prose-only, and do not loosen the bounds — read the decision
+entry in `docs/PROJECT_LOG.md` first.
+
+**The generated deck follows house rules that are enforced in code** (2026-09-02, Rishi):
+it never names the target or the investor ("the Target", "the Acquirer", "the Parent"),
+headings are generic with the specifics in the bullets, abbreviations are expanded, bullets
+are short and verb-led, and sequencing/cost/team are left as **XXX** for the engagement team
+to complete. `services/scope/llm.py::enforce_house_rules` backs the prompt up — do not
+remove it on the grounds that the prompt already says so. The deal codename ("Project
+Kiln") is deliberately kept; only the company name is scrubbed.
+
+**Phase 6+ — not planned.** Remaining execution, evidence collection, findings, reporting,
 multi-user auth.
 
 **Reference documents:**
@@ -338,6 +370,9 @@ multi-user auth.
 - `docs/reference/KPMG_SOW_LANGUAGE.md` — the house scope-of-work voice, transcribed
   verbatim from the KPMG source deck. This is what the generated document must sound
   like.
+- `docs/reference/P2P_AUTOMATION_MODEL.md` — the Assess module's evaluation reference: the
+  nine Procure-to-Pay steps, their weights, and the 0-5 maturity ladder the scoring reads.
+  `[EXT]` — built for this platform, and a calibration to be tuned, not an authority.
 
 ## 10. Working agreements
 

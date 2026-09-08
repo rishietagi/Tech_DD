@@ -104,11 +104,25 @@ def test_the_internal_audit_trail_is_omitted() -> None:
     assert "Signals" not in text
 
 
-def test_sequencing_shows_the_broad_pass_handoff() -> None:
-    """The deck must carry the output of each phase, not just its name."""
+def test_delivery_approach_is_left_as_xxx() -> None:
+    """Sequencing, cost and team are the consultant's call, not the engine's.
+
+    Rishi, 2026-09-02. The slide is kept so the deck shows what still needs completing —
+    an absent slide would read as "not applicable" rather than "not yet decided".
+    """
     text = deck_text(scope_deck())
-    assert "Broad pass" in text
-    assert "areas of focus" in text
+    assert "Delivery approach" in text
+    assert "XXX" in text
+    for item in ("Sequencing", "Timeline", "Cost estimation", "Team"):
+        assert item in text, f"the placeholder table must still name {item}"
+
+
+def test_the_deck_no_longer_asserts_sequencing_or_cost() -> None:
+    """The old slides stated phases, day rates and team shape as though settled."""
+    text = deck_text(scope_deck())
+    assert "Broad pass" not in text
+    assert "Assumptions register" not in text
+    assert "Specialists required" not in text
 
 
 def test_exclusions_are_never_dropped() -> None:
@@ -211,3 +225,14 @@ def test_tier_badges_are_not_shown_on_the_scope_slides() -> None:
         ).upper()
         for label in ("DEEP DIVE", "ASSESS", "SCREEN", "SWEEP"):
             assert label not in text, f"tier badge leaked onto a scope slide: {label}"
+
+
+def test_scope_lines_render_as_bullets() -> None:
+    """Each scope line is one discrete piece of work, not a paragraph of prose.
+
+    Rishi, 2026-09-02. The first pass at the deck changed the placeholder slide but left
+    the scope-of-work lines as plain paragraphs, which is what he actually asked about.
+    """
+    text = deck_text(scope_deck())
+    # The bullet glyph the deck uses for list items.
+    assert "•" in text, "scope lines must be bulleted"

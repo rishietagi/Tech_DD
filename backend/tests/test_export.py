@@ -165,3 +165,16 @@ def test_human_edits_survive_into_the_export(client: TestClient) -> None:
     response = client.get(f"/api/v1/engagements/{engagement_id}/scope/export")
     assert "Edited by hand" in response.text
     assert "reviewed externally" in response.text
+
+
+def test_scope_lines_are_bulleted_in_markdown() -> None:
+    """All three surfaces agree: a scope line is a bullet, not a paragraph."""
+    from app.services.scope.export import render_markdown
+    from app.services.scope.rules_generator import RulesScopeGenerator
+    from tests.factories import make_intake
+
+    scope = RulesScopeGenerator().generate(make_intake())
+    md = render_markdown(scope, "Project Test", 1)
+
+    first_row = scope.rows[0]
+    assert f"- {first_row.lines[0].text}" in md

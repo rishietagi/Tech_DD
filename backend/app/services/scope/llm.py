@@ -132,6 +132,157 @@ def validate_tailoring(tailoring: LlmTailoring, scope: ScopeOfWorkPayloadV2) -> 
             raise TailoringRejected(f"{tailored.row_id}: a line is empty")
 
 
+# --------------------------------------------------------------------------- house rules
+#
+# The prompt (v2.0) states these, but a prompt is guidance and a deck that names the
+# client is a real problem, so they are enforced in code as well. Rishi's instruction,
+# 2026-09-02: never name the target or the investor, and open every bullet with an
+# examination verb.
+#
+# Scrubbing rather than rejecting is deliberate. A single leaked name should not throw
+# away an otherwise good scope and fall back to the generic deterministic text — that
+# would be a worse document, not a safer one.
+
+# Openers the model reaches for that are not examination verbs. Mapped to the verb that
+# carries the same meaning. Order matters: longest phrase first, so "Gain an overview of"
+# is matched before "Gain".
+_VERB_REWRITES: list[tuple[str, str]] = [
+    ("Gain an overview of the", "Review the"),
+    ("Gain an overview of", "Review"),
+    ("Gain overview of the", "Review the"),
+    ("Gain overview of", "Review"),
+    ("Gain an understanding of the", "Understand the"),
+    ("Gain an understanding of", "Understand"),
+    ("Gain insight into", "Review"),
+    ("Gain visibility of", "Review"),
+    ("Gain visibility into", "Review"),
+    ("Obtain an overview of", "Review"),
+    ("Obtain", "Review"),
+    ("Look at", "Review"),
+    ("Explore", "Review"),
+    ("Deep dive into", "Assess"),
+    ("Consider", "Review"),
+]
+
+# Generic replacements for the parties. Used when a name leaks through.
+_TARGET_WORD = "the Target"
+_ACQUIRER_WORD = "the Acquirer"
+
+
+def _name_variants(name: str | None) -> list[str]:
+    """A company name plus the shorter forms a model tends to use instead.
+
+    "Kiln Industrial Supply" also leaks as "Kiln" and as the possessive "Kiln's", so the
+    first token is treated as a name in its own right when it is distinctive enough. Short
+    or generic first tokens (The, A, Group) are skipped — scrubbing those would mangle
+    ordinary prose.
+    """
+    if not name or not name.strip():
+        return []
+    cleaned = name.strip()
+    variants = {cleaned}
+
+    suffixes = (
+        " Limited", " Ltd", " Ltd.", " Inc", " Inc.", " LLC", " PLC", " Plc",
+        " GmbH", " BV", " B.V.", " NV", " N.V.", " Group", " Holdings", " Corporation",
+        " Corp", " Corp.", " Company", " Co", " Co.",
+    )
+    trimmed = cleaned
+    for suffix in suffixes:
+        if trimmed.endswith(suffix):
+            trimmed = trimmed[: -len(suffix)].strip()
+            variants.add(trimmed)
+
+    first = trimmed.split()[0] if trimmed.split() else ""
+    _TOO_GENERIC = {"the", "a", "an", "group", "holdings", "global", "national", "first"}
+    if len(first) >= 4 and first.lower() not in _TOO_GENERIC:
+        variants.add(first)
+
+    # Longest first, so "Kiln Industrial Supply" is replaced before the bare "Kiln".
+    return sorted((v for v in variants if v), key=len, reverse=True)
+
+
+def _scrub_names(text: str, target_names: list[str], acquirer_names: list[str]) -> str:
+    """Replace any party name with its generic equivalent, possessives included."""
+    result = text
+    for names, replacement in ((target_names, _TARGET_WORD), (acquirer_names, _ACQUIRER_WORD)):
+        for name in names:
+            escaped = re.escape(name)
+            # Possessive first: "Kiln's estate" -> "the Target's estate", not
+            # "the Target 's estate".
+            result = re.sub(rf"\b{escaped}’s\b", f"{replacement}'s", result)
+            result = re.sub(rf"\b{escaped}'s\b", f"{replacement}'s", result)
+            result = re.sub(rf"\b{escaped}\b", replacement, result)
+
+    # "The the Target" reads badly when the model already wrote an article.
+    result = re.sub(r"\b[Tt]he the Target\b", "the Target", result)
+    result = re.sub(r"\b[Tt]he the Acquirer\b", "the Acquirer", result)
+    # A scrubbed name at the start of a sentence should keep its capital.
+    result = re.sub(r"(^|(?<=[.!?] ))the Target", "The Target", result)
+    result = re.sub(r"(^|(?<=[.!?] ))the Acquirer", "The Acquirer", result)
+    return result
+
+
+def _enforce_verb(text: str) -> str:
+    """Rewrite a bullet that opens with a non-examination verb."""
+    stripped = text.strip()
+    for bad, good in _VERB_REWRITES:
+        if stripped.lower().startswith(bad.lower()):
+            return good + stripped[len(bad) :]
+    return stripped
+
+
+def _strip_names_from_title(title: str, target_names: list[str], acquirer_names: list[str]) -> str:
+    """Headings must be generic (Rule 2), so a name is removed rather than replaced.
+
+    "Kiln's Standalone IT Cost Model" should become "Standalone IT Cost Model", not
+    "the Target's Standalone IT Cost Model" — a heading naming a party is wrong even
+    when the party is anonymised.
+    """
+    result = title
+    for name in [*target_names, *acquirer_names]:
+        escaped = re.escape(name)
+        result = re.sub(rf"\b{escaped}’s\s+", "", result)
+        result = re.sub(rf"\b{escaped}'s\s+", "", result)
+        result = re.sub(rf"\s*\b{escaped}\b\s*", " ", result)
+    # Tidy what removal leaves behind: doubled spaces, a dangling "for"/"at"/"of".
+    result = re.sub(r"\s{2,}", " ", result).strip()
+    result = re.sub(r"\s+(for|at|of|in|and)$", "", result).strip()
+    result = re.sub(r"^(for|at|of|in|and)\s+", "", result).strip()
+    return result
+
+
+def enforce_house_rules(
+    scope: ScopeOfWorkPayloadV2,
+    target_name: str | None = None,
+    investor_name: str | None = None,
+) -> ScopeOfWorkPayloadV2:
+    """Apply the rules a prompt alone cannot guarantee.
+
+    Names are scrubbed from the summary, every title and every bullet; titles have them
+    removed outright; and each bullet is forced to open with an examination verb.
+    """
+    target_names = _name_variants(target_name)
+    acquirer_names = _name_variants(investor_name)
+
+    if not target_names and not acquirer_names:
+        # Still worth enforcing the verb rule.
+        for row in scope.rows:
+            for line in row.lines:
+                line.text = _enforce_verb(line.text)
+        return scope
+
+    scope.engagement_summary = _scrub_names(
+        scope.engagement_summary, target_names, acquirer_names
+    )
+    for row in scope.rows:
+        row.title = _strip_names_from_title(row.title, target_names, acquirer_names)
+        for line in row.lines:
+            line.text = _enforce_verb(_scrub_names(line.text, target_names, acquirer_names))
+
+    return scope
+
+
 def apply_tailoring(scope: ScopeOfWorkPayloadV2, tailoring: LlmTailoring) -> ScopeOfWorkPayloadV2:
     """Overlay validated prose onto the skeleton. Structure is untouched."""
     tailored_rows = {row.row_id: row for row in tailoring.rows}
@@ -224,6 +375,13 @@ class LlmScopeGenerator:
 
             validate_tailoring(tailoring, scope)
             tailored = apply_tailoring(scope, tailoring)
+            # The prompt states these rules, but a prompt is guidance and a deck naming
+            # the client is a real problem — so they are enforced here too.
+            tailored = enforce_house_rules(
+                tailored,
+                target_name=intake.target.company_name,
+                investor_name=intake.context.investor_firm_name,
+            )
             tailored.generator = self.name
             tailored.prompt_version = prompt_version
             return tailored

@@ -1,0 +1,51 @@
+# The business processes the Assess module knows about.
+#
+# `defined: true` means a questionnaire file exists at `<key>.yaml` and the process can
+# be assessed. `defined: false` means the process is named in the product but has no
+# questionnaire behind it yet — it renders as a listed-but-unavailable card rather than
+# being hidden, so the shape of the module is visible.
+#
+# To define one of the stubs: write `<key>.yaml` following procure_to_pay.yaml, add the
+# step decomposition and per-level evidence to a reference document alongside
+# docs/reference/P2P_AUTOMATION_MODEL.md, and flip `defined` to true. The maturity
+# ladder, the scoring arithmetic and the banding are process-agnostic and carry over
+# unchanged — only the steps, weights and questions are process-specific.
+
+processes:
+  - key: procure_to_pay
+    name: Procure to Pay
+    short_name: P2P
+    defined: true
+    description: >-
+      How a need becomes a purchase and a purchase becomes a payment — requisition,
+      approval, sourcing, supplier data, ordering, receipt, invoice matching, exceptions
+      and payment.
+
+  - key: order_to_cash
+    name: Order to Cash
+    short_name: O2C
+    defined: false
+    description: >-
+      How an order becomes revenue and revenue becomes collected cash.
+
+  - key: plan_to_make
+    name: Plan to Make
+    short_name: P2M
+    defined: false
+    description: >-
+      How demand becomes a production plan and a plan becomes finished goods.
+
+  - key: hire_to_retire
+    name: Hire to Retire
+    short_name: H2R
+    defined: false
+    description: >-
+      How a role becomes a hire and an employee's lifecycle is administered through to
+      exit.
+
+  - key: record_to_report
+    name: Record to Report
+    short_name: R2R
+    defined: false
+    description: >-
+      How transactions become a closed ledger and a reported set of financials.

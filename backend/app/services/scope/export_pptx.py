@@ -1,11 +1,11 @@
 """PowerPoint export of a generated scope — the client-facing deck.
 
-A scope of work is usually circulated as a deck rather than a document, so this is the
-primary client-facing artefact; `export_pdf.py` is the same content laid out as a paper
-document, and `export.py` (Markdown) is the internal one that carries the audit trail.
+A scope of work is circulated as a deck, so this is **the** client-facing artefact.
+`export.py` (Markdown) is the internal counterpart that carries the audit trail. The PDF
+export was removed on 2026-09-02 (Rishi) as a third format nobody asked for.
 
-Content matches the PDF exactly: the internal reasoning layer (signals, rule
-provenance) is omitted; exclusions are not internal and are always present.
+The internal reasoning layer (signals, rule provenance) is omitted here; exclusions are
+not internal and are always present.
 
 **Styling is deliberately separated from content.** Every colour, size and font lives in
 `Theme`; `build_deck` only decides what goes on which slide. When a KPMG template .pptx
@@ -45,8 +45,8 @@ _LOGO = Path(__file__).resolve().parents[4] / "assets" / "kpmg-logo-blue.png"
 class Theme:
     """Every visual decision in one place, so a template swap is a contained change.
 
-    Colours mirror `frontend/src/styles/tokens.css` and `export_pdf.py`, so the deck,
-    the PDF and the screen are recognisably the same document.
+    Colours mirror `frontend/src/styles/tokens.css`, so the deck and the screen are
+    recognisably the same document.
     """
 
     blue: RGBColor = RGBColor(0x00, 0x33, 0x8D)
@@ -310,11 +310,16 @@ def _row_slides(
             tf = _textbox(slide, theme.margin, y, theme.content_w, 0.32)
             _write(tf, f"{row.sn:02d}.  {row.title}", size=12, bold=True, first=True, theme=theme)
 
-            bf = _textbox(slide, theme.margin, y + 0.34, theme.content_w - 0.2, row_h - 0.42)
+            # Indented and bulleted (Rishi, 2026-09-02): each scope line is one discrete
+            # piece of work, and a run of plain paragraphs reads as prose rather than as
+            # the list it is. The indent aligns the bullets under the numbered heading.
+            bf = _textbox(
+                slide, theme.margin + 0.28, y + 0.34, theme.content_w - 0.48, row_h - 0.42
+            )
             first = True
             for line in row.lines:
                 _write(bf, line.text, size=10, color=theme.muted, first=first,
-                       space_after=3, theme=theme)
+                       space_after=4, bullet=True, theme=theme)
                 first = False
             if row.out_of_scope_note:
                 _write(bf, row.out_of_scope_note, size=9, color=theme.muted_2,
@@ -326,88 +331,61 @@ def _row_slides(
     return page
 
 
-def _sequencing_slide(
-    prs: Presentation, scope: ScopeOfWorkPayloadV2, deal_name: str | None,
+def _placeholders_slide(
+    prs: Presentation, deal_name: str | None,
     footer: str, page: int, theme: Theme = THEME,
 ) -> None:
+    """Sequencing, cost and team — deliberately left as XXX.
+
+    Rishi's call (2026-09-02): these are judgement calls a consultant makes against the
+    specific engagement, not something the engine should assert. The slide is kept rather
+    than dropped so the deck still shows what remains to be completed — an absent slide
+    would read as "not applicable" rather than "not yet decided".
+
+    The underlying data is still computed and still carried in the payload and the
+    Markdown export; only the client-facing deck stops presenting it as settled.
+    """
     slide = _blank(prs)
-    top = _slide_header(slide, "Sequencing", deal_name, theme)
+    top = _slide_header(slide, "Delivery approach", deal_name, theme)
 
     sub = _textbox(slide, theme.margin, top - 0.06, theme.content_w, 0.3)
-    _write(sub, "A broad pass identifies the areas of focus; the deep dive works on those.",
+    _write(sub, "To be confirmed by the engagement team.",
            size=10.5, color=theme.muted, italic=True, first=True, theme=theme)
 
-    rows: list[list[str]] = [["Phase", "Weeks", "Focus", "Output"]]
-    for phase in scope.sequencing:
-        rows.append([phase.name, phase.weeks, phase.focus, phase.output or "—"])
-    _table(slide, rows, [1.7, 1.1, 5.4, 3.9], top + 0.34, theme)
+    rows: list[list[str]] = [
+        ["Item", "Detail"],
+        ["Sequencing", "XXX"],
+        ["Timeline", "XXX"],
+        ["Cost estimation", "XXX"],
+        ["Team", "XXX"],
+    ]
+    _table(slide, rows, [4.0, 8.1], top + 0.34, theme)
 
     _footer(slide, footer, page, theme)
 
 
-def _cost_slide(
+def _exclusions_slide(
     prs: Presentation, scope: ScopeOfWorkPayloadV2, deal_name: str | None,
     footer: str, page: int, theme: Theme = THEME,
 ) -> None:
+    """Exclusions get their own slide now that Team has gone.
+
+    Kept rather than placeheld: a scope that does not say what it excludes is not a scope
+    (DD_master G4), and unlike sequencing or cost this is derived from the rules rather
+    than being a judgement call.
+    """
     slide = _blank(prs)
-    top = _slide_header(slide, "Cost estimation", deal_name, theme)
+    top = _slide_header(slide, "Exclusions", deal_name, theme)
 
-    af = _textbox(slide, theme.margin, top, theme.content_w, 0.6)
-    _write(af, scope.cost_plan.approach, size=11, color=theme.text, first=True, theme=theme)
-
-    y = top + 0.75
-    if scope.cost_plan.lines:
-        rows: list[list[str]] = [["Type", "Line", "Basis"]]
-        for line in scope.cost_plan.lines:
-            rows.append([
-                "One-time" if line.category == "one_time" else "Recurring",
-                line.label,
-                line.basis,
-            ])
-        _table(slide, rows, [1.4, 4.2, 6.5], y, theme)
-        y += 0.34 * len(rows) + 0.35
-
-    if scope.cost_plan.assumptions_register:
-        af2 = _textbox(slide, theme.margin, y, theme.content_w, theme.slide_h - y - 0.7)
-        _write(af2, "Assumptions register", size=13, bold=True, color=theme.blue_dark,
-               first=True, space_after=5, theme=theme)
-        for item in scope.cost_plan.assumptions_register:
-            _write(af2, item, size=10, color=theme.muted, bullet=True, space_after=3, theme=theme)
-
-    _footer(slide, footer, page, theme)
-
-
-def _team_and_exclusions_slide(
-    prs: Presentation, scope: ScopeOfWorkPayloadV2, deal_name: str | None,
-    footer: str, page: int, theme: Theme = THEME,
-) -> None:
-    slide = _blank(prs)
-    top = _slide_header(slide, "Team and exclusions", deal_name, theme)
-
-    half = theme.content_w / 2 - 0.25
-    team = scope.team_shape
-
-    tf = _textbox(slide, theme.margin, top, half, 4.8)
-    _write(tf, "Team", size=15, bold=True, color=theme.blue_dark, first=True,
-           space_after=6, theme=theme)
-    for member in team.core_team:
-        _write(tf, member, size=10.5, color=theme.text, bullet=True, space_after=4, theme=theme)
-    if team.specialists:
-        _write(tf, "Specialists required", size=12, bold=True, color=theme.blue_dark,
-               space_after=5, theme=theme)
-        for s in team.specialists:
-            _write(tf, s, size=10, color=theme.muted, bullet=True, space_after=3, theme=theme)
-
-    xf = _textbox(slide, theme.margin + half + 0.5, top, half, 4.8)
-    _write(xf, "Exclusions", size=15, bold=True, color=theme.blue_dark, first=True,
-           space_after=4, theme=theme)
+    xf = _textbox(slide, theme.margin, top, theme.content_w, theme.slide_h - top - 0.7)
     _write(xf, "A scope that does not say what it excludes is not a scope.",
-           size=9.5, color=theme.muted, italic=True, space_after=7, theme=theme)
+           size=9.5, color=theme.muted, italic=True, first=True, space_after=7, theme=theme)
     for exclusion in scope.exclusions:
-        _write(xf, f"{exclusion.subject} — {exclusion.reason}", size=10,
-               color=theme.text, bullet=True, space_after=4, theme=theme)
+        _write(xf, f"{exclusion.subject} — {exclusion.reason}", size=10.5,
+               color=theme.text, bullet=True, space_after=5, theme=theme)
 
     _footer(slide, footer, page, theme)
+
 
 
 # ------------------------------------------------------------------------- entry
@@ -434,13 +412,12 @@ def build_deck(
     page += 1
     page = _row_slides(prs, scope, deal_name, footer, page, theme)
 
-    if scope.sequencing:
-        _sequencing_slide(prs, scope, deal_name, footer, page, theme)
-        page += 1
-
-    _cost_slide(prs, scope, deal_name, footer, page, theme)
+    # Sequencing, cost and team are judgement calls the engagement team makes, so the
+    # deck presents them as XXX rather than asserting them (Rishi, 2026-09-02). The
+    # underlying data is still computed and still in the payload.
+    _placeholders_slide(prs, deal_name, footer, page, theme)
     page += 1
-    _team_and_exclusions_slide(prs, scope, deal_name, footer, page, theme)
+    _exclusions_slide(prs, scope, deal_name, footer, page, theme)
 
     return prs
 

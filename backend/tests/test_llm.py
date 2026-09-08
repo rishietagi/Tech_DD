@@ -89,7 +89,10 @@ def test_valid_tailoring_is_applied() -> None:
 
     assert result.generator == "llm"
     assert result.prompt_version
-    assert "Meridian Analytics" in result.engagement_summary
+    # The target is never named (Rishi, 2026-09-02) — the scrub replaces it even when
+    # the model leaks it through, which the fixture tailoring deliberately does.
+    assert "Meridian Analytics" not in result.engagement_summary
+    assert "the Target" in result.engagement_summary or "The Target" in result.engagement_summary
     assert all("(tailored)" in row.title for row in result.rows)
 
 
@@ -260,3 +263,83 @@ def test_apply_leaves_the_original_scope_untouched() -> None:
     original_title = scope.rows[0].title
     apply_tailoring(scope, LlmTailoring.model_validate(faithful_tailoring(scope)))
     assert scope.rows[0].title == original_title, "apply must not mutate its input"
+
+
+# --------------------------------------------------------- house rules (2026-09-02)
+#
+# Rishi's instructions for the client-facing deck: never name the target or the investor,
+# keep headings generic, and open every bullet with an examination verb. The prompt states
+# these, but a prompt is guidance — these tests pin the code that enforces them.
+
+
+def test_the_target_name_is_scrubbed_from_every_surface() -> None:
+    from app.schemas.scope import ScopeOfWorkPayloadV2
+    from app.services.scope.llm import enforce_house_rules
+
+    scope = base_scope()
+    scope.engagement_summary = "Kiln Industrial Supply distributes MRO supplies."
+    scope.rows[0].title = "Kiln's Enterprise Applications"
+    scope.rows[0].lines[0].text = "Assess Kiln Industrial Supply's ERP estate."
+
+    result = enforce_house_rules(
+        scope, target_name="Kiln Industrial Supply", investor_name="Northbridge Capital"
+    )
+
+    assert isinstance(result, ScopeOfWorkPayloadV2)
+    assert "Kiln" not in result.engagement_summary
+    assert "Kiln" not in result.rows[0].title
+    assert "Kiln" not in result.rows[0].lines[0].text
+    assert "the Target" in result.rows[0].lines[0].text
+
+
+def test_the_investor_name_is_scrubbed_too() -> None:
+    from app.services.scope.llm import enforce_house_rules
+
+    scope = base_scope()
+    scope.rows[0].lines[0].text = "Review alignment with Northbridge Capital's thesis."
+    result = enforce_house_rules(scope, target_name="Acme", investor_name="Northbridge Capital")
+
+    assert "Northbridge" not in result.rows[0].lines[0].text
+    assert "the Acquirer's" in result.rows[0].lines[0].text
+
+
+def test_a_heading_loses_the_name_rather_than_anonymising_it() -> None:
+    """A heading naming a party is wrong even when the party is anonymised."""
+    from app.services.scope.llm import _name_variants, _strip_names_from_title
+
+    names = _name_variants("Kiln Industrial Supply")
+    assert _strip_names_from_title("Kiln's Standalone IT Cost Model", names, []) == (
+        "Standalone IT Cost Model"
+    )
+    assert _strip_names_from_title("IT Contracts for Kiln", names, []) == "IT Contracts"
+
+
+def test_a_word_merely_containing_the_name_is_not_scrubbed() -> None:
+    """Word boundaries matter: "kilnworks" is not the target."""
+    from app.services.scope.llm import _name_variants, _scrub_names
+
+    names = _name_variants("Kiln Industrial Supply")
+    assert _scrub_names("Assess the kilnworks furnace estate.", names, []) == (
+        "Assess the kilnworks furnace estate."
+    )
+
+
+def test_banned_openers_are_rewritten_to_examination_verbs() -> None:
+    from app.services.scope.llm import _enforce_verb
+
+    assert _enforce_verb("Gain an overview of the infrastructure.").startswith("Review the")
+    assert _enforce_verb("Gain overview of SAR audit report.").startswith("Review")
+    assert _enforce_verb("Obtain the contract register.").startswith("Review")
+    assert _enforce_verb("Deep dive into the matching rules.").startswith("Assess")
+    # An already-correct opener is untouched.
+    assert _enforce_verb("Review the DR arrangements.") == "Review the DR arrangements."
+
+
+def test_enforcement_survives_a_missing_company_name() -> None:
+    """The intake makes company_name optional, so the scrub must cope without one."""
+    from app.services.scope.llm import enforce_house_rules
+
+    scope = base_scope()
+    scope.rows[0].lines[0].text = "Gain an overview of the estate."
+    result = enforce_house_rules(scope, target_name=None, investor_name=None)
+    assert result.rows[0].lines[0].text.startswith("Review")

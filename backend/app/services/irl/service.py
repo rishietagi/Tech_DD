@@ -5,16 +5,21 @@ their own table**, so regenerating an IRL never clobbers answers someone has typ
 a new version is generated, responses carried on stable question ids are copied forward.
 """
 
+from copy import deepcopy
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.core.config import get_settings
 from app.core.errors import AppError
-from app.models.irl import InformationRequestList, IrlResponse
-from app.schemas.irl import IrlPayload
+from app.models.irl import InformationRequestList, IrlDocumentStatus, IrlResponse
+from app.schemas.irl import ImportResponsesResult, IrlPayload, IrlQuestion
 from app.schemas.research import ResearchPayload
 from app.schemas.scope import ScopeOfWorkPayloadV2
 from app.services.engagements import assemble_intake_full, get_engagement
+from app.services.irl.composer import group_functions
+from app.services.irl.import_xlsx import import_responses
 from app.services.irl.llm import LlmIrlGenerator, RulesIrlGenerator
 from app.services.research.service import find_latest_research
 from app.services.scope import service as scope_service
@@ -88,6 +93,11 @@ def generate_irl(
             intake, scope, research=research, source_scope_version=scope_row.version
         )
 
+    # Hand-written work survives regeneration (Rishi, 2026-09-02): questions the analyst
+    # added are carried over, and questions they reworded keep their wording. Same
+    # principle as responses — regenerating must never destroy what a person typed.
+    _carry_forward_manual_work(previous, payload)
+
     irl = InformationRequestList(
         engagement_id=engagement_id,
         version=(previous.version if previous else 0) + 1,
@@ -105,6 +115,51 @@ def generate_irl(
     return irl
 
 
+def _carry_forward_manual_work(
+    previous: InformationRequestList | None, payload: IrlPayload
+) -> None:
+    """Preserve analyst additions and edits across a regeneration.
+
+    Two different things are carried, for the same reason responses are (Rishi's call,
+    2026-09-02 — he chose "carry them forward, keep edits" over resetting):
+
+    * **Added questions** are appended to the new list. They exist precisely because the
+      generator did not think of them, so a regeneration will not think of them either.
+    * **Reworded questions** keep the analyst's wording, where the question still exists
+      in the new list. The engine's fresh text is stored as `original_question`, so a
+      reviewer can still see what the regeneration would have said.
+
+    The trade, stated plainly: an edited question may drift out of step with a scope that
+    has since changed. That is visible — the question is flagged `edited_by_human` — and
+    it is the lesser harm against silently discarding someone's rewording.
+    """
+    if previous is None:
+        return
+
+    try:
+        old = IrlPayload.model_validate(previous.payload_json)
+    except Exception:  # noqa: BLE001 - a stale payload shape must not block regeneration
+        return
+
+    fresh = {q.id: q for q in payload.questions}
+
+    for question in old.questions:
+        if question.source == "manual":
+            if question.id not in fresh:
+                payload.questions.append(question.model_copy(deep=True))
+            continue
+
+        if question.edited_by_human:
+            target = fresh.get(question.id)
+            if target is not None:
+                # Keep the human wording; record what this run would have written.
+                target.original_question = target.question
+                target.question = question.question
+                target.edited_by_human = True
+
+    payload.functions = group_functions(payload.questions)
+
+
 def _latest_irl(db: Session, engagement_id: str) -> InformationRequestList | None:
     return db.execute(
         select(InformationRequestList)
@@ -115,14 +170,24 @@ def _latest_irl(db: Session, engagement_id: str) -> InformationRequestList | Non
 
 
 def _functions_of(irl: InformationRequestList | None) -> list[str] | None:
-    """The previous run's function names, fed back so naming stays stable."""
+    """The previous run's **business function** names, fed back so naming stays stable.
+
+    Read off the questions, not off `payload.functions`: since 2026-09-02 that list holds
+    scope-area headings, not function names. Feeding scope areas back to the model as
+    "previous functions" would tell it to name its owner column after the deck's headings,
+    which is precisely the confusion the two-column split exists to avoid.
+    """
     if irl is None:
         return None
-    functions = irl.payload_json.get("functions") or []
-    names = [
-        str(f["name"]) for f in functions if isinstance(f, dict) and f.get("name")
-    ]
-    return names or None
+
+    seen: list[str] = []
+    for question in irl.payload_json.get("questions") or []:
+        if not isinstance(question, dict):
+            continue
+        name = str(question.get("function") or "").strip()
+        if name and name not in seen:
+            seen.append(name)
+    return seen or None
 
 
 def _carry_forward_responses(
@@ -234,3 +299,167 @@ def save_response(
     db.commit()
     db.refresh(irl)
     return irl
+
+
+# ------------------------------------------------------- hand-editing (2026-09-02)
+#
+# An analyst may add a request the generated list missed, reword one, or remove one that
+# does not apply. All three mutate `payload_json`, which is the trap recorded in
+# docs/PROJECT_LOG.md: `dict(payload)` is a *shallow* copy, so mutating a nested question
+# edits the loaded value in place, SQLAlchemy sees no change and silently drops the write.
+# Every function below therefore deep-copies and calls `flag_modified`.
+
+
+def _rewrite_payload(db: Session, irl: InformationRequestList, payload: IrlPayload) -> None:
+    """Persist a modified payload, defeating the shallow-copy trap."""
+    irl.payload_json = deepcopy(payload.model_dump(mode="json"))
+    flag_modified(irl, "payload_json")
+    db.commit()
+    db.refresh(irl)
+
+
+def _payload_of(irl: InformationRequestList) -> IrlPayload:
+    return IrlPayload.model_validate(irl.payload_json)
+
+
+def add_question(
+    db: Session,
+    engagement_id: str,
+    question: str,
+    function: str,
+    scope_area: str = "",
+) -> InformationRequestList:
+    """Append an analyst-written request to the latest version."""
+    irl = get_latest_irl(db, engagement_id)
+    payload = _payload_of(irl)
+
+    # Numbered from the count of existing manual questions so ids stay readable and never
+    # collide with the generator's `ADD-nnn` or a seed's `ROW-En`.
+    existing = sum(1 for q in payload.questions if q.source == "manual")
+    new_id = f"MAN-{existing + 1:03d}"
+    while any(q.id == new_id for q in payload.questions):
+        existing += 1
+        new_id = f"MAN-{existing + 1:03d}"
+
+    payload.questions.append(
+        IrlQuestion(
+            id=new_id,
+            function=function.strip(),
+            scope_area=scope_area.strip(),
+            question=question.strip(),
+            source="manual",
+        )
+    )
+    payload.functions = group_functions(payload.questions)
+
+    _rewrite_payload(db, irl, payload)
+    return irl
+
+
+def update_question(
+    db: Session,
+    engagement_id: str,
+    question_id: str,
+    question: str | None = None,
+    function: str | None = None,
+    scope_area: str | None = None,
+) -> InformationRequestList:
+    """Reword a request, or move it to a different function or scope area.
+
+    The original wording is kept beside the edit rather than replaced, the same pattern
+    the scope rows use for human overrides: a reviewer can always see what the engine
+    produced and what a person changed it to.
+    """
+    irl = get_latest_irl(db, engagement_id)
+    payload = _payload_of(irl)
+
+    target = next((q for q in payload.questions if q.id == question_id), None)
+    if target is None:
+        raise AppError(
+            code="unknown_question",
+            message=f"No question {question_id} in this request list",
+            status_code=404,
+        )
+
+    if question is not None and question.strip() and question.strip() != target.question:
+        if not target.edited_by_human:
+            target.original_question = target.question
+        target.question = question.strip()
+        target.edited_by_human = True
+
+    if function is not None and function.strip():
+        target.function = function.strip()
+    if scope_area is not None:
+        target.scope_area = scope_area.strip()
+
+    payload.functions = group_functions(payload.questions)
+    _rewrite_payload(db, irl, payload)
+    return irl
+
+
+def delete_question(
+    db: Session, engagement_id: str, question_id: str
+) -> InformationRequestList:
+    """Remove a request, and any response and document status hanging off it.
+
+    The response goes with it deliberately: leaving an orphan row would mean a later
+    regeneration silently resurrected an answer against a question nobody can see.
+    """
+    irl = get_latest_irl(db, engagement_id)
+    payload = _payload_of(irl)
+
+    if not any(q.id == question_id for q in payload.questions):
+        raise AppError(
+            code="unknown_question",
+            message=f"No question {question_id} in this request list",
+            status_code=404,
+        )
+
+    payload.questions = [q for q in payload.questions if q.id != question_id]
+    payload.functions = group_functions(payload.questions)
+    _rewrite_payload(db, irl, payload)
+
+    for row in db.execute(
+        select(IrlResponse).where(
+            IrlResponse.irl_id == irl.id, IrlResponse.question_id == question_id
+        )
+    ).scalars():
+        db.delete(row)
+    for status in db.execute(
+        select(IrlDocumentStatus).where(
+            IrlDocumentStatus.irl_id == irl.id,
+            IrlDocumentStatus.question_id == question_id,
+        )
+    ).scalars():
+        db.delete(status)
+
+    db.commit()
+    db.refresh(irl)
+    return irl
+
+
+def import_responses_from_workbook(
+    db: Session, engagement_id: str, content: bytes
+) -> tuple[InformationRequestList, ImportResponsesResult]:
+    """Scrape a completed workbook's Response column into the response table."""
+    irl = get_latest_irl(db, engagement_id)
+    payload = _payload_of(irl)
+
+    responses, result = import_responses(content, payload, responses_for(irl))
+
+    for question_id, text in responses.items():
+        existing = db.execute(
+            select(IrlResponse).where(
+                IrlResponse.irl_id == irl.id, IrlResponse.question_id == question_id
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            existing.response_text = text
+        else:
+            db.add(
+                IrlResponse(irl_id=irl.id, question_id=question_id, response_text=text)
+            )
+
+    db.commit()
+    db.refresh(irl)
+    return irl, result

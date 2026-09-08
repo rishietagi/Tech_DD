@@ -8,7 +8,8 @@ python-dotenv==1.0.1
 email-validator==2.2.0
 google-genai==2.20.0
 pyyaml==6.0.2
-reportlab==5.0.1
-pillow==12.3.0  # reportlab image support (cover logo)
+pillow==12.3.0  # required by python-pptx
 python-pptx==1.0.2
 xlsxwriter==3.2.9  # IRL Excel export (also a python-pptx dependency)
+openpyxl==3.1.5    # reads a completed IRL workbook back in (services/irl/import_xlsx.py)
+python-multipart==0.0.20  # multipart/form-data, for the IRL response upload

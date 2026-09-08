@@ -178,6 +178,10 @@ def apply_irl(
                 IrlQuestion(
                     id=seed.id,
                     function=function,
+                    # Taken from the seed's row, never from the model: a seeded question
+                    # belongs to the area that seeded it, and letting the model reassign
+                    # it would break the traceability the grouping exists to show.
+                    scope_area=seed.row_title,
                     question=text,
                     source="scope",
                     source_row_id=seed.row_id,
@@ -192,6 +196,9 @@ def apply_irl(
                 IrlQuestion(
                     id=f"ADD-{index:03d}",
                     function=function,
+                    # An addition may name a scope area if it genuinely belongs to one;
+                    # otherwise it falls into "Additional requests" at grouping time.
+                    scope_area=(item.scope_area or "").strip(),
                     question=text,
                     source="llm",
                 )

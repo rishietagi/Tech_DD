@@ -15,7 +15,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-QuestionSource = Literal["scope", "llm"]
+QuestionSource = Literal["scope", "llm", "manual"]
 
 
 class IrlQuestion(BaseModel):
@@ -28,6 +28,11 @@ class IrlQuestion(BaseModel):
     function: str
     question: str
 
+    # The scope-of-work heading this request traces to, so the IRL groups by the same
+    # areas the SOW opened (Rishi, 2026-09-02). Empty for questions that belong to no
+    # scope area — the model's own additions covering HR, Legal and Finance.
+    scope_area: str = ""
+
     source: QuestionSource = "scope"
     # Present only when source == "scope": the KPMG row whose evidence list seeded this.
     source_row_id: str | None = None
@@ -36,9 +41,20 @@ class IrlQuestion(BaseModel):
     # what the model was given and judge whether the rewrite is faithful.
     seed_text: str | None = None
 
+    # Hand-editing (2026-09-02). An analyst may reword any question, add their own, or
+    # remove one. The original wording is kept beside the edit rather than replaced, the
+    # same pattern the scope rows already use for human overrides.
+    edited_by_human: bool = False
+    original_question: str | None = None
+
 
 class IrlFunction(BaseModel):
-    """A function heading, with the questions under it."""
+    """A grouping heading, with the questions under it.
+
+    Since 2026-09-02 the IRL groups by **scope area** — the same headings the scope of
+    work uses — so every request traces to the area that asked for it. The owning
+    business function moved to its own column on each question.
+    """
 
     name: str
     question_ids: list[str] = Field(default_factory=list)
@@ -104,6 +120,43 @@ class GenerateIrlRequest(BaseModel):
     generator: Literal["rules", "llm"] | None = None
 
 
+class IrlQuestionCreate(BaseModel):
+    """An analyst adding a request the generated list did not anticipate."""
+
+    model_config = {"extra": "forbid"}
+
+    question: str = Field(min_length=1, max_length=4000)
+    function: str = Field(min_length=1, max_length=120)
+    # Which scope area it belongs under. Free text rather than an enum: it must match a
+    # heading in the stored scope payload, and those are model-authored per engagement.
+    scope_area: str = Field(default="", max_length=200)
+
+
+class IrlQuestionUpdate(BaseModel):
+    """Reword a question, or move it to a different function or scope area."""
+
+    model_config = {"extra": "forbid"}
+
+    question: str | None = Field(default=None, min_length=1, max_length=4000)
+    function: str | None = Field(default=None, min_length=1, max_length=120)
+    scope_area: str | None = Field(default=None, max_length=200)
+
+
+class ImportResponsesResult(BaseModel):
+    """What an uploaded response workbook actually changed.
+
+    Reported rather than assumed: an import that silently matched nothing looks identical
+    to one that worked, and the analyst would not find out until they read the checklist.
+    """
+
+    matched: int
+    updated: int
+    skipped_blank: int
+    unmatched_rows: list[str] = Field(default_factory=list)
+    total_rows: int
+    note: str = ""
+
+
 # ---------------------------------------------------------------- LLM contract
 
 
@@ -115,6 +168,9 @@ class LlmIrlQuestion(BaseModel):
     seed_id: str | None = None
     function: str
     question: str
+    # Which scope-of-work heading this belongs under. Seeded questions inherit it from
+    # their row regardless of what the model says; only additions rely on this.
+    scope_area: str = ""
 
 
 class LlmIrl(BaseModel):

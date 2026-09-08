@@ -2,17 +2,35 @@
 
 /** Where a question came from. "scope" questions trace to a KPMG scope row's evidence
  *  list; "llm" questions were added by the model to cover a function the technology
- *  scope does not reach. */
-export type QuestionSource = "scope" | "llm";
+ *  scope does not reach; "manual" questions were written by the analyst. */
+export type QuestionSource = "scope" | "llm" | "manual";
 
 export interface IrlQuestion {
   id: string;
+  /** The scope-of-work heading this request traces to. The list groups by this, so the
+   *  IRL follows the same areas the deck opened. Empty for additions. */
+  scope_area: string;
+  /** Who owns the answer — what makes the workbook routable. */
   function: string;
   question: string;
   source: QuestionSource;
   source_row_id?: string | null;
   source_row_title?: string | null;
   seed_text?: string | null;
+  /** True once an analyst has reworded it; the engine's text is kept alongside. */
+  edited_by_human?: boolean;
+  original_question?: string | null;
+}
+
+/** What an uploaded response workbook actually changed. Reported rather than assumed:
+ *  an import that matched nothing looks identical to one that worked. */
+export interface ImportResponsesResult {
+  matched: number;
+  updated: number;
+  skipped_blank: number;
+  unmatched_rows: string[];
+  total_rows: number;
+  note: string;
 }
 
 export interface IrlFunctionGroup {

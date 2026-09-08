@@ -8,7 +8,7 @@ future session would otherwise get wrong.
 
 ---
 
-## Current state — 2026-08-31
+## Current state — 2026-09-02
 
 | | |
 |---|---|
@@ -16,14 +16,25 @@ future session would otherwise get wrong.
 | **Phase 2 (scope engine)** | Done, committed (`62ac027`, `61399a6`) |
 | **Phase 3 (IRL + research)** | Built, uncommitted |
 | **Phase 4 (checklist)** | Built, uncommitted; scanner + email deferred |
-| **Backend** | pytest 300/300 · ruff clean · mypy clean (74 files) |
+| **Phase 5 (assess)** | Built, uncommitted; P2P only, other 4 processes named |
+| **Backend** | pytest 337/337 · ruff clean · mypy clean (82 files) |
 | **Frontend** | tsc clean · eslint clean · vitest 19/19 · `next build` clean |
-| **API** | 25 routes, OpenAPI clean |
-| **DB** | at `0004_add_irl_document_status` |
+| **API** | 38 routes, OpenAPI clean |
+| **DB** | at `0005_add_process_assessment` |
 | **Git** | `master`, remote `origin` = `git@github.com:rishietagi/Tech_DD.git` |
 
-**Uncommitted:** the UI fixes and the `tech_is_product` removal below. Rishi does all
-committing and pushing — never run `git push`.
+**Uncommitted: everything from 2026-08-31 and 2026-09-02.** In order: the UI fixes and
+the `tech_is_product` removal, PDF export, the review round (required markers, field help,
+AI-heavy stub, two-pass sequencing, PPT export), the delete button, the tier-badge
+removal, Phase 3 (IRL + research), Phase 4 (checklist), and Phase 5 (assess). Rishi does
+all committing and pushing — never run `git push`.
+
+**Not in git, and intentionally so:** `shared-drive/` — the checklist scanner's test
+fixtures, gitignored. Two of them, deliberately: `project-lighthouse/` (Product DD of a
+SaaS company, 24 files) and `project-kiln/` (Enterprise DD of a distributor, 25 files,
+added 2026-09-02). The two decks produce genuinely different request lists, so a scanner
+calibrated only against Lighthouse would be tuned on half the problem. Each folder's
+README records how to recreate it.
 
 **Pre-existing, not introduced here:** `black --check` reports 13 backend files needing
 reformatting. This is true on a clean checkout of `1848ec2` as well — it was not caused
@@ -60,14 +71,61 @@ IntakeFull
 writes *prose* (specific, KPMG-voiced). The deterministic engine alone produces a
 complete, publishable scope — the model is an improvement, never a dependency.
 
-**Content lives in YAML, not Python.** A practitioner edits these without a developer:
+### What happens after the scope (Phases 3-4)
+
+```
+ScopeOfWork
+  → build_seeds        irl/seeds.py       each row's `evidence` list -> seed requests
+  → LlmIrlGenerator    irl/llm.py         seeds + research + intake context -> the IRL
+                                          (may ADD questions, may never drop a seed)
+  → render_xlsx        irl/export_xlsx.py Function | Question | Response
+
+CompanyResearcher      research/generator.py   grounded web search; REFUSES if ungrounded
+                                               feeds the IRL prompt
+
+IRL + statuses
+  → rank_questions     checklist/ranking.py    priority from the scope tier + workstream
+  → build_checklist    checklist/service.py    assembled on read, never stored
+```
+
+**The same split holds throughout**: rules decide coverage, the model writes prose.
+Every IRL question seeded from the scope traces back to a row a rule opened, and the
+whole chain works with the LLM off — terser, never absent. Research is the one exception
+and deliberately so: it refuses rather than falling back, because ungrounded "research"
+is fabrication, not a degraded version of research.
+
+### What happens after the checklist (Phase 5)
+
+```
+procure_to_pay.yaml
+  → get_questionnaire   assess/library.py   9 steps, 26 questions, 31 nudges; validated
+  → analyst answers     process_answer      not versioned - working notes
+  → score_assessment    assess/scoring.py   weighted 0-100 index, bands, shape, pointers
+  → LlmScoreGenerator   assess/llm.py       summary + BOUNDED step refinement (±1)
+```
+
+**Assess is the one place the model may touch a number**, on Rishi's explicit instruction.
+Everywhere else it writes prose only. The deterministic score is always computed and always
+stored beside the refined one — see the decision entry below for the bounds.
+
+**Each deliverable is its own versioned child table** off `engagements`
+(`scope_of_work`, `information_request_list`, `company_research`, `process_assessment_score`,
+plus `irl_response`, `irl_document_status`, `process_answer` and `process_custom_question`).
+Adding a module later is one more table + service + router.
+
+**Content lives in YAML and prompt files, not Python.** A practitioner edits these
+without a developer:
 
 - `backend/app/reference/kpmg_scope/product.yaml` — 10 Product DD objectives, verbatim
 - `backend/app/reference/kpmg_scope/enterprise.yaml` — 9 Enterprise IT focus areas, verbatim
 - `backend/app/reference/scope_rules.yaml` — all 37 rules, weights, citations
-- `backend/app/services/scope/prompts/tailoring.md` — the LLM prompt, versioned
+- `backend/app/services/scope/prompts/tailoring.md` — the scope prompt, versioned
+- `backend/app/services/irl/prompts/irl.md` — the request-list prompt, versioned
+- `backend/app/services/research/prompts/research.md` — what the web research looks for
+- `backend/app/reference/processes/procure_to_pay.yaml` — the P2P questionnaire and nudges
+- `backend/app/reference/processes/_registry.yaml` — which business processes exist
 
-All validated at startup; a malformed file fails loudly.
+The YAML is validated at startup; a malformed file fails loudly.
 
 ---
 
@@ -75,6 +133,184 @@ All validated at startup; a malformed file fails loudly.
 
 These were Rishi's calls. **Do not "fix" them back.** `CLAUDE.md` outranks
 `docs/phases/PHASE2_SPEC.md`, and a later instruction outranks both.
+
+### The IRL is editable, follows the SOW's headings, and reads responses back (2026-09-02)
+
+Three instructions from Rishi.
+
+**1. Add, edit and delete requests.** `POST /irl/questions`, `PATCH /irl/questions/{id}`,
+`DELETE /irl/questions/{id}`. An edited question keeps the engine's wording in
+`original_question` and is flagged `edited_by_human` — the same pattern the scope rows use
+for overrides, so a reviewer can always see what a person changed. Deleting takes the
+question's response and document status with it; an orphan response would be silently
+resurrected by a later regeneration.
+
+All three mutate `payload_json`, which is the shallow-copy trap already recorded below.
+`_rewrite_payload` deep-copies and calls `flag_modified`, and the tests re-fetch from the
+API rather than trusting the response.
+
+**Manual work survives regeneration.** Rishi chose "carry them forward, keep edits" over
+resetting. Added questions are re-appended; reworded ones keep the analyst's text with the
+fresh generation stored as `original_question`. The trade, stated: an edited question can
+drift out of step with a scope that has since changed. It is visibly flagged, and that is
+the lesser harm against discarding someone's rewording.
+
+**2. The IRL now groups by scope area.** Asked whether "follow the SOW's functions" meant
+the deck's headings or the owning business function, Rishi chose **both**: the workbook
+went from three columns to four — **Scope Area | Function | Question | Response**. Grouping
+is by scope area, so every request sits under the area that opened it; `function` stays as
+who answers, which is what makes the sheet routable.
+
+`seed.row_title` was already the scope area, so provenance and grouping became the same
+fact. Seeded questions take it from their row and **never from the model** — letting the
+model reassign one would break the traceability the grouping exists to show. Model
+additions covering HR, Legal and Finance land under "Additional requests", sorted last.
+
+`_functions_of` had to change with it: it fed `payload.functions` back to the model as
+"previous function names", and that list now holds scope areas. It reads the questions'
+`function` field instead. Feeding scope areas back would have told the model to name its
+owner column after the deck's headings — exactly the confusion the split exists to avoid.
+
+The IRL prompt went **1.0 → 2.0** and gained the scope deck's house language rules: never
+name a party, expand abbreviations (but not IT/HR/CRM), one request per question, open with
+Provide/Confirm/Describe.
+
+**3. Completed workbooks upload and auto-fill.** `POST /irl/import` reads the Response
+column. Three rules carry the weight:
+
+- **Matching is by request id first.** The export writes a hidden `Request ID` column, so a
+  row matches even after the client reorders rows or rewords a question. The fallback is
+  *exact* normalised question text — deliberately not fuzzy, because a near-miss that
+  attaches an answer to the wrong request is the failure this must not have.
+- **A blank cell never clears an existing answer.** The client leaving a cell empty means
+  "not answered yet", not "delete what you have".
+- **Unmatched rows are reported, not dropped.** An import that silently matched nothing
+  looks identical to one that worked, and the analyst would not find out until they read
+  the checklist.
+
+**Test fixture**: `shared-drive/project-kiln/Kiln-IRL-COMPLETED-response-sheet.xlsx` — the
+real 46-request Kiln list with 41 answered and **5 deliberately left blank**, so the
+blank-cell rule is exercised rather than assumed. Gitignored with the rest of
+`shared-drive/`.
+
+`openpyxl` moved from a test-only to a runtime dependency, and `python-multipart` was added
+for the upload.
+
+**Verified by running it**, not only by tests: uploaded the dummy sheet against the live
+API — 46 matched, 41 updated, 5 blanks skipped, 0 unmatched — then re-uploaded and confirmed
+it changed nothing. Added, edited and deleted a question through the API and confirmed the
+export reflected each immediately. In the browser: four columns, 46 rows, 41 response boxes
+populated, Edit/Delete on every row, and the scope-area headings matching the deck's.
+
+### The deck is anonymised, plain and shallow — enforced in code (2026-09-02)
+
+Seven instructions from Rishi on the generated scope of work. Prompt `tailoring.md` went
+**1.0 → 2.1**, and the load-bearing ones are enforced in `services/scope/llm.py` as well,
+because a prompt is guidance and a deck that names the client is a real problem.
+
+| # | Instruction | Where it lives |
+|---|---|---|
+| 1 | Headings generic, specifics in the bullets | Prompt Rule 2 |
+| 2 | Never name the target or investor — "the Target", "the Acquirer", "the Parent" | Prompt Rule 1 **+ `_scrub_names`** |
+| 3 | Plain language; expand abbreviations | Prompt Rule 3 |
+| 4 | Bullets short, specific, shallow unless the deal asks for depth | Prompt Rule 4 |
+| 5 | Open with Review/Assess/Evaluate/Identify, never "Gain" | Prompt Rule 5 **+ `_enforce_verb`** |
+| 6 | Sequencing, cost and team → XXX | `export_pptx.py` |
+| 7 | Drop the PDF and Markdown exports | Routes + frontend |
+
+**Corrected on the same day, after Rishi checked the app.** The first pass got two of the
+seven wrong:
+
+1. **Sequencing/cost/team were only removed from the deck**, not from the on-screen scope
+   document — `scope-document-v2.tsx` still rendered all three sections in full. Both
+   surfaces now show the same Delivery approach table of XXX. The lesson is the one this
+   log keeps recording: a change to "the SOW" means *every* surface that renders it, and
+   checking only the artefact I happened to be editing is not checking.
+2. **"Bullets" meant bullet formatting, not sentence length.** I read Rule 4 as being about
+   brevity and rewrote the prose accordingly, but the lines were still rendering as plain
+   paragraphs in all three exports. They are now `•` glyphs in the deck, `<li>` in the
+   on-screen document, and `- ` in the Markdown. Both readings were wanted; only one was
+   delivered.
+
+**Names are scrubbed, not rejected.** A single leaked name should not discard an otherwise
+good scope and fall back to the generic deterministic text — that is a worse document, not
+a safer one. `enforce_house_rules` runs after `apply_tailoring`: it replaces names in the
+summary and bullets, **strips** them from titles (a heading naming a party is wrong even
+anonymised), and rewrites banned openers.
+
+`_name_variants` also derives short forms — "Kiln Industrial Supply" leaks as "Kiln" — but
+only where the first token is ≥4 characters and not generic, and matching is
+``-anchored so "kilnworks" survives untouched. `test_a_word_merely_containing_the_name_is_not_scrubbed` pins that.
+
+**The deal codename stays.** "Project Kiln" still appears in the running header — it is the
+anonymising device deals already use, and stripping it would leave the deck with no
+identifier. Only the *company* name is scrubbed. Verified: 7 occurrences in the deck, all
+the codename, none the company.
+
+**Sequencing/cost/team became one "Delivery approach" slide** with every value XXX, rather
+than being dropped. An absent slide reads as "not applicable"; a slide of XXX reads as "not
+yet decided", which is the truth — these are judgement calls the engagement team makes. The
+data is still computed and still in the payload and Markdown export.
+
+**Exclusions were rescued.** They shared the old Team slide, so removing it would have
+silently dropped them — and DD_master G4 requires a scope to state what it does not cover.
+They now have their own slide.
+
+**PDF removed entirely** (`export_pdf.py`, its route, its tests, the `reportlab` pin and two
+mypy overrides). **Markdown kept but unexposed**: it is the only artefact carrying the audit
+trail — the signals, rule provenance and tier reasoning — so it is still served at
+`/scope/export` with no button. `pillow` stays: python-pptx requires it.
+
+**Two traps hit while doing this:**
+
+1. A heredoc turned every `` in the new regexes into a **literal backspace byte** (0x08).
+   The patterns parsed and the tests would have passed, but the name scrub would silently
+   never match. Found by inspecting the file with `cat -A`. 14 occurrences fixed.
+2. The first regeneration came back unchanged at `prompt v1.0`: `_load_prompt` is
+   `lru_cache`d and uvicorn's `--reload` had not actually restarted. Restarting on a clean
+   port fixed it. **If a prompt edit appears to do nothing, restart the process** — the
+   version in the payload tells you which prompt actually ran.
+
+**Verified by reading the regenerated scope**, not only by tests: no party names, zero
+"information technology (IT)" expansions after the IT/HR/CRM exemption was added, no banned
+openers, bullets averaging 14 words against a 25-word target.
+
+### The model may move a step score in Assess — bounded (2026-09-02)
+
+**The one place the model touches a number.** Everywhere else in this platform rules decide
+and the model writes prose. Asked which he wanted for process scoring, Rishi chose *"LLM
+also refines step scores"* over *"deterministic score, LLM writes summary only"*.
+
+I flagged the cost before building: a refined index is **no longer perfectly reproducible**
+from the answers, so re-scoring the same evidence can give a different number and the audit
+trail weakens. Rishi's call stands; the cost is contained rather than accepted wholesale:
+
+| Guard | Why |
+|---|---|
+| Deterministic score always computed and stored, on the payload *and* every step | A reader can always put the rules number back |
+| Adjustment bounded to **±1** | A larger disagreement means the answers are wrong — that is a probe, not a silent edit |
+| Reason required, ≥20 characters, citing the evidence | A colour or a number with no explanation is not auditable |
+| Unassessed steps cannot be refined | No evidence means no score, not a guessed one |
+| More than 3 refinements → **all** dropped | Moving many steps is second-guessing the ladder, not reading evidence |
+| Rejection is per-adjustment | One bad refinement must not discard a good summary |
+
+Rejections are logged with the reason. On the first live run the model refined **nothing** —
+it read the free text, found it consistent with the multiple-choice answers, and left the
+arithmetic alone, which is what the prompt says the expected outcome is.
+
+**If this ever needs reverting**, it is one change: pass `RulesScoreGenerator` instead of
+`LlmScoreGenerator` in `services/assess/service.py::_generator_for`. The summary degrades to
+the deterministic one; nothing else moves.
+
+### Assess is internal-facing, with the export seam left open (2026-09-02)
+
+Asked who the score is written for, Rishi chose *"internal now, exportable later"*. So the
+score view is frank and diagnostic — it names weak spots plainly and tells the analyst what
+to probe next — rather than being written in the KPMG client voice the SOW deck uses.
+
+A PPT/PDF export in the house voice is the obvious next step and the payload already carries
+everything one would need. It was **not built rather than guessed at**, the same treatment
+the shared-drive scanner got.
 
 ### LLM provider is Gemini, not Anthropic (2026-08-30)
 
@@ -183,6 +419,30 @@ as met as written.
 tuning against real engagements. `tests/test_golden_cases.py` is what makes tuning
 safe — change a weight, and the case that breaks tells you what you broke.
 
+**`critical` is unreachable on an Enterprise engagement.** The checklist ranker reserves
+`critical` for rows carrying `W-SEC`, `W-PROC` or `W-DATA` (Phase 4, calibrated against the
+Product-deck Lighthouse list). But `reference/kpmg_scope/enterprise.yaml` has **no row
+carrying any of those** — its nine focus areas are Applications, Strategy, Org,
+Infrastructure, Financials, Projects, SDLC, Emerging Tech and Contracts. Product carries
+them on 3 of 10 rows; Enterprise on 0 of 9.
+
+So an Enterprise checklist tops out at `high`, however sensitive the deal. Observed
+2026-09-02 on Project Kiln — a carve-out with GDPR data and a disclosed ransomware
+incident — which produced `{high: 9, medium: 14, low: 20}` and not one critical item.
+
+**This is a content gap, not a ranker bug**, and it traces back to the KPMG source deck:
+the Enterprise section genuinely has no standalone security or privacy focus area. Two
+honest fixes, both a decision for Rishi rather than something to pick silently:
+
+1. Add a Security & Compliance focus area to `enterprise.yaml` — departs from the verbatim
+   source deck, which `CLAUDE.md` §9 currently treats as authoritative.
+2. Widen the ranker so Enterprise rows escalate on other evidence (regulated data in the
+   intake, a disclosed incident) rather than on the workstream tag alone.
+
+Left alone because it is outside what was asked and because option 1 changes transcribed
+client content. Raise it before anyone runs a real Enterprise engagement and reads the
+colour coding as meaningful.
+
 **The "Archived" status filter returns nothing, ever.** `list_engagements` excludes
 archived rows *before* applying the status filter, so the dropdown option ANDs two
 contradictory conditions; `get_engagement` also 404s on archived. An archived engagement
@@ -219,6 +479,80 @@ done.
 ---
 
 ## Session log
+
+### 2026-09-02 — Phase 5: Assess (business process automation)
+
+Where the diligence is actually performed. The first module whose content originates with
+the **analyst in the data room** rather than being derived from the intake. Plan at
+`docs/phases/PHASE5_PLAN.md`.
+
+**Procure to Pay only, by instruction.** The other four processes (O2C, P2M, H2R, R2R) are
+registered with `defined: false` — **listed rather than hidden**, so the shape of the module
+is visible, and asking for one returns **409 `process_not_defined`**, not 404. A 404 would
+wrongly imply the process does not exist; it does, its questions do not.
+
+**The evaluation reference came first**, because scoring reads from it:
+`docs/reference/P2P_AUTOMATION_MODEL.md` defines nine L1 steps weighted by transaction
+volume and financial exposure (summing to 100), and a 0-5 ladder whose levels are defined by
+**observable evidence** rather than adjectives, so two analysts land on the same number.
+Invoice matching (17) and PO issuance (13) weigh heaviest — most transactions, most leakage.
+Marked `[EXT]`: built for this platform, not from Roehl-Anderson, and explicitly a
+calibration to be tuned, exactly as DD_master §15.1 says of the mix weights.
+
+**Two scoring rules stop the number inventing findings.** Both were deliberate:
+
+1. **An unanswered question is excluded from the denominator, never scored as zero.** A
+   blank is an absence of evidence, not evidence of manual working.
+2. **A step with no answered scoring questions is `not_assessed`** and drops out of the
+   index, its weight redistributed. Otherwise a half-finished questionnaire produces a
+   confident number.
+
+Coverage is reported alongside the index ("scored on 20 of 20 questions, covering 9 of 9
+steps") so a reader can tell a confident 34 from a thin one.
+
+**The shape is reported, not just the level.** A front-loaded 52 and a uniform 52 imply
+remediation costs an order of magnitude apart, so `_shape_note` names the pattern —
+front-loaded (a procurement tool bought and never rolled through to AP), back-loaded
+(finance modernised what it controls), or even.
+
+**Nudges are data, not code.** `when: {equals | in | answered}` in the YAML, evaluated
+**client-side** so the follow-up appears the instant an option is picked. They never score —
+one that scored would double-count its parent. The loader **validates that every nudge fires
+on an option that actually exists**: a nudge naming a stale label would silently never
+appear, and nobody would notice the evidence was not being gathered.
+
+**Custom questions are stored per engagement, not merged into the YAML** — the YAML is shared
+content, and one engagement's addition must not appear on every other. They carry no options,
+so they enrich the evidence without moving the number.
+
+**Two decisions Rishi made when asked** — bounded step refinement, and internal-facing
+output. Both recorded as decision entries above.
+
+**Found by reading the output, not by a failing test** (the fourth session running):
+
+- The fallback executive summary appended `_shape_note` verbatim, and the page renders the
+  shape note separately — so the same paragraph printed twice. Now the summary names the
+  unassessed steps instead, which is information the shape note does not carry.
+- Every unassessed step's probe pointer claimed *"its answers would move the index most"* —
+  which cannot be true of four different steps. Only the heaviest says it now.
+- On the rendered score page the prose ran to ~110ch and the table extended past the
+  summary's right edge, giving the page two competing widths. Constrained to a document
+  measure.
+
+**Verified with the live model, not only mocked.** A seeded industrial distributor with 25
+answers returned `generator: llm` and an index of 34.0/100 (Emerging). The summary used the
+analyst's actual evidence — 4,200 invoices, 9 AP FTEs, the missing callback verification, the
+unlogged payment file, the blocked-invoice list nobody could produce — and derived **466
+invoices per FTE per month**, which is precisely the metric the questionnaire's nudge was
+written to elicit. That is the module working as designed.
+
+**Verified in a browser**: 5 processes with 4 honest "Not yet defined" badges, Assess in the
+nav, 9 step sections, 108 options, 20 answers restored after a reload, a nudge revealing live
+on selection (14 → 15 follow-ups), the custom question tagged "Added", the score table with 9
+rows and 7 pointers, and the 409 empty state for an undefined process.
+
+**No new colour tokens.** The five bands reuse the existing priority/status ramp — low
+maturity reads as the problem colour, high as the green already reserved for "arrived".
 
 ### 2026-08-31 — Phase 4: the Checklist
 

@@ -78,7 +78,9 @@ def _rows_block(scope: ScopeOfWorkPayloadV2) -> list[str]:
             lines.append("")
             lines.append(f"*{row.tier_name}* — {row.tier_reason}")
             lines.append("")
-            lines.extend(f"{line.text}" for line in row.lines)
+            # Bulleted, matching the deck and the on-screen document (2026-09-02): each
+            # line is one discrete piece of scope, not a paragraph of prose.
+            lines.extend(f"- {line.text}" for line in row.lines)
             lines.append("")
 
             if row.adjustments:

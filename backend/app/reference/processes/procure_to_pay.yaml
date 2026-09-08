@@ -1,0 +1,500 @@
+# Procure to Pay — automation assessment questionnaire.
+#
+# The domain model behind this file is docs/reference/P2P_AUTOMATION_MODEL.md. Read it
+# before changing weights or scores: every `score` below is a level on the 0-5 maturity
+# ladder defined in §2, and every step weight comes from §3.
+#
+# A practitioner edits this file without a developer. It is validated at startup and a
+# malformed file fails loudly.
+#
+# QUESTION TYPES
+#   single_select  - scores. Each option carries the ladder level it evidences.
+#   text           - does not score. Captures evidence, volumes and caveats; this is
+#                    what the exec summary draws on.
+#
+# NUDGES
+#   A nudge is a conditional follow-up: "if X is the answer, ask Y". They evaluate as
+#   the analyst answers, so the follow-up appears immediately beneath its parent.
+#   `when.equals` matches one option; `when.in` matches any of several; `when.answered`
+#   fires on any non-empty answer. Nudges never score - they exist to make the evidence
+#   behind a score defensible, and a nudge that scored would double-count its parent.
+#
+# WEIGHTS sum to 100. See P2P_AUTOMATION_MODEL.md §3 for why each step carries what it
+# does. Weight reflects transaction volume and financial exposure, not assessment effort.
+
+process_key: procure_to_pay
+name: Procure to Pay
+short_name: P2P
+version: "1.0"
+model_ref: docs/reference/P2P_AUTOMATION_MODEL.md
+description: >-
+  How a need becomes a purchase and a purchase becomes a payment. Assessed for
+  automation maturity across nine steps, weighted by transaction volume and financial
+  exposure.
+
+steps:
+  # ---------------------------------------------------------------- 1
+  - key: p2p_requisition
+    sn: 1
+    title: Requisition & demand capture
+    weight: 10
+    intent: >-
+      How a need becomes a formal, structured request. The entry point sets data quality
+      for everything downstream.
+    questions:
+      - id: P2P-01-01
+        text: How does a business user raise a request to buy something?
+        type: single_select
+        options:
+          - { label: "Email, phone or a paper form", score: 0 }
+          - { label: "A template or spreadsheet, keyed into a system by someone else", score: 1 }
+          - { label: "Entered directly into a system, mostly free-text", score: 2 }
+          - { label: "Catalogue-based for common categories, free-text by exception", score: 3 }
+          - { label: "Punch-out or hosted catalogues covering most spend, with guided buying", score: 4 }
+          - { label: "Demand triggered automatically from consumption or planning data", score: 5 }
+        nudges:
+          - when: { in: ["Email, phone or a paper form", "A template or spreadsheet, keyed into a system by someone else"] }
+            ask: >-
+              Roughly how many requisitions are raised per month, and how many people
+              spend time keying or chasing them?
+          - when: { in: ["Catalogue-based for common categories, free-text by exception", "Punch-out or hosted catalogues covering most spend, with guided buying"] }
+            ask: >-
+              What proportion of requisition value goes through the catalogue rather than
+              free-text? Ask for the reported figure rather than an estimate.
+          - when: { equals: "Demand triggered automatically from consumption or planning data" }
+            ask: >-
+              Which categories does automatic replenishment actually cover today, and what
+              parameters bound it? Confirm this is running, not planned.
+
+      - id: P2P-01-02
+        text: Which system holds the requisition, and is it the same system used later for the PO?
+        type: text
+
+      - id: P2P-01-03
+        text: Is spend checked against budget or contract at the point of request?
+        type: single_select
+        options:
+          - { label: "No check at request time", score: 0 }
+          - { label: "Checked manually by finance, after the fact", score: 1 }
+          - { label: "Checked manually before approval", score: 2 }
+          - { label: "System checks budget availability automatically", score: 3 }
+          - { label: "Automated budget and contract-price validation, blocking where breached", score: 4 }
+        nudges:
+          - when: { in: ["No check at request time", "Checked manually by finance, after the fact"] }
+            ask: >-
+              How is over-budget spend discovered, and how long after commitment? Ask for
+              a recent example.
+
+  # ---------------------------------------------------------------- 2
+  - key: p2p_approval
+    sn: 2
+    title: Approval workflow
+    weight: 12
+    intent: >-
+      Delegation of authority, routing, escalation and the audit trail. Control-critical:
+      the first place maverick and duplicate spend is stopped.
+    questions:
+      - id: P2P-02-01
+        text: How are purchase approvals obtained and evidenced?
+        type: single_select
+        options:
+          - { label: "Verbally or by email, with no retained record", score: 0 }
+          - { label: "By email, attached to the record afterwards", score: 1 }
+          - { label: "In-system, but the delegation of authority is a document people consult", score: 2 }
+          - { label: "In-system with the DOA configured and enforced, full audit trail", score: 3 }
+          - { label: "Risk-based routing with auto-approval inside defined thresholds, SLA-tracked", score: 4 }
+          - { label: "Continuous control monitoring on approval behaviour with automated escalation", score: 5 }
+        nudges:
+          - when: { in: ["Verbally or by email, with no retained record", "By email, attached to the record afterwards"] }
+            ask: >-
+              How would management evidence to an auditor that a specific purchase was
+              properly approved? This is a likely control finding — record the answer
+              verbatim.
+          - when: { equals: "In-system, but the delegation of authority is a document people consult" }
+            ask: >-
+              What stops someone approving above their limit, and has that been tested?
+              Ask whether any breaches have been identified.
+          - when: { equals: "Risk-based routing with auto-approval inside defined thresholds, SLA-tracked" }
+            ask: >-
+              What are the auto-approval thresholds, what share of transactions do they
+              cover, and who reviews them?
+
+      - id: P2P-02-02
+        text: When was the delegation of authority last reviewed, and how are leaver and mover changes reflected?
+        type: text
+
+      - id: P2P-02-03
+        text: How long does a typical approval take end to end, and is that measured?
+        type: single_select
+        options:
+          - { label: "Not measured", score: 1 }
+          - { label: "Known anecdotally, not reported", score: 2 }
+          - { label: "Measured and reported periodically", score: 3 }
+          - { label: "Monitored against an SLA with active escalation of ageing items", score: 4 }
+        nudges:
+          - when: { equals: "Not measured" }
+            ask: >-
+              Do users complain about approval delays, and is there a workaround people
+              use when something is urgent? The workaround is usually the real process.
+
+  # ---------------------------------------------------------------- 3
+  - key: p2p_sourcing
+    sn: 3
+    title: Sourcing, RFx & negotiation
+    weight: 8
+    intent: >-
+      Competitive events, bid comparison, award and contract creation. Lower volume,
+      high value per event.
+    questions:
+      - id: P2P-03-01
+        text: How are competitive sourcing events run?
+        type: single_select
+        options:
+          - { label: "Ad hoc by phone and email, no retained comparison", score: 0 }
+          - { label: "Bids collected by email and compared in a spreadsheet", score: 1 }
+          - { label: "A sourcing tool used for some events, with templates", score: 2 }
+          - { label: "E-sourcing standard above a threshold, structured comparison, auditable award", score: 3 }
+          - { label: "Sourcing linked to contract expiry and pipeline, award terms flow through without re-keying", score: 4 }
+          - { label: "Analytics-driven sourcing with automated event triggers", score: 5 }
+        nudges:
+          - when: { in: ["Ad hoc by phone and email, no retained comparison", "Bids collected by email and compared in a spreadsheet"] }
+            ask: >-
+              Above what value is competitive bidding required by policy, and how is
+              compliance with that policy checked?
+
+      - id: P2P-03-02
+        text: Where do contracts live, and is expiry or renewal tracked automatically?
+        type: single_select
+        options:
+          - { label: "No central repository — contracts are held by whoever signed them", score: 0 }
+          - { label: "A shared folder, no metadata", score: 1 }
+          - { label: "A repository with manually maintained key dates", score: 2 }
+          - { label: "A contract system with automated expiry and renewal alerts", score: 3 }
+          - { label: "Contract terms enforced downstream at PO and invoice", score: 4 }
+        nudges:
+          - when: { in: ["No central repository — contracts are held by whoever signed them", "A shared folder, no metadata"] }
+            ask: >-
+              How many supplier contracts are there in total, and could management produce
+              a complete list on request? Note this as a data-room gap if not.
+          - when: { equals: "Contract terms enforced downstream at PO and invoice" }
+            ask: >-
+              Is contracted pricing actually validated at invoice, and is off-contract
+              spend quantified anywhere?
+
+      - id: P2P-03-03
+        text: What is the addressable spend, and what share is under a managed contract?
+        type: text
+
+  # ---------------------------------------------------------------- 4
+  - key: p2p_supplier_master
+    sn: 4
+    title: Supplier onboarding & master data
+    weight: 10
+    intent: >-
+      Vendor creation, verification, bank-detail change and deduplication. Master data
+      quality gates the whole cycle, and bank-detail change is the classic fraud vector.
+    questions:
+      - id: P2P-04-01
+        text: How is a new supplier created in the system?
+        type: single_select
+        options:
+          - { label: "On request, with no verification", score: 0 }
+          - { label: "A manual onboarding form and checklist, verified by judgement", score: 1 }
+          - { label: "A defined in-system process with mandatory fields", score: 2 }
+          - { label: "Supplier portal self-registration with systematic duplicate checking", score: 3 }
+          - { label: "Automated verification against registry, tax or sanctions sources, with data-quality monitoring", score: 4 }
+          - { label: "Continuous supplier risk monitoring feeding sourcing and payment decisions", score: 5 }
+        nudges:
+          - when: { in: ["On request, with no verification", "A manual onboarding form and checklist, verified by judgement"] }
+            ask: >-
+              Who can create a supplier record, and is that segregated from who can
+              approve a payment? Segregation of duties failure here is a material finding.
+
+      - id: P2P-04-02
+        text: How are supplier bank detail changes controlled?
+        type: single_select
+        options:
+          - { label: "Changed on the strength of an email or letter", score: 0 }
+          - { label: "Changed by AP with a manual check", score: 1 }
+          - { label: "Requires documented approval by a second person", score: 2 }
+          - { label: "Independent callback verification to a known contact, logged", score: 3 }
+          - { label: "Supplier-initiated through a portal with automated verification and full audit trail", score: 4 }
+        nudges:
+          - when: { in: ["Changed on the strength of an email or letter", "Changed by AP with a manual check"] }
+            ask: >-
+              Has the target experienced any attempted or successful payment diversion
+              fraud? Ask directly — this control gap is how it happens, and disclosure
+              matters to the buyer.
+
+      - id: P2P-04-03
+        text: Is the supplier master cleansed, and are duplicate or dormant records measured?
+        type: single_select
+        options:
+          - { label: "Never cleansed; no idea how many duplicates exist", score: 0 }
+          - { label: "Cleansed occasionally as a project", score: 1 }
+          - { label: "Periodic manual review", score: 2 }
+          - { label: "Systematic duplicate detection with regular stewardship", score: 3 }
+          - { label: "Continuous automated data-quality monitoring with reported metrics", score: 4 }
+        nudges:
+          - when: { answered: true }
+            ask: >-
+              How many active supplier records are there, and how many were transacted
+              with in the last twelve months? The gap between those two numbers is the
+              cleanest single measure of master-data health.
+
+  # ---------------------------------------------------------------- 5
+  - key: p2p_po
+    sn: 5
+    title: Purchase order issuance
+    weight: 13
+    intent: >-
+      Requisition-to-PO conversion, transmission, acknowledgement and change orders.
+      Non-PO spend is the biggest single driver of downstream manual effort.
+    questions:
+      - id: P2P-05-01
+        text: How is a purchase order created and sent?
+        type: single_select
+        options:
+          - { label: "No POs, or POs raised after the invoice arrives to satisfy finance", score: 0 }
+          - { label: "Typed manually from the approved requisition and emailed", score: 1 }
+          - { label: "Generated in-system, transmitted manually, no acknowledgement tracked", score: 2 }
+          - { label: "Automatic requisition-to-PO conversion, electronic transmission, acknowledgement tracked", score: 3 }
+          - { label: "High PO coverage with automated release strategies and contract-price enforcement", score: 4 }
+          - { label: "System-triggered ordering against agreements, minimal human involvement", score: 5 }
+        nudges:
+          - when: { equals: "No POs, or POs raised after the invoice arrives to satisfy finance" }
+            ask: >-
+              Retrospective PO creation defeats the control entirely and makes three-way
+              matching impossible. Confirm how widespread this is and whether finance is
+              aware. Record verbatim.
+          - when: { in: ["Typed manually from the approved requisition and emailed", "Generated in-system, transmitted manually, no acknowledgement tracked"] }
+            ask: >-
+              How many POs are issued per month, and how many FTEs sit in the purchasing
+              team? This is the headcount that scales with volume under the growth case.
+
+      - id: P2P-05-02
+        text: What proportion of addressable spend is PO-backed, and is that measured?
+        type: single_select
+        options:
+          - { label: "Not measured", score: 0 }
+          - { label: "Under 40% of addressable spend", score: 1 }
+          - { label: "40-70%", score: 2 }
+          - { label: "70-90%", score: 3 }
+          - { label: "Over 90%, measured and reported", score: 4 }
+        nudges:
+          - when: { in: ["Not measured", "Under 40% of addressable spend", "40-70%"] }
+            ask: >-
+              What categories account for most of the non-PO spend, and how are those
+              invoices approved without a PO to match against?
+
+      - id: P2P-05-03
+        text: How are change orders and cancellations handled?
+        type: text
+
+  # ---------------------------------------------------------------- 6
+  - key: p2p_receipt
+    sn: 6
+    title: Goods & service receipt
+    weight: 10
+    intent: >-
+      GRN and service confirmation. Without reliable receipt the match cannot be
+      automated, whatever the invoice tooling.
+    questions:
+      - id: P2P-06-01
+        text: How is the receipt of goods recorded?
+        type: single_select
+        options:
+          - { label: "Not recorded, or confirmed verbally to accounts payable", score: 0 }
+          - { label: "Paper GRN or delivery note filed, keyed later", score: 1 }
+          - { label: "Entered in-system by the receiving team, often in a later batch", score: 2 }
+          - { label: "Timely in-system receipting sufficient to support three-way matching", score: 3 }
+          - { label: "Mobile, scanned or barcode receipt at the point of delivery", score: 4 }
+          - { label: "Receipt confirmed automatically from logistics or sensor data", score: 5 }
+        nudges:
+          - when: { in: ["Not recorded, or confirmed verbally to accounts payable", "Paper GRN or delivery note filed, keyed later"] }
+            ask: >-
+              If receipt is not reliably captured, three-way matching cannot work
+              regardless of invoice automation. Confirm whether the target believes it is
+              three-way matching, and reconcile the two answers.
+          - when: { equals: "Entered in-system by the receiving team, often in a later batch" }
+            ask: >-
+              What is the typical lag between physical delivery and system receipt, and
+              does it cause invoices to block?
+
+      - id: P2P-06-02
+        text: How is the receipt of services confirmed, as distinct from goods?
+        type: single_select
+        options:
+          - { label: "No formal service confirmation", score: 0 }
+          - { label: "Email confirmation from the budget holder", score: 1 }
+          - { label: "Manual service entry sheet", score: 2 }
+          - { label: "Workflow-approved service entry sheets in-system", score: 3 }
+          - { label: "Milestone or timesheet-driven confirmation, automated where contracted", score: 4 }
+        nudges:
+          - when: { in: ["No formal service confirmation", "Email confirmation from the budget holder"] }
+            ask: >-
+              What share of spend is services rather than goods? A services-heavy target
+              with no confirmation mechanism has a much larger control gap than the
+              headline suggests.
+
+  # ---------------------------------------------------------------- 7
+  - key: p2p_invoice
+    sn: 7
+    title: Invoice capture & matching
+    weight: 17
+    intent: >-
+      Receipt channel, capture, 2-way and 3-way matching, tolerances and auto-match rate.
+      The highest-volume, highest-manual-effort step in the cycle.
+    questions:
+      - id: P2P-07-01
+        text: How are supplier invoices received and captured?
+        type: single_select
+        options:
+          - { label: "Paper or PDF, keyed manually in full", score: 0 }
+          - { label: "Scanned and stored, but data entry remains manual", score: 1 }
+          - { label: "OCR extraction with substantial manual correction", score: 2 }
+          - { label: "Reliable automated capture across most volume", score: 3 }
+          - { label: "E-invoicing or EDI for the majority of volume", score: 4 }
+          - { label: "Touchless processing as the norm, with ML-assisted coding", score: 5 }
+        nudges:
+          - when: { in: ["Paper or PDF, keyed manually in full", "Scanned and stored, but data entry remains manual"] }
+            ask: >-
+              What is the monthly invoice volume, and how many FTEs are in accounts
+              payable? Invoices per FTE per month is the single most comparable
+              productivity metric in this process — get both numbers.
+          - when: { equals: "OCR extraction with substantial manual correction" }
+            ask: >-
+              What share of invoices need manual correction after OCR? A low capture
+              accuracy rate means the tool is adding a step rather than removing one.
+          - when: { in: ["E-invoicing or EDI for the majority of volume", "Touchless processing as the norm, with ML-assisted coding"] }
+            ask: >-
+              What proportion of suppliers by volume are actually onboarded to
+              e-invoicing, and is there a mandate or an incentive driving it?
+
+      - id: P2P-07-02
+        text: What matching is performed before an invoice is approved for payment?
+        type: single_select
+        options:
+          - { label: "No systematic matching — a person compares documents", score: 0 }
+          - { label: "Manual matching against the PO", score: 1 }
+          - { label: "System-assisted matching that a person completes", score: 2 }
+          - { label: "Configured 2-way and 3-way matching with defined tolerances", score: 3 }
+          - { label: "High straight-through match rate with monitored tolerance and duplicate rules", score: 4 }
+          - { label: "Continuously tuned matching with exception rules improved over time", score: 5 }
+        nudges:
+          - when: { in: ["Configured 2-way and 3-way matching with defined tolerances", "High straight-through match rate with monitored tolerance and duplicate rules", "Continuously tuned matching with exception rules improved over time"] }
+            ask: >-
+              What is the reported first-pass auto-match rate, and what tolerances are
+              configured? Wide tolerances can manufacture a high match rate while
+              weakening the control — ask for the actual values.
+          - when: { in: ["No systematic matching — a person compares documents", "Manual matching against the PO"] }
+            ask: >-
+              What prevents a duplicate invoice being paid, and have any duplicate
+              payments been identified or recovered in the last two years?
+
+      - id: P2P-07-03
+        text: How are invoices coded to the general ledger and cost centre?
+        type: single_select
+        options:
+          - { label: "Manually, by AP judgement", score: 1 }
+          - { label: "Manually, against a documented policy", score: 2 }
+          - { label: "Defaulted from the PO or supplier, corrected by exception", score: 3 }
+          - { label: "Automated coding with learned defaults and exception review", score: 4 }
+
+      - id: P2P-07-04
+        text: What is the invoice volume per month, and what does accounts payable cost to run?
+        type: text
+
+  # ---------------------------------------------------------------- 8
+  - key: p2p_exceptions
+    sn: 8
+    title: Exception & dispute handling
+    weight: 10
+    intent: >-
+      Whether automation elsewhere converts into saved effort. Exceptions are where
+      straight-through processing goes to die.
+    questions:
+      - id: P2P-08-01
+        text: When an invoice fails to match, what happens to it?
+        type: single_select
+        options:
+          - { label: "It sits in someone's inbox; no list of outstanding items exists", score: 0 }
+          - { label: "Tracked in a spreadsheet or shared mailbox", score: 1 }
+          - { label: "Visible in-system, but assignment and chasing are manual", score: 2 }
+          - { label: "Automatically routed by exception type with ownership, ageing and escalation", score: 3 }
+          - { label: "SLA-managed with root-cause analysis feeding process change", score: 4 }
+          - { label: "Exceptions anticipated and intercepted before the invoice blocks", score: 5 }
+        nudges:
+          - when: { in: ["It sits in someone's inbox; no list of outstanding items exists", "Tracked in a spreadsheet or shared mailbox"] }
+            ask: >-
+              How many invoices are currently blocked or on hold, and what is the value?
+              If nobody can answer, that is itself the finding — record that it could not
+              be produced.
+          - when: { in: ["Automatically routed by exception type with ownership, ageing and escalation", "SLA-managed with root-cause analysis feeding process change"] }
+            ask: >-
+              What proportion of invoices become exceptions, and is that trending down?
+              Ask for the last twelve months rather than a point figure.
+
+      - id: P2P-08-02
+        text: How do suppliers query invoice or payment status?
+        type: single_select
+        options:
+          - { label: "By phoning or emailing whoever they know", score: 0 }
+          - { label: "A shared AP mailbox", score: 1 }
+          - { label: "A defined channel with logged queries", score: 2 }
+          - { label: "Supplier self-service portal showing status", score: 3 }
+          - { label: "Self-service with proactive status notification", score: 4 }
+        nudges:
+          - when: { in: ["By phoning or emailing whoever they know", "A shared AP mailbox"] }
+            ask: >-
+              Roughly how much AP time goes on answering supplier status queries? This is
+              often a surprisingly large share of the team's capacity.
+
+  # ---------------------------------------------------------------- 9
+  - key: p2p_payment
+    sn: 9
+    title: Payment run & reconciliation
+    weight: 10
+    intent: >-
+      Run scheduling, approval, bank integration and reconciliation. The last place an
+      error can be caught before cash leaves.
+    questions:
+      - id: P2P-09-01
+        text: How is a payment run prepared and executed?
+        type: single_select
+        options:
+          - { label: "Payments prepared manually and individually from documents", score: 0 }
+          - { label: "A payment file assembled in a spreadsheet and uploaded to the bank", score: 1 }
+          - { label: "Scheduled runs from the system, manually approved and uploaded", score: 2 }
+          - { label: "Integrated bank connectivity with segregated approval and automated remittance", score: 3 }
+          - { label: "Payment-term optimisation with positive pay or equivalent fraud controls", score: 4 }
+          - { label: "Dynamic discounting and continuous cash optimisation", score: 5 }
+        nudges:
+          - when: { in: ["Payments prepared manually and individually from documents", "A payment file assembled in a spreadsheet and uploaded to the bank"] }
+            ask: >-
+              Who can amend the payment file between approval and upload, and is that
+              detectable? A spreadsheet between the system and the bank is an unmonitored
+              control point — record it explicitly.
+          - when: { equals: "Scheduled runs from the system, manually approved and uploaded" }
+            ask: >-
+              How many people are required to release a payment, and is the segregation
+              enforced by the system or by convention?
+
+      - id: P2P-09-02
+        text: How is the bank account reconciled?
+        type: single_select
+        options:
+          - { label: "Manually, in a spreadsheet", score: 0 }
+          - { label: "Manually in-system, monthly", score: 1 }
+          - { label: "Semi-automated with manual clearing of unmatched items", score: 2 }
+          - { label: "Automated daily reconciliation with exception-only review", score: 3 }
+          - { label: "Effectively exception-free, continuously monitored", score: 4 }
+        nudges:
+          - when: { in: ["Manually, in a spreadsheet", "Manually in-system, monthly"] }
+            ask: >-
+              How long after month end is the reconciliation completed, and are there
+              ageing unreconciled items? Ask for the current value of unreconciled items.
+
+      - id: P2P-09-03
+        text: Are early-payment discounts captured, and is missed discount value tracked?
+        type: text

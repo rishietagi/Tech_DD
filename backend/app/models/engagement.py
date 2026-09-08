@@ -8,6 +8,11 @@ from app.db.base import Base, TimestampMixin, new_uuid
 from app.reference.enums import EngagementStatus
 
 if TYPE_CHECKING:
+    from app.models.assess import (
+        ProcessAnswer,
+        ProcessAssessmentScore,
+        ProcessCustomQuestion,
+    )
     from app.models.irl import InformationRequestList
     from app.models.research import CompanyResearch
     from app.models.scope_of_work import ScopeOfWork
@@ -44,6 +49,19 @@ class Engagement(TimestampMixin, Base):
         back_populates="engagement",
         cascade="all, delete-orphan",
         order_by="CompanyResearch.version",
+    )
+    # The Assess module. Answers and custom questions are analyst fieldwork rather than
+    # generated documents, so they are not versioned; the scores computed from them are.
+    process_answers: Mapped[list["ProcessAnswer"]] = relationship(
+        back_populates="engagement", cascade="all, delete-orphan"
+    )
+    process_custom_questions: Mapped[list["ProcessCustomQuestion"]] = relationship(
+        back_populates="engagement", cascade="all, delete-orphan"
+    )
+    process_scores: Mapped[list["ProcessAssessmentScore"]] = relationship(
+        back_populates="engagement",
+        cascade="all, delete-orphan",
+        order_by="ProcessAssessmentScore.version",
     )
 
 
