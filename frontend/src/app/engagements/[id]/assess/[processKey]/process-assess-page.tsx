@@ -50,8 +50,11 @@ export function ProcessAssessPage({
     enabled: !isError,
   });
 
-  const saveAnswer = async (questionId: string, value: string) => {
-    const fresh = await assessApi.saveAnswer(engagementId, processKey, questionId, value);
+  const saveAnswer = async (
+    questionId: string,
+    patch: { value?: string; remarks?: string },
+  ) => {
+    const fresh = await assessApi.saveAnswer(engagementId, processKey, questionId, patch);
     // The endpoint returns the whole assessment, so the progress count stays in step with
     // the answer just written.
     queryClient.setQueryData(assessmentKey, fresh);

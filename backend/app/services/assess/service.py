@@ -69,7 +69,10 @@ def _custom_questions(
 
 
 def load_answers(db: Session, engagement_id: str, process_key: str) -> dict[str, str]:
-    """Every recorded answer for one process, keyed by question or nudge id."""
+    """Every recorded answer for one process, keyed by question or nudge id.
+
+    Values only — this is what scoring reads, and a remark never moves a score.
+    """
     rows = db.scalars(
         select(ProcessAnswer).where(
             ProcessAnswer.engagement_id == engagement_id,
@@ -77,6 +80,19 @@ def load_answers(db: Session, engagement_id: str, process_key: str) -> dict[str,
         )
     )
     return {row.question_id: row.value for row in rows}
+
+
+def load_answer_rows(
+    db: Session, engagement_id: str, process_key: str
+) -> dict[str, ProcessAnswer]:
+    """Full rows, for the reads that need the remarks alongside the value."""
+    rows = db.scalars(
+        select(ProcessAnswer).where(
+            ProcessAnswer.engagement_id == engagement_id,
+            ProcessAnswer.process_key == process_key,
+        )
+    )
+    return {row.question_id: row for row in rows}
 
 
 def build_steps(
@@ -169,7 +185,10 @@ def get_assessment(db: Session, engagement_id: str, process_key: str) -> Assessm
         model_ref=questionnaire.model_ref,
         questionnaire_version=questionnaire.version,
         steps=steps,
-        answers={qid: AnswerRead(question_id=qid, value=value) for qid, value in answers.items()},
+        answers={
+            qid: AnswerRead(question_id=qid, value=row.value, remarks=row.remarks)
+            for qid, row in load_answer_rows(db, engagement_id, process_key).items()
+        },
         question_count=count_questions(steps),
         answered_count=count_answered(steps, answers),
         latest_score_version=latest.version if latest is not None else None,
@@ -192,9 +211,17 @@ def _known_ids(db: Session, engagement_id: str, questionnaire: ProcessQuestionna
 
 
 def save_answer(
-    db: Session, engagement_id: str, process_key: str, question_id: str, value: str
+    db: Session,
+    engagement_id: str,
+    process_key: str,
+    question_id: str,
+    value: str | None = None,
+    remarks: str | None = None,
 ) -> AssessmentRead:
-    """Upsert one answer. Writing an empty value clears it.
+    """Upsert one answer and/or its remarks.
+
+    `None` means "leave this field alone"; an empty string clears it. The option and the
+    remark are edited by separate controls, so saving one must never wipe the other.
 
     An unknown question id is rejected rather than stored: a typo would otherwise create
     an orphan row that never renders and never scores, and would be invisible until
@@ -222,11 +249,15 @@ def save_answer(
             engagement_id=engagement_id,
             process_key=process_key,
             question_id=question_id,
-            value=value,
+            value=value or "",
+            remarks=remarks or "",
         )
         db.add(row)
     else:
-        row.value = value
+        if value is not None:
+            row.value = value
+        if remarks is not None:
+            row.remarks = remarks
 
     db.commit()
     return get_assessment(db, engagement_id, process_key)
@@ -341,8 +372,18 @@ def generate_score(
     # see, so they reach the model through the merged questionnaire.
     merged = questionnaire.model_copy(update={"steps": steps})
 
+    # Remarks are evidence for the narrative, never an input to the arithmetic — the
+    # deterministic score reads the selected options alone.
+    remarks = {
+        qid: row.remarks
+        for qid, row in load_answer_rows(db, engagement_id, process_key).items()
+        if row.remarks.strip()
+    }
+
     generator = _generator_for(generator_name)
-    payload = generator.score(merged, answers, _engagement_context(db, engagement_id))
+    payload = generator.score(
+        merged, answers, _engagement_context(db, engagement_id), remarks
+    )
 
     latest = find_latest_score(db, engagement_id, process_key)
     version = (latest.version + 1) if latest is not None else 1

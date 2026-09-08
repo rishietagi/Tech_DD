@@ -63,6 +63,9 @@ export interface ProcessListResponse {
 export interface AnswerRead {
   question_id: string;
   value: string;
+  /** What the consultant heard in the room, qualifying the option they picked. The
+   *  option is the answer; the remark is the evidence behind it. */
+  remarks: string;
   updated_at?: string | null;
 }
 

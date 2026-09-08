@@ -61,7 +61,7 @@ def _scoped_engagement(client: TestClient) -> str:
 # --------------------------------------------------------------------------- seeds
 
 
-def test_seeds_come_from_the_scope_evidence_lists() -> None:
+def test_document_seeds_come_from_the_scope_evidence_lists() -> None:
     scope = scope_for()
     seeds = build_seeds(scope)
 
@@ -70,9 +70,49 @@ def test_seeds_come_from_the_scope_evidence_lists() -> None:
     in_scope_ids = {r.id for r in scope.rows if r.tier > 0}
     assert all(s.row_id in in_scope_ids for s in seeds)
 
-    # And every seed's text is a real evidence line from its row.
+    # And every DOCUMENT seed's text is a real evidence line from its row.
     by_row = {r.id: r.evidence_requests for r in scope.rows}
-    assert all(s.text in by_row[s.row_id] for s in seeds)
+    documents = [s for s in seeds if s.kind == "document"]
+    assert documents
+    assert all(s.text in by_row[s.row_id] for s in documents)
+
+
+def test_the_list_asks_questions_as_well_as_requesting_documents() -> None:
+    """An IRL is not a filing exercise.
+
+    DD_master §6 gives every workstream both "areas of investigation" and "evidence
+    requests"; until 2026-09-02 the engine used only the second, so the list asked for
+    artefacts and never asked management to explain anything.
+    """
+    seeds = build_seeds(scope_for())
+
+    documents = [s for s in seeds if s.kind == "document"]
+    questions = [s for s in seeds if s.kind == "question"]
+
+    assert documents, "the list must still request documents"
+    assert questions, "the list must also ask questions"
+    # Every sourced question carries the page it came from.
+    assert all(s.citation for s in questions)
+    assert all(s.source_workstream for s in questions)
+
+
+def test_a_question_is_never_asked_twice() -> None:
+    """Several rows share a workstream. Asking its questions on each would repeat them.
+
+    "avoid repeating questions across sessions" — DD_master p. 84-85.
+    """
+    questions = [s for s in build_seeds(scope_for()) if s.kind == "question"]
+    texts = [s.text.strip().lower() for s in questions]
+    assert len(texts) == len(set(texts)), "the same question must not be asked twice"
+
+
+def test_sourced_questions_carry_no_markdown() -> None:
+    """The source formats some questions as bold-labelled bullets. The label is not text
+    the client should read."""
+    questions = [s for s in build_seeds(scope_for()) if s.kind == "question"]
+    assert all("**" not in s.text for s in questions)
+    # And each is a single question, not several packed into one row.
+    assert all(s.text.count("?") <= 1 for s in questions)
 
 
 def test_seeds_skip_out_of_scope_rows() -> None:
@@ -81,6 +121,8 @@ def test_seeds_skip_out_of_scope_rows() -> None:
     for row in scope.rows:
         row.tier = 0
 
+    # Neither documents nor questions: an area the engine did not open is not worth
+    # requesting evidence for, and not worth management's time either.
     assert build_seeds(scope) == []
 
 
@@ -244,12 +286,31 @@ def test_export_columns_and_response_ships_blank() -> None:
     payload = rules_irl()
     rows = _sheet_rows(render_xlsx(payload))
 
-    assert rows[0] == ["Scope Area", "Function", "Question", "Response", "Request ID"]
+    assert rows[0] == [
+        "Scope Area",
+        "Function",
+        "Type",
+        "Request",
+        "Response",
+        "Request ID",
+    ]
     assert len(rows) == len(payload.questions) + 1
     # Response is the client's column: it must ship blank.
-    assert all(row[3] == "" for row in rows[1:])
+    assert all(row[4] == "" for row in rows[1:])
     # Every row carries its id, or an upload cannot match it back.
-    assert all(row[4] for row in rows[1:])
+    assert all(row[5] for row in rows[1:])
+    # And says whether it wants a document or an answer.
+    assert {row[2] for row in rows[1:]} <= {"Document", "Question"}
+
+
+def test_the_workbook_tells_the_client_which_rows_are_questions() -> None:
+    """A client needs to know what to attach and what to answer before they start."""
+    payload = rules_irl()
+    rows = _sheet_rows(render_xlsx(payload))
+
+    kinds = [row[2] for row in rows[1:]]
+    assert "Document" in kinds, "the list must still request documents"
+    assert "Question" in kinds, "the list must also ask questions"
 
 
 def test_export_groups_by_scope_area() -> None:
@@ -267,9 +328,9 @@ def test_export_writes_back_answers_already_typed() -> None:
     first = payload.questions[0]
     rows = _sheet_rows(render_xlsx(payload, {first.id: "Attached as Appendix A."}))
 
-    answered = [r for r in rows[1:] if r[3]]
+    answered = [r for r in rows[1:] if r[4]]
     assert len(answered) == 1
-    assert answered[0][3] == "Attached as Appendix A."
+    assert answered[0][4] == "Attached as Appendix A."
 
 
 def test_filename_is_slugged() -> None:
@@ -601,9 +662,9 @@ def test_a_completed_workbook_round_trips_into_responses(client: TestClient) -> 
     sheet = workbook.active
     filled: dict[str, str] = {}
     for row in range(2, min(sheet.max_row, 6) + 1):
-        question_id = sheet.cell(row=row, column=5).value
+        question_id = sheet.cell(row=row, column=6).value
         answer = f"Provided - see data room folder {row - 1}."
-        sheet.cell(row=row, column=4, value=answer)
+        sheet.cell(row=row, column=5, value=answer)
         filled[str(question_id)] = answer
 
     buf = io.BytesIO()
@@ -647,7 +708,7 @@ def test_a_blank_response_cell_never_clears_an_existing_answer(client: TestClien
     workbook = load_workbook(io.BytesIO(raw))
     sheet = workbook.active
     for row in range(2, sheet.max_row + 1):
-        sheet.cell(row=row, column=4, value=None)
+        sheet.cell(row=row, column=5, value=None)
     buf = io.BytesIO()
     workbook.save(buf)
 
@@ -697,4 +758,241 @@ def test_an_import_that_matches_nothing_says_so(client: TestClient) -> None:
     assert result["updated"] == 0
     assert "No row" in result["note"]
     assert result["unmatched_rows"]
+
+
+
+# ------------------------------------------- tracking merged into the IRL (2026-09-02)
+
+
+def test_the_irl_read_carries_tracking_for_every_question(client: TestClient) -> None:
+    engagement_id = _engagement_with_irl(client)
+    irl = client.get(f"/api/v1/engagements/{engagement_id}/irl").json()
+
+    assert irl["tracking"], "tracking must be assembled on read"
+    assert set(irl["tracking"]) == {q["id"] for q in irl["payload"]["questions"]}
+
+    first = next(iter(irl["tracking"].values()))
+    assert first["status"] == "not_received", "absence of a row means not received"
+    assert first["priority"], "priority is computed, not stored"
+    assert first["priority_reason"], "a colour with no explanation is not auditable"
+
+
+def test_tracking_saves_and_reads_back(client: TestClient) -> None:
+    engagement_id = _engagement_with_irl(client)
+    irl = client.get(f"/api/v1/engagements/{engagement_id}/irl").json()
+    target = irl["payload"]["questions"][0]["id"]
+
+    response = client.patch(
+        f"/api/v1/engagements/{engagement_id}/irl/tracking/{target}",
+        json={
+            "status": "received_partially",
+            "document_type": "Register",
+            "remarks": "Summary only; the underlying contracts are still to come.",
+        },
+    )
+    assert response.status_code == 200
+
+    # Re-fetched rather than trusting the response body.
+    fresh = client.get(f"/api/v1/engagements/{engagement_id}/irl").json()
+    track = fresh["tracking"][target]
+    assert track["status"] == "received_partially"
+    assert track["document_type"] == "Register"
+    assert track["remarks"].startswith("Summary only")
+    assert track["set_by_human"] is True, "a scan must not overwrite a human judgement"
+
+
+def test_saving_one_tracking_field_leaves_the_others_alone(client: TestClient) -> None:
+    engagement_id = _engagement_with_irl(client)
+    irl = client.get(f"/api/v1/engagements/{engagement_id}/irl").json()
+    target = irl["payload"]["questions"][0]["id"]
+    base = f"/api/v1/engagements/{engagement_id}/irl/tracking/{target}"
+
+    client.patch(base, json={"remarks": "Chased on Tuesday."})
+    client.patch(base, json={"status": "received_completely"})
+
+    track = client.get(f"/api/v1/engagements/{engagement_id}/irl").json()["tracking"][target]
+    assert track["status"] == "received_completely"
+    assert track["remarks"] == "Chased on Tuesday.", "a status change must not wipe remarks"
+
+
+def test_tracking_never_reaches_the_client_workbook(client: TestClient) -> None:
+    """The whole point of the split: status and remarks are the team's own assessment.
+
+    Exporting them would hand the target our view of their responsiveness.
+    """
+    import io
+
+    from openpyxl import load_workbook
+
+    engagement_id = _engagement_with_irl(client)
+    irl = client.get(f"/api/v1/engagements/{engagement_id}/irl").json()
+    target = irl["payload"]["questions"][0]["id"]
+
+    client.patch(
+        f"/api/v1/engagements/{engagement_id}/irl/tracking/{target}",
+        json={
+            "status": "received_partially",
+            "document_type": "Register",
+            "remarks": "SECRET-INTERNAL-NOTE slow to respond",
+        },
+    )
+
+    raw = client.get(f"/api/v1/engagements/{engagement_id}/irl/export.xlsx").content
+    sheet = load_workbook(io.BytesIO(raw)).active
+
+    headers = [sheet.cell(row=1, column=c).value for c in range(1, 9)]
+    assert headers[:6] == [
+        "Scope Area",
+        "Function",
+        "Type",
+        "Request",
+        "Response",
+        "Request ID",
+    ]
+    assert "Status" not in str(headers)
+    assert "Remarks" not in str(headers)
+
+    body = " ".join(
+        str(sheet.cell(row=r, column=c).value or "")
+        for r in range(1, sheet.max_row + 1)
+        for c in range(1, 7)
+    )
+    assert "SECRET-INTERNAL-NOTE" not in body
+    assert "received_partially" not in body
+
+
+def test_tracking_on_an_unknown_question_is_rejected(client: TestClient) -> None:
+    engagement_id = _engagement_with_irl(client)
+    response = client.patch(
+        f"/api/v1/engagements/{engagement_id}/irl/tracking/NOPE-001",
+        json={"status": "received_completely"},
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "unknown_question"
+
+
+def test_the_checklist_and_the_irl_agree_on_status(client: TestClient) -> None:
+    """Two views of one dataset. If they disagree, one of them is lying."""
+    engagement_id = _engagement_with_irl(client)
+    irl = client.get(f"/api/v1/engagements/{engagement_id}/irl").json()
+    target = irl["payload"]["questions"][0]["id"]
+
+    client.patch(
+        f"/api/v1/engagements/{engagement_id}/irl/tracking/{target}",
+        json={"status": "received_completely", "document_type": "Policy"},
+    )
+
+    checklist = client.get(f"/api/v1/engagements/{engagement_id}/checklist").json()
+    item = next(i for i in checklist["items"] if i["question_id"] == target)
+    tracking = client.get(f"/api/v1/engagements/{engagement_id}/irl").json()["tracking"][target]
+
+    assert item["status"] == tracking["status"] == "received_completely"
+    assert item["document_type"] == tracking["document_type"] == "Policy"
+    assert item["priority"] == tracking["priority"]
+
+
+
+# ------------------------------------------ questions as well as documents (2026-09-02)
+
+
+def test_the_investigation_library_loads_with_its_citations() -> None:
+    from app.services.irl.investigation import get_investigation_library
+
+    library = get_investigation_library()
+    sourced = {c: w for c, w in library.workstreams.items() if w.questions}
+
+    assert sourced, "DD_master supplies questions for several workstreams"
+    for code, entry in sourced.items():
+        assert entry.citation.startswith("DD_master"), f"{code} must cite its page"
+        assert entry.source == "dd_master"
+        for question in entry.questions:
+            assert question.text.strip()
+            # The source formats some as bold-labelled bullets; the label is not text a
+            # client should read.
+            assert "**" not in question.text
+
+
+def test_the_unsourced_workstreams_are_recorded_not_omitted() -> None:
+    """A gap the reader can see beats a gap that looks like coverage."""
+    from app.services.irl.investigation import get_investigation_library, unsourced_workstreams
+
+    library = get_investigation_library()
+    gaps = unsourced_workstreams()
+
+    assert {"W-SEC", "W-DATA", "W-SEP", "W-INT", "W-PROD"} <= gaps
+    for code in gaps:
+        assert code in library.workstreams, "a gap must still be listed"
+        assert library.workstreams[code].source == "none"
+
+
+def test_questions_are_deduplicated_across_workstreams() -> None:
+    """A row carrying two workstreams must not ask the same question twice."""
+    from app.services.irl.investigation import questions_for
+
+    both = questions_for(["W-APP", "W-APP"])
+    once = questions_for(["W-APP"])
+    assert len(both) == len(once)
+
+
+def test_a_scope_row_inherits_its_workstreams_questions() -> None:
+    """Provenance runs the same way as evidence: row -> workstream -> page."""
+    seeds = [s for s in build_seeds(scope_for()) if s.kind == "question"]
+    assert seeds
+
+    for seed in seeds:
+        assert seed.source_workstream in seed.workstreams
+        assert seed.citation.startswith("DD_master")
+
+
+def test_the_rules_list_asks_questions_without_an_llm() -> None:
+    """The deterministic floor now includes questions, not only documents."""
+    payload = rules_irl()
+
+    kinds = {q.kind for q in payload.questions}
+    assert kinds == {"document", "question"}
+
+    asked = [q for q in payload.questions if q.kind == "question"]
+    # A question seed is already a question; it must not be prefixed like an artefact.
+    assert all(not q.question.startswith("Please provide") for q in asked)
+    assert all(q.citation for q in asked)
+
+
+def test_a_seeds_kind_is_authoritative_over_the_model() -> None:
+    """The model may reword a question but not turn it into a document request.
+
+    Flipping the kind would break both the tracking semantics and the citation.
+    """
+    from app.schemas.irl import LlmIrl, LlmIrlQuestion
+    from app.services.irl.llm import apply_irl
+
+    seeds = build_seeds(scope_for())
+    question_seed = next(s for s in seeds if s.kind == "question")
+    document_seed = next(s for s in seeds if s.kind == "document")
+
+    tailoring = LlmIrl(
+        intro="An intro.",
+        questions=[
+            LlmIrlQuestion(
+                seed_id=s.id,
+                function="IT",
+                question="Rewritten.",
+                # The model claims the opposite kind for both.
+                kind="document" if s.kind == "question" else "question",
+            )
+            for s in seeds
+        ],
+    )
+
+    payload = apply_irl(
+        tailoring,
+        seeds,
+        company_name=None,
+        source_scope_version=1,
+        used_research=False,
+        generator="llm",
+        prompt_version="3.0",
+    )
+    by_id = {q.id: q for q in payload.questions}
+    assert by_id[question_seed.id].kind == "question"
+    assert by_id[document_seed.id].kind == "document"
 

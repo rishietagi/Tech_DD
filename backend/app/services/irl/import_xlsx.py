@@ -34,6 +34,8 @@ from app.schemas.irl import ImportResponsesResult, IrlPayload
 _ID_HEADERS = {"request id", "id", "question id", "ref", "reference"}
 _RESPONSE_HEADERS = {"response", "answer", "reply", "client response", "response / comments"}
 _QUESTION_HEADERS = {"question", "request", "information requested", "documents requested"}
+# "Type" is written by the exporter but never read back: it is fixed by the seed, and a
+# client editing it must not be able to change what a request *is*.
 
 # A workbook larger than this is not an IRL response sheet, and parsing it would tie up a
 # worker. The largest real list so far is 45 rows.

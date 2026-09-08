@@ -165,13 +165,23 @@ class ProcessListResponse(BaseModel):
 class AnswerRead(BaseModel):
     question_id: str
     value: str = ""
+    # What the consultant heard in the room, qualifying the option picked. The option is
+    # the answer; the remark is the evidence behind it.
+    remarks: str = ""
     updated_at: datetime | None = None
 
 
 class AnswerWrite(BaseModel):
+    """Both fields optional so the UI can save an option and a remark independently.
+
+    `None` means "leave this alone" rather than "clear it": the option and the remark are
+    edited by separate controls, and saving one must never wipe the other.
+    """
+
     model_config = {"extra": "forbid"}
 
-    value: str = ""
+    value: str | None = None
+    remarks: str | None = Field(default=None, max_length=8000)
 
 
 class CustomQuestionCreate(BaseModel):

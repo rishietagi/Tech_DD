@@ -101,10 +101,14 @@ def compose_irl(
             # The scope row's title is the scope area, so provenance and grouping are
             # the same fact.
             scope_area=seed.row_title,
-            # The evidence line is an artefact name, not a question. Wrapping it in a
-            # request verb is the minimum needed to make it sendable; the LLM path
-            # rewrites this properly.
-            question=f"Please provide: {seed.text}",
+            kind=seed.kind,
+            citation=seed.citation,
+            # A document seed is a bare artefact name and needs a request verb to be
+            # sendable; a question seed is already a question and must not be prefixed
+            # with "Please provide". The LLM path rewrites both properly.
+            question=(
+                seed.text if seed.kind == "question" else f"Please provide: {seed.text}"
+            ),
             source="scope",
             source_row_id=seed.row_id,
             source_row_title=seed.row_title,

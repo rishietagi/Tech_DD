@@ -70,12 +70,18 @@ def save_answer(
     payload: AnswerWrite,
     db: Session = Depends(get_db),
 ) -> AssessmentRead:
-    """Record one answer. An empty value clears it.
+    """Record one answer and/or its remarks.
+
+    Both fields are optional: `null` leaves that field alone, an empty string clears it.
+    The option and the remark are edited by separate controls, so saving one must never
+    wipe the other.
 
     Returns the whole assessment so the caller's progress count stays consistent with the
     answer it just wrote.
     """
-    return assess_service.save_answer(db, engagement_id, process_key, question_id, payload.value)
+    return assess_service.save_answer(
+        db, engagement_id, process_key, question_id, payload.value, payload.remarks
+    )
 
 
 @router.post("/{process_key}/questions", response_model=AssessmentRead)

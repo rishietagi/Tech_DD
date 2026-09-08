@@ -1,5 +1,11 @@
 import { API_BASE_URL, ApiError, apiClient } from "@/lib/api/client";
-import type { ImportResponsesResult, IrlRead, IrlVersionSummary } from "@/types/irl";
+import type {
+  ImportResponsesResult,
+  IrlRead,
+  IrlTracking,
+  IrlVersionSummary,
+  RequestKind,
+} from "@/types/irl";
 
 export const irlApi = {
   /** Builds a request list from the latest scope. 409 `not_scoped` if none exists. */
@@ -17,10 +23,21 @@ export const irlApi = {
       response_text: responseText,
     }),
 
+  /** Record what the deal team observes about one request's document. Never exported. */
+  saveTracking: (
+    engagementId: string,
+    questionId: string,
+    body: {
+      status?: IrlTracking["status"];
+      document_type?: string;
+      remarks?: string;
+    },
+  ) => apiClient.patch<IrlRead>(`/engagements/${engagementId}/irl/tracking/${questionId}`, body),
+
   /** Add a request the generated list did not anticipate. */
   addQuestion: (
     engagementId: string,
-    body: { question: string; function: string; scope_area?: string },
+    body: { question: string; function: string; scope_area?: string; kind?: RequestKind },
   ) => apiClient.post<IrlRead>(`/engagements/${engagementId}/irl/questions`, body),
 
   /** Reword a request, or move it to a different function or scope area. */

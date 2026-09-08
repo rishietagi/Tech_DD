@@ -30,6 +30,15 @@ deterministic **seed** for the request list:
 Rows at tier 0 are skipped — there is no point requesting evidence for an area the
 engine deliberately did not open.
 
+**Since 2026-09-02 the list asks questions too.** `DD_master` §6 gives every workstream
+*"areas of investigation (sourced questions where available)"* **alongside** its evidence
+requests; the engine had been reading only the second. 50 page-cited questions now seed
+the list from `reference/investigation_questions.yaml`, each inherited by the scope rows
+carrying that workstream and asked **once** per engagement. Every request carries a `kind`
+— `document` or `question` — which drives the workbook's Type column and what "done" means
+in tracking. Five workstreams have no sourced questions; the model writes those, marked as
+generated. Full reasoning in `docs/PROJECT_LOG.md`.
+
 ## Data model
 
 Each deliverable is its own versioned child table hanging off `engagements`, exactly as

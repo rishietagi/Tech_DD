@@ -12,6 +12,7 @@ from app.schemas.irl import (
     IrlQuestionUpdate,
     IrlRead,
     IrlResponseUpdate,
+    IrlTrackingUpdate,
     IrlVersionSummary,
 )
 from app.services.engagements import get_engagement
@@ -23,7 +24,13 @@ router = APIRouter(prefix="/engagements/{engagement_id}/irl", tags=["irl"])
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 
-def _to_read(irl: InformationRequestList) -> IrlRead:
+def _to_read(irl: InformationRequestList, db: Session | None = None) -> IrlRead:
+    """The list, its responses, and (when a session is given) its tracking.
+
+    `db` is optional so the read stays cheap where tracking is not wanted; every route
+    that renders the table passes it, because the IRL screen now shows status and remarks
+    inline rather than sending the analyst to a second page.
+    """
     return IrlRead.model_validate(
         {
             "id": irl.id,
@@ -33,6 +40,9 @@ def _to_read(irl: InformationRequestList) -> IrlRead:
             "source_scope_version": irl.source_scope_version,
             "payload": irl.payload_json,
             "responses": irl_service.responses_for(irl),
+            "tracking": (
+                irl_service.tracking_for(db, irl.engagement_id, irl) if db is not None else {}
+            ),
             "created_at": irl.created_at,
         }
     )
@@ -46,12 +56,12 @@ def generate_irl(
 ) -> IrlRead:
     """Build a request list from the latest scope. 409 if no scope exists yet."""
     request = payload or GenerateIrlRequest()
-    return _to_read(irl_service.generate_irl(db, engagement_id, request.generator))
+    return _to_read(irl_service.generate_irl(db, engagement_id, request.generator), db)
 
 
 @router.get("", response_model=IrlRead)
 def get_latest_irl(engagement_id: str, db: Session = Depends(get_db)) -> IrlRead:
-    return _to_read(irl_service.get_latest_irl(db, engagement_id))
+    return _to_read(irl_service.get_latest_irl(db, engagement_id), db)
 
 
 @router.get("/versions", response_model=list[IrlVersionSummary])
@@ -93,7 +103,8 @@ def save_irl_response(
 ) -> IrlRead:
     """Save one answer against the latest version. An empty string clears it."""
     return _to_read(
-        irl_service.save_response(db, engagement_id, question_id, payload.response_text)
+        irl_service.save_response(db, engagement_id, question_id, payload.response_text),
+        db,
     )
 
 
@@ -113,7 +124,8 @@ def add_irl_question(
     return _to_read(
         irl_service.add_question(
             db, engagement_id, payload.question, payload.function, payload.scope_area
-        )
+        ),
+        db,
     )
 
 
@@ -137,7 +149,8 @@ def update_irl_question(
             question=payload.question,
             function=payload.function,
             scope_area=payload.scope_area,
-        )
+        ),
+        db,
     )
 
 
@@ -146,7 +159,7 @@ def delete_irl_question(
     engagement_id: str, question_id: str, db: Session = Depends(get_db)
 ) -> IrlRead:
     """Remove a request. Its response and document status go with it."""
-    return _to_read(irl_service.delete_question(db, engagement_id, question_id))
+    return _to_read(irl_service.delete_question(db, engagement_id, question_id), db)
 
 
 @router.post("/import", response_model=ImportResponsesResult)
@@ -171,6 +184,29 @@ def import_irl_responses(
 
     _, result = irl_service.import_responses_from_workbook(db, engagement_id, content)
     return result
+
+
+@router.patch("/tracking/{question_id}", response_model=IrlRead)
+def save_irl_tracking(
+    engagement_id: str,
+    question_id: str,
+    payload: IrlTrackingUpdate,
+    db: Session = Depends(get_db),
+) -> IrlRead:
+    """Record what the deal team observes about one request's document.
+
+    Status, document type and remarks, set from the IRL screen. None of this reaches the
+    client workbook — it is the team's own assessment of what has arrived.
+    """
+    irl = irl_service.save_tracking(
+        db,
+        engagement_id,
+        question_id,
+        status=payload.status,
+        document_type=payload.document_type,
+        remarks=payload.remarks,
+    )
+    return _to_read(irl, db)
 
 
 @router.get("/{version}", response_model=IrlRead)

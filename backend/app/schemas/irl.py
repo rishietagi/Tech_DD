@@ -15,7 +15,17 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.checklist import DocumentStatus, Priority
+
 QuestionSource = Literal["scope", "llm", "manual"]
+
+# What a request actually asks for. A document wants an artefact; a question wants an
+# explanation only management can give. DD_master §6 gives every workstream both, and
+# until 2026-09-02 this engine produced only the first.
+#
+# The distinction is not cosmetic: only a document can be "received", only a question can
+# be "answered", and they are chased differently.
+RequestKind = Literal["document", "question"]
 
 
 class IrlQuestion(BaseModel):
@@ -32,6 +42,13 @@ class IrlQuestion(BaseModel):
     # areas the SOW opened (Rishi, 2026-09-02). Empty for questions that belong to no
     # scope area — the model's own additions covering HR, Legal and Finance.
     scope_area: str = ""
+
+    # Document or question. Drives what "done" means for this row, and what the client is
+    # being asked to do with it.
+    kind: RequestKind = "document"
+    # For sourced questions: the DD_master page the area of investigation came from, so a
+    # question traces to the methodology exactly as a scope row traces to its rule.
+    citation: str = ""
 
     source: QuestionSource = "scope"
     # Present only when source == "scope": the KPMG row whose evidence list seeded this.
@@ -83,6 +100,30 @@ class IrlPayload(BaseModel):
     generated_at: datetime
 
 
+class IrlTracking(BaseModel):
+    """What the deal team observes about the document behind one request.
+
+    Merged into the IRL read from 2026-09-02 (Rishi): the analyst works one screen, not
+    two. The **storage** stays split — `irl_response` is what the client wrote,
+    `irl_document_status` is what the deal team observed — because they have different
+    authors and different lifecycles, and the shared-drive scanner will write status
+    without touching a client's answer. Only the presentation merges.
+
+    Deliberately **not** exported to the client workbook: status, remarks and priority are
+    internal judgements about the target's responsiveness.
+    """
+
+    status: DocumentStatus = "not_received"
+    document_type: str = ""
+    # The deal team's own note on the document — where it sits, what is missing from it,
+    # who promised the rest.
+    remarks: str = ""
+    priority: Priority = "medium"
+    priority_reason: str = ""
+    set_by_human: bool = False
+    updated_at: datetime | None = None
+
+
 class IrlRead(BaseModel):
     id: str
     engagement_id: str
@@ -93,6 +134,8 @@ class IrlRead(BaseModel):
     # question_id -> response text. Joined from the separate response table rather than
     # stored in the payload, so regenerating never clobbers typed answers.
     responses: dict[str, str] = Field(default_factory=dict)
+    # question_id -> tracking. Joined the same way, from the document-status table.
+    tracking: dict[str, IrlTracking] = Field(default_factory=dict)
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -130,6 +173,7 @@ class IrlQuestionCreate(BaseModel):
     # Which scope area it belongs under. Free text rather than an enum: it must match a
     # heading in the stored scope payload, and those are model-authored per engagement.
     scope_area: str = Field(default="", max_length=200)
+    kind: RequestKind = "document"
 
 
 class IrlQuestionUpdate(BaseModel):
@@ -140,6 +184,17 @@ class IrlQuestionUpdate(BaseModel):
     question: str | None = Field(default=None, min_length=1, max_length=4000)
     function: str | None = Field(default=None, min_length=1, max_length=120)
     scope_area: str | None = Field(default=None, max_length=200)
+    kind: RequestKind | None = None
+
+
+class IrlTrackingUpdate(BaseModel):
+    """Set the status, document type or remarks on one request, from the IRL screen."""
+
+    model_config = {"extra": "forbid"}
+
+    status: DocumentStatus | None = None
+    document_type: str | None = Field(default=None, max_length=120)
+    remarks: str | None = Field(default=None, max_length=4000)
 
 
 class ImportResponsesResult(BaseModel):
@@ -171,6 +226,9 @@ class LlmIrlQuestion(BaseModel):
     # Which scope-of-work heading this belongs under. Seeded questions inherit it from
     # their row regardless of what the model says; only additions rely on this.
     scope_area: str = ""
+    # Document or question. For a seeded request the seed's own kind wins — the model may
+    # rewrite the wording but must not turn a question into a document request.
+    kind: RequestKind = "document"
 
 
 class LlmIrl(BaseModel):

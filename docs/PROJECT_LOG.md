@@ -20,7 +20,7 @@ future session would otherwise get wrong.
 | **Backend** | pytest 337/337 · ruff clean · mypy clean (82 files) |
 | **Frontend** | tsc clean · eslint clean · vitest 19/19 · `next build` clean |
 | **API** | 38 routes, OpenAPI clean |
-| **DB** | at `0005_add_process_assessment` |
+| **DB** | at `0006_add_answer_remarks` |
 | **Git** | `master`, remote `origin` = `git@github.com:rishietagi/Tech_DD.git` |
 
 **Uncommitted: everything from 2026-08-31 and 2026-09-02.** In order: the UI fixes and
@@ -133,6 +133,143 @@ The YAML is validated at startup; a malformed file fails loudly.
 
 These were Rishi's calls. **Do not "fix" them back.** `CLAUDE.md` outranks
 `docs/phases/PHASE2_SPEC.md`, and a later instruction outranks both.
+
+### The IRL now asks questions, not only requests documents (2026-09-02)
+
+Rishi: *"an IRL won't just be asking you for documents, it will ask some questions also."*
+Correct, and the engine was structurally incapable of it.
+
+**What the research found.** `DD_master.md` §6 states that every workstream carries
+**"areas of investigation (sourced questions where available)"** *and* **"evidence
+requests"** — two distinct outputs. The seed builder read `evidence` and discarded the
+questions, so the list asked for artefacts and never asked management to explain anything.
+**50 page-cited questions across 7 workstreams were sitting unused.**
+
+The book is also explicit about why they belong in the *list* rather than being saved for
+the interview, and the reason is the target's patience, not convenience:
+
+- *"prioritise questions because time with management is limited; avoid repeating
+  questions across sessions"* [p. 84-85]
+- *"do not go back repeatedly — the seller can become overwhelmed and even ultimately
+  unresponsive"* [p. 83]
+
+A question left out of the list costs a follow-up round the source warns against spending.
+
+**Web research was checked and mostly did not help.** Generic M&A IRL guidance (legal,
+financial) really is document-only — that convention is why the original design looked
+reasonable. Tech-DD sources frame the work as *"establish the key questions to
+investigate"* alongside evidence, but the public checklists turned out to be topic lists
+rather than actual questions. `DD_master` is the better source here and the build leads
+with it.
+
+**What changed.** A seed now carries `kind`: `document` or `question`.
+`reference/investigation_questions.yaml` holds the sourced questions with their page
+citations; a scope row inherits the questions of its workstreams exactly as it inherits
+its evidence. The workbook gained a **Type** column (Rishi's choice over separate sheets),
+and tracking is kind-aware — "Received completely" against a prose answer is nonsense, so
+questions read "Answered / Partially answered / Not yet answered" and have no document-type
+field. The stored values are identical, so the checklist and the future scanner are
+unaffected.
+
+**Two bugs caught by reading the output rather than the counts:**
+
+1. **Questions were asked up to three times.** `questions_for` de-duplicated within a row
+   but not across rows, and three enterprise rows carry W-APP. That is precisely the
+   "avoid repeating questions across sessions" failure. A question is now asked once, on
+   the first in-scope row carrying its workstream.
+2. **Markdown leaked into the client-facing text** — `**Application landscape**: What
+   are...`. W-APP formats its questions as bold-labelled bullets *packing several questions
+   into one*. The label is stripped and the bullet split, because three questions in one
+   row means the client answers the first and skips the rest.
+
+**The leading-question rule is the model's job.** The sourced questions are written as
+internal research prompts, and several are leading as written — *"Is IT managed to deliver
+value to the business?"* is exactly what p. 84-85 tells you not to ask. Prompt v3.0 carries
+the book's own worked example and instructs the model to rephrase while keeping the
+subject and the citation. On the live run **0 of 55 questions opened with a yes/no verb**.
+
+**Five workstreams have no sourced questions** (W-SEC, W-DATA, W-SEP, W-INT, W-PROD).
+Rishi chose "LLM writes them, marked as generated" over leaving those areas document-only.
+They are listed in the YAML with an empty set so the gap is visible, and named to the model
+as `unsourced_workstreams` so it writes questions there rather than assuming coverage.
+Adding sourced questions later upgrades them with no code change.
+
+**Verified on a live generation**: 90 requests — 35 documents, 55 questions (43 sourced,
+12 model-written); zero leading questions; zero duplicates; zero markdown; no party names
+leaked; every sourced question carrying its page. In the browser: 35 DOCUMENT and 55
+QUESTION badges, 43 citations rendered, and a question row correctly showing "Not yet
+answered" with no document-type field.
+
+**The stale-cache trap bit again, differently.** `NEXT_PUBLIC_*` is inlined at build time,
+so pointing `.env.local` at a different backend port needs `.next` cleared *and* a
+restart — otherwise the page renders "Couldn't load" with **zero API calls**. Same
+signature as the orphaned-socket case recorded below: a blank page with no console error
+means the environment, not the code.
+
+### Tracking moved into the IRL; Assess answers gained remarks (2026-09-02)
+
+Two instructions from Rishi.
+
+**1. The checklist's per-request tracking now renders inside the IRL.** Status, document
+type and remarks sit beside each question, so the analyst works one screen instead of
+cross-referencing two.
+
+**Storage did not merge, and that is deliberate.** `irl_response` is what the *client*
+wrote; `irl_document_status` is what the *deal team* observed. Different authors,
+different lifecycles, and the shared-drive scanner will write status without touching a
+client's typed answer. Merging the tables would have destroyed a distinction the scanner
+depends on. Only the presentation merged: `IrlRead` gained a `tracking` map assembled on
+read, exactly as the checklist already assembled its items.
+
+**Priority is computed, never stored** — the IRL and the checklist both call
+`rank_questions`, so the two views cannot disagree. `test_the_checklist_and_the_irl_agree_on_status`
+pins it.
+
+**None of it reaches the client workbook.** Status and remarks are the team's assessment
+of the target's responsiveness; exporting them would hand the target our view of them.
+`test_tracking_never_reaches_the_client_workbook` writes a sentinel string into remarks
+and asserts it is absent from every cell of the export.
+
+Asked what should happen to the checklist page, Rishi chose **"keep it, but strip it to
+the reminder/summary only"**. It is now the chase-progress view: header counts, the email
+reminder preview, and a link to the request list. Two views of one dataset is fine; two
+places to *edit* it is how they drift. The `PATCH /checklist/{id}` endpoint was left in
+place — the scanner will write through it, and removing it would take the scanner's
+contract with it.
+
+**2. Assess answers gained a remarks field.** Rishi: an option alone is not evidence.
+"Data ingested" is the answer; *where from, by whom, how often* is what makes it
+defensible in a report.
+
+A column on `process_answer` rather than a second table — a remark has no meaning without
+the answer it qualifies, and they are always written and read together. Migration
+`0006_add_answer_remarks`.
+
+`AnswerWrite` now takes `value` and `remarks` as **independently optional**: `None` means
+"leave this field alone", an empty string clears it. The option and the remark are edited
+by separate controls, so saving one must never wipe the other —
+`test_saving_a_remark_never_clears_the_option` pins both directions.
+
+**Remarks never move the deterministic score.** Scoring reads the selected options alone;
+remarks reach the model as `consultant_remarks` and shape the narrative only. The scoring
+prompt went 1.0 → 1.1 to say so, and to note that remarks *do* count as free-text evidence
+for the ±1 refinement rule — they are often exactly where a contradiction shows up.
+
+Asked where the box should appear, Rishi chose **"appears once an option is selected"** —
+a remark before an answer has nothing to qualify, and 20 empty boxes would bury the form.
+
+**Verified live, not only by tests**: set status/type/remarks through the API and
+confirmed a status-only write kept the remark; exported the workbook and confirmed five
+columns with no status or remarks text anywhere in it; saved an Assess remark, changed the
+option, and confirmed the remark survived. In the browser: 46 rows with 46 status
+selects, 46 priority badges and 92 textareas, the stripped checklist pointing at the IRL,
+and 20 remarks boxes on the questionnaire.
+
+**A trap worth recording.** A dead uvicorn left an orphaned listener on :8000 that never
+released — `Get-NetTCPConnection` showed a LISTEN on a PID that no longer existed, and
+`Stop-Process` could not clear it. The frontend then rendered its shell with **zero API
+calls and no errors**, because connections to that socket hang rather than failing fast.
+A blank page with no console error is the signature: check the port before the code.
 
 ### The IRL is editable, follows the SOW's headings, and reads responses back (2026-09-02)
 

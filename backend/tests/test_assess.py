@@ -619,3 +619,104 @@ def test_nothing_answered_does_not_spend_a_model_call() -> None:
 
     assert payload.generator == "rules (nothing assessed)"
     assert generator._client.models.last_contents is None  # type: ignore[attr-defined]
+
+
+# ------------------------------------------------------ answer remarks (2026-09-02)
+
+
+def test_remarks_save_alongside_the_option(client) -> None:
+    engagement = create_engagement(client)
+    base = f"/api/v1/engagements/{engagement['id']}/assess/{P2P}"
+
+    questionnaire = get_questionnaire(P2P)
+    question = questionnaire.steps[0].questions[0]
+    chosen = question.options[2].label
+
+    client.patch(f"{base}/answers/{question.id}", json={"value": chosen})
+    client.patch(
+        f"{base}/answers/{question.id}",
+        json={"remarks": "Catalogue covers MRO only; capex still raised by email."},
+    )
+
+    stored = client.get(base).json()["answers"][question.id]
+    assert stored["value"] == chosen
+    assert stored["remarks"].startswith("Catalogue covers MRO only")
+
+
+def test_saving_a_remark_never_clears_the_option(client) -> None:
+    """The option and the remark are separate controls; one must not wipe the other."""
+    engagement = create_engagement(client)
+    base = f"/api/v1/engagements/{engagement['id']}/assess/{P2P}"
+
+    questionnaire = get_questionnaire(P2P)
+    question = questionnaire.steps[0].questions[0]
+    chosen = question.options[1].label
+
+    client.patch(f"{base}/answers/{question.id}", json={"value": chosen})
+    client.patch(f"{base}/answers/{question.id}", json={"remarks": "Confirmed verbally."})
+
+    stored = client.get(base).json()["answers"][question.id]
+    assert stored["value"] == chosen, "a remark write must not blank the answer"
+
+    # And the reverse: changing the option keeps the remark.
+    client.patch(f"{base}/answers/{question.id}", json={"value": question.options[3].label})
+    stored = client.get(base).json()["answers"][question.id]
+    assert stored["remarks"] == "Confirmed verbally."
+
+
+def test_a_remark_alone_does_not_count_as_answered(client) -> None:
+    """Progress measures answers. A note with no option is evidence, not a decision."""
+    engagement = create_engagement(client)
+    base = f"/api/v1/engagements/{engagement['id']}/assess/{P2P}"
+
+    questionnaire = get_questionnaire(P2P)
+    question = questionnaire.steps[0].questions[0]
+
+    client.patch(f"{base}/answers/{question.id}", json={"remarks": "Chasing a follow-up."})
+
+    assert client.get(base).json()["answered_count"] == 0
+
+
+def test_remarks_never_move_the_deterministic_score(client) -> None:
+    """Scoring reads the selected options alone. Remarks are narrative evidence."""
+    engagement = create_engagement(client)
+    base = f"/api/v1/engagements/{engagement['id']}/assess/{P2P}"
+
+    questionnaire = get_questionnaire(P2P)
+    for question in questionnaire.steps[6].questions:
+        if question.scores:
+            client.patch(
+                f"{base}/answers/{question.id}", json={"value": question.options[2].label}
+            )
+
+    first = client.post(f"{base}/score", json={}).json()["payload"]["index"]
+
+    for question in questionnaire.steps[6].questions:
+        if question.scores:
+            client.patch(
+                f"{base}/answers/{question.id}",
+                json={"remarks": "Management says this is far worse in practice."},
+            )
+
+    second = client.post(f"{base}/score", json={}).json()["payload"]["index"]
+    assert first == second
+
+
+def test_remarks_reach_the_model_as_evidence() -> None:
+    """Asserted, not assumed â€” the remark is often the only place a specific is recorded."""
+    import json
+
+    questionnaire = get_questionnaire(P2P)
+    answers = _answer_step_fully("p2p_invoice", 2)
+    remarks = {"P2P-07-01": "4,200 invoices a month keyed by nine AP staff in Rotterdam."}
+
+    generator = _llm_generator(
+        json.dumps({"executive_summary": "x", "step_refinements": [], "pointers": []})
+    )
+    generator.score(questionnaire, answers, None, remarks)
+
+    sent = generator._client.models.last_contents  # type: ignore[attr-defined]
+    assert sent is not None
+    assert "4,200 invoices a month keyed by nine AP staff" in sent
+    assert "consultant_remarks" in sent
+

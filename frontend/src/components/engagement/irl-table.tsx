@@ -3,9 +3,11 @@
 import { useState } from "react";
 
 import { IrlResponseCell } from "@/components/engagement/irl-response-cell";
+import { IrlTrackingCell } from "@/components/engagement/irl-tracking-cell";
+import { PriorityBadge } from "@/components/engagement/priority-badge";
 import { TextArea } from "@/components/ui/text-area";
 import { TextInput } from "@/components/ui/text-input";
-import type { IrlPayload, IrlQuestion } from "@/types/irl";
+import type { IrlPayload, IrlQuestion, IrlTracking } from "@/types/irl";
 
 /** Questions in grouping order, falling back to payload order.
  *
@@ -33,6 +35,25 @@ function orderedQuestions(payload: IrlPayload): IrlQuestion[] {
     }
   }
   return ordered;
+}
+
+/** Document or question, shown on the row.
+ *
+ *  The client needs to know which before they start — one goes to whoever pulls files,
+ *  the other to whoever can answer it. */
+function KindBadge({ kind }: { kind: IrlQuestion["kind"] }) {
+  const isQuestion = kind === "question";
+  return (
+    <span
+      className={`inline-block rounded-full border px-2 py-0.5 font-sans text-[10px] font-semibold uppercase ${
+        isQuestion
+          ? "border-steel bg-steel-tint text-steel"
+          : "border-line-strong bg-paper-2 text-muted"
+      }`}
+    >
+      {isQuestion ? "Question" : "Document"}
+    </span>
+  );
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -131,6 +152,11 @@ function QuestionCell({
         <span className="font-sans text-[11.5px] text-muted-2">
           {SOURCE_LABEL[question.source] ?? question.source}
         </span>
+        {question.citation && (
+          <span className="font-mono text-[11px] text-muted-2" title="Source of this question">
+            {question.citation}
+          </span>
+        )}
         {question.edited_by_human && (
           <span
             className="font-sans text-[11.5px] text-steel"
@@ -191,36 +217,53 @@ export function IrlTable({
   engagementId,
   payload,
   responses,
+  tracking,
   onUpdate,
   onDelete,
+  onTrack,
 }: {
   engagementId: string;
   payload: IrlPayload;
   responses: Record<string, string>;
+  /** What the deal team observes about each document. Never exported to the client. */
+  tracking: Record<string, IrlTracking>;
   onUpdate: (
     questionId: string,
     patch: { question?: string; function?: string; scope_area?: string },
   ) => Promise<void>;
   onDelete: (questionId: string) => Promise<void>;
+  onTrack: (
+    questionId: string,
+    patch: {
+      status?: IrlTracking["status"];
+      document_type?: string;
+      remarks?: string;
+    },
+  ) => Promise<void>;
 }) {
   const questions = orderedQuestions(payload);
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-line-strong">
-      <table className="w-full min-w-[1040px] border-collapse">
+      <table className="w-full min-w-[1500px] border-collapse">
         <thead>
           <tr className="border-b border-line-strong bg-paper-2 text-left">
-            <th className="w-[15%] px-4 py-3 font-sans text-[11px] font-semibold text-muted uppercase">
+            <th className="w-[12%] px-4 py-3 font-sans text-[11px] font-semibold text-muted uppercase">
               Scope area
             </th>
-            <th className="w-[12%] px-4 py-3 font-sans text-[11px] font-semibold text-muted uppercase">
+            <th className="w-[9%] px-4 py-3 font-sans text-[11px] font-semibold text-muted uppercase">
               Function
             </th>
-            <th className="w-[45%] px-4 py-3 font-sans text-[11px] font-semibold text-muted uppercase">
-              Question
+            <th className="w-[31%] px-4 py-3 font-sans text-[11px] font-semibold text-muted uppercase">
+              Request
             </th>
-            <th className="w-[28%] px-4 py-3 font-sans text-[11px] font-semibold text-muted uppercase">
+            <th className="w-[24%] px-4 py-3 font-sans text-[11px] font-semibold text-muted uppercase">
               Response
+            </th>
+            {/* Internal. Deliberately absent from the exported workbook — status and
+                remarks are the team's assessment, not something the client should read. */}
+            <th className="w-[24%] px-4 py-3 font-sans text-[11px] font-semibold text-muted uppercase">
+              Status &amp; remarks
             </th>
           </tr>
         </thead>
@@ -234,6 +277,7 @@ export function IrlTable({
                 ? null
                 : questions[index - 1].scope_area || "Additional requests";
             const isFirstOfArea = area !== previousArea;
+            const track = tracking[question.id];
 
             return (
               <tr
@@ -253,6 +297,15 @@ export function IrlTable({
                   <span className="font-sans text-[13px] text-muted">{question.function}</span>
                 </td>
                 <td className="px-4 py-3 align-top">
+                  <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                    <KindBadge kind={question.kind} />
+                    {track && (
+                      <PriorityBadge
+                        priority={track.priority}
+                        reason={track.priority_reason}
+                      />
+                    )}
+                  </div>
                   <QuestionCell
                     question={question}
                     onSave={(patch) => onUpdate(question.id, patch)}
@@ -265,6 +318,15 @@ export function IrlTable({
                     questionId={question.id}
                     initialValue={responses[question.id] ?? ""}
                   />
+                </td>
+                <td className="px-4 py-3 align-top">
+                  {track && (
+                    <IrlTrackingCell
+                      tracking={track}
+                      kind={question.kind}
+                      onSave={(patch) => onTrack(question.id, patch)}
+                    />
+                  )}
                 </td>
               </tr>
             );

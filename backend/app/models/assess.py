@@ -50,6 +50,13 @@ class ProcessAnswer(TimestampMixin, Base):
     # One column rather than two, because a nudge follow-up is always free text and the
     # distinction is already carried by the questionnaire.
     value: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # What the consultant heard in the room, qualifying the option they picked (Rishi,
+    # 2026-09-02). "Data ingested" is the answer; *where from, by whom, how often* is the
+    # evidence, and without it the answer cannot be defended in a report.
+    #
+    # A second column rather than a second row: a remark has no meaning without the
+    # answer it qualifies, and they are always written and read together.
+    remarks: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
     engagement: Mapped["Engagement"] = relationship(back_populates="process_answers")
 

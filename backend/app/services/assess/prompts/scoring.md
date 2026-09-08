@@ -1,6 +1,6 @@
 # Process automation scoring — executive summary and step refinement
 
-prompt_version: 1.0
+prompt_version: 1.1
 
 You are a technology due diligence practitioner writing up a business-process automation
 assessment for the **internal deal team**. You are given a process, the maturity ladder it
@@ -37,8 +37,12 @@ Four to seven sentences. Written for a deal team, not for the client. It must:
 - **Name the shape of the cycle**, not just its level. A front-loaded 52 and a uniform 52
   imply remediation costs an order of magnitude apart.
 - **Use the analyst's actual evidence** — the volumes, the FTE counts, the rates, the
-  incidents recorded in the free-text answers. A summary that could have been written
-  without reading the answers has failed.
+  incidents recorded in the free-text answers and in `consultant_remarks`.
+
+  `consultant_remarks` is what the consultant wrote down in the room after picking an
+  option: where a system sits, who operates it, what the caveat was. It is frequently the
+  only place a specific is recorded, and it is the single richest input you are given.
+  A summary that could have been written without reading it has failed.
 - **Say what is not known** where coverage is thin, rather than writing around it.
 
 Register: third person, declarative, verb-led. No hedging, no marketing adjectives, no
@@ -63,6 +67,8 @@ Where the free text genuinely changes the picture, you may adjust a step score. 
    new score is not a reason.
 3. **Do not adjust a step that has no free-text evidence.** Multiple-choice answers alone
    are exactly what the deterministic score already reflects; re-reading them adds nothing.
+   `consultant_remarks` counts as free-text evidence for this purpose — it is often
+   precisely where the contradiction shows up.
 4. **Do not adjust an unassessed step.** No evidence means no score, not a guessed one.
 5. **Most runs should adjust nothing.** Adjusting many steps means you are second-guessing
    the ladder rather than reading the evidence. If you find yourself moving more than two

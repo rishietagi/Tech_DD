@@ -101,7 +101,9 @@ def _strip_fences(text: str) -> str:
 
 
 def _evidence_for_prompt(
-    questionnaire: ProcessQuestionnaire, answers: dict[str, str]
+    questionnaire: ProcessQuestionnaire,
+    answers: dict[str, str],
+    remarks: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """The analyst's answers, grouped by step, with the questions they answer.
 
@@ -113,14 +115,19 @@ def _evidence_for_prompt(
         recorded: list[dict[str, Any]] = []
         for question in step.questions:
             value = (answers.get(question.id) or "").strip()
-            if value:
-                recorded.append(
-                    {
-                        "question": question.text,
-                        "answer": value,
-                        "scores": question.scores,
-                    }
-                )
+            remark = (remarks or {}).get(question.id, "").strip()
+            if value or remark:
+                entry: dict[str, Any] = {
+                    "question": question.text,
+                    "answer": value,
+                    "scores": question.scores,
+                }
+                # The consultant's own note on what they were told. Often the only place
+                # a volume, a system name or a caveat is recorded, so it is exactly what
+                # makes the summary specific rather than generic.
+                if remark:
+                    entry["consultant_remarks"] = remark
+                recorded.append(entry)
             for nudge in question.nudges:
                 nudge_value = (answers.get(nudge.id) or "").strip()
                 if nudge_value:
@@ -239,6 +246,7 @@ class RulesScoreGenerator:
         questionnaire: ProcessQuestionnaire,
         answers: dict[str, str],
         context: dict[str, Any] | None = None,  # noqa: ARG002 - parity with the LLM path
+        remarks: dict[str, str] | None = None,  # noqa: ARG002 - remarks never move a score
     ) -> AssessmentScorePayload:
         return score_assessment(questionnaire, answers)
 
@@ -270,6 +278,7 @@ class LlmScoreGenerator:
         answers: dict[str, str],
         deterministic: AssessmentScorePayload,
         context: dict[str, Any] | None,
+        remarks: dict[str, str] | None = None,
     ) -> LlmScoring:
         prompt, _ = _load_prompt()
         request_payload: dict[str, Any] = {
@@ -285,7 +294,7 @@ class LlmScoreGenerator:
                 "coverage_note": deterministic.coverage_note,
                 "steps": _deterministic_for_prompt(deterministic),
             },
-            "evidence": _evidence_for_prompt(questionnaire, answers),
+            "evidence": _evidence_for_prompt(questionnaire, answers, remarks),
         }
         contents = (
             f"{prompt}\n\n## This assessment\n\n"
@@ -321,6 +330,7 @@ class LlmScoreGenerator:
         questionnaire: ProcessQuestionnaire,
         answers: dict[str, str],
         context: dict[str, Any] | None = None,
+        remarks: dict[str, str] | None = None,
     ) -> AssessmentScorePayload:
         _, prompt_version = _load_prompt()
         payload = score_assessment(questionnaire, answers)
@@ -339,7 +349,7 @@ class LlmScoreGenerator:
             return fallback("rules (nothing assessed)")
 
         try:
-            scoring = self._request(questionnaire, answers, payload, context)
+            scoring = self._request(questionnaire, answers, payload, context, remarks)
         except ScoringRejected as exc:
             logger.warning("Scoring narrative rejected (%s); keeping the deterministic score.", exc)
             return fallback("rules (llm rejected)")

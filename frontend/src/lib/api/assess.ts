@@ -14,11 +14,20 @@ export const assessApi = {
   get: (engagementId: string, processKey: string) =>
     apiClient.get<AssessmentRead>(`/engagements/${engagementId}/assess/${processKey}`),
 
-  /** Returns the whole assessment so the progress count stays consistent. */
-  saveAnswer: (engagementId: string, processKey: string, questionId: string, value: string) =>
+  /** Save an option and/or its remarks. Returns the whole assessment so the progress
+   *  count stays consistent.
+   *
+   *  Omitting a field leaves it alone — the option and the remark are edited by separate
+   *  controls, so saving one must never wipe the other. */
+  saveAnswer: (
+    engagementId: string,
+    processKey: string,
+    questionId: string,
+    body: { value?: string; remarks?: string },
+  ) =>
     apiClient.patch<AssessmentRead>(
       `/engagements/${engagementId}/assess/${processKey}/answers/${questionId}`,
-      { value },
+      body,
     ),
 
   addQuestion: (engagementId: string, processKey: string, stepKey: string, text: string) =>

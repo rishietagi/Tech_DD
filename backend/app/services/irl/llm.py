@@ -34,6 +34,7 @@ from app.schemas.irl import (
 from app.schemas.research import ResearchPayload
 from app.schemas.scope import ScopeOfWorkPayloadV2
 from app.services.irl.composer import compose_irl, group_functions
+from app.services.irl.investigation import unsourced_workstreams
 from app.services.irl.seeds import SeedRequest, build_seeds
 
 logger = logging.getLogger(__name__)
@@ -95,8 +96,12 @@ def _seeds_for_prompt(seeds: list[SeedRequest]) -> list[dict[str, Any]]:
     return [
         {
             "seed_id": seed.id,
-            "evidence": seed.text,
+            "kind": seed.kind,
+            # A document seed is an artefact name; a question seed is already a question
+            # and is labelled as such so the model rephrases rather than prefixing it.
+            ("evidence" if seed.kind == "document" else "question"): seed.text,
             "scope_area": seed.row_title,
+            **({"citation": seed.citation} if seed.citation else {}),
         }
         for seed in seeds
     ]
@@ -178,6 +183,12 @@ def apply_irl(
                 IrlQuestion(
                     id=seed.id,
                     function=function,
+                    # The seed's kind and citation are authoritative. The model may
+                    # rewrite the wording of a question but must not turn it into a
+                    # document request, which would break both the tracking semantics
+                    # and the citation.
+                    kind=seed.kind,
+                    citation=seed.citation,
                     # Taken from the seed's row, never from the model: a seeded question
                     # belongs to the area that seeded it, and letting the model reassign
                     # it would break the traceability the grouping exists to show.
@@ -196,6 +207,9 @@ def apply_irl(
                 IrlQuestion(
                     id=f"ADD-{index:03d}",
                     function=function,
+                    # An addition is whatever the model says it is — there is no seed to
+                    # contradict it.
+                    kind=item.kind,
                     # An addition may name a scope area if it genuinely belongs to one;
                     # otherwise it falls into "Additional requests" at grouping time.
                     scope_area=(item.scope_area or "").strip(),
@@ -270,6 +284,10 @@ class LlmIrlGenerator:
             "engagement": _engagement_context(intake),
             "research": _research_context(research),
             "previous_functions": previous_functions or [],
+            # Named rather than left implicit: the model must know which areas the
+            # methodology gives no questions for, so it writes its own there instead of
+            # assuming every area is already covered.
+            "unsourced_workstreams": sorted(unsourced_workstreams()),
             "seeds": _seeds_for_prompt(seeds),
         }
         contents = (

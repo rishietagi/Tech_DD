@@ -180,6 +180,7 @@ Tech_DD/
 │   │   ├── research/          # grounded web search + prompts/
 │   │   └── checklist/         # ranking, service, scanner (deferred stub)
 │   │   └── reference/         # enums + kpmg_scope/*.yaml + scope_rules.yaml
+│   │                          #   + investigation_questions.yaml (the IRL's questions)
 │   │                          #   + processes/*.yaml (the Assess questionnaires)
 │   ├── alembic/
 │   └── tests/                 # incl. golden cases and mocked LLM tests
@@ -308,9 +309,11 @@ now read the declaration instead. Consequence: under "Let the platform decide" b
 silent by design and the computed mix rests on A2/A5/A6. Do not reintroduce the intake
 field — tune those weights instead. Full reasoning in `docs/PROJECT_LOG.md`.
 
-**Phase 3 — BUILT**, extended 2026-09-02: requests can be added, reworded and deleted by
-hand (edits survive regeneration); the list groups by the **scope of work's own headings**
-with the owning function as its own column; and a completed workbook can be **uploaded** to
+**Phase 3 — BUILT**, extended 2026-09-02: the list now **asks questions as well as
+requesting documents** — `DD_master` §6 gives every workstream both, and the engine had
+been discarding the questions; requests can be added, reworded and deleted by hand (edits
+survive regeneration); the list groups by the **scope of work's own headings** with the
+owning function as its own column; and a completed workbook can be **uploaded** to
 auto-fill responses. The Initial Request List and company research. The IRL derives from
 the scope: every KPMG row's `evidence` list seeds a request, so each question traces to a
 scope area a rule opened and the list generates with the LLM off. Research is a grounded

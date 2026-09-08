@@ -3,8 +3,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 
-import { ChecklistLegend } from "@/components/engagement/checklist-legend";
-import { ChecklistTable } from "@/components/engagement/checklist-table";
 import { ReminderPanel } from "@/components/engagement/reminder-panel";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -12,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api/client";
 import { checklistApi } from "@/lib/api/checklist";
-import type { ChecklistRead, DocumentStatus } from "@/types/checklist";
+import type { ChecklistRead } from "@/types/checklist";
 
 export function ChecklistPage({ engagementId }: { engagementId: string }) {
   const queryClient = useQueryClient();
@@ -30,21 +28,10 @@ export function ChecklistPage({ engagementId }: { engagementId: string }) {
     retry: false,
   });
 
-  const updateMutation = useMutation({
-    mutationFn: ({
-      questionId,
-      patch,
-    }: {
-      questionId: string;
-      patch: { status?: DocumentStatus; document_type?: string };
-    }) => checklistApi.update(engagementId, questionId, patch),
-    onSuccess: (fresh: ChecklistRead) => {
-      // The endpoint returns the whole checklist, so the summary counts stay in step
-      // with the row that just changed.
-      queryClient.setQueryData(["checklist", engagementId], fresh);
-    },
-    onError: () => show("Could not save that change", "error"),
-  });
+  // Editing moved to the request list on 2026-09-02; this page only reads. The
+  // `PATCH /checklist/{id}` endpoint is deliberately left in place — the shared-drive
+  // scanner will write through it, and removing it would take the scanner's contract
+  // with it.
 
   const scanMutation = useMutation({
     mutationFn: () => checklistApi.scan(engagementId),
@@ -56,13 +43,6 @@ export function ChecklistPage({ engagementId }: { engagementId: string }) {
       show(err instanceof ApiError ? err.message : "Could not scan the shared drive", "error");
     },
   });
-
-  const onUpdate = async (
-    questionId: string,
-    patch: { status?: DocumentStatus; document_type?: string },
-  ) => {
-    await updateMutation.mutateAsync({ questionId, patch });
-  };
 
   if (isLoading) {
     return (
@@ -152,9 +132,26 @@ export function ChecklistPage({ engagementId }: { engagementId: string }) {
         </div>
       </div>
 
-      <ChecklistLegend />
-
-      <ChecklistTable items={checklist.items} onUpdate={onUpdate} />
+      {/* Per-request tracking moved into the request list on 2026-09-02 (Rishi), so the
+          analyst works one screen. This page kept the half that is genuinely a different
+          job: chasing progress, not recording it. Two views of one dataset is fine; two
+          places to *edit* it is how they drift. */}
+      <div className="mb-8 rounded-2xl border border-line-strong bg-paper-2 px-6 py-5">
+        <p className="mb-1 font-sans text-[14px] text-text">
+          Documents are marked received on the request list itself.
+        </p>
+        <p className="max-w-[70ch] font-sans text-[13px] leading-relaxed text-muted">
+          Each request there carries its status, document type and remarks beside the
+          question, so what was asked and what arrived sit on one row. This page tracks
+          overall progress and drafts the chaser.
+        </p>
+        <Link
+          href={`/engagements/${engagementId}/irl`}
+          className="mt-3 inline-block rounded-full border border-ink bg-ink px-4 py-2 font-sans text-[13px] font-medium text-paper-on-ink"
+        >
+          Open the request list
+        </Link>
+      </div>
 
       <ReminderPanel summary={summary} companyName={checklist.company_name} />
     </main>

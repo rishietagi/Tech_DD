@@ -1,0 +1,267 @@
+# Areas of investigation — the questions an IRL puts to management.
+#
+# An Initial Request List is not only a document request. `DD_master.md` §6 gives every
+# workstream BOTH "areas of investigation (sourced questions where available)" AND
+# "evidence requests" — two distinct outputs. Until 2026-09-02 this engine seeded the IRL
+# from the evidence lists alone and discarded the questions, so the list asked for
+# artefacts and never asked management to explain anything.
+#
+# Why the questions belong in the list rather than being saved for the interview:
+#
+#   "prioritise questions because time with management is limited; avoid repeating
+#    questions across sessions"                                       [DD_master p. 84-85]
+#   "do not go back repeatedly - the seller can become overwhelmed and even ultimately
+#    unresponsive"                                                       [DD_master p. 83]
+#
+# A question left out of the list costs a follow-up round the source explicitly warns
+# against spending.
+#
+# HOW THIS IS USED
+#   A scope row carries `workstreams`. It inherits the questions of every workstream it
+#   belongs to, exactly as it already inherits its evidence list. Each question keeps its
+#   page citation, so it traces to the source the same way a rule does.
+#
+#   A question is asked ONCE per engagement, on the first in-scope row carrying its
+#   workstream — several rows share W-APP, and asking its questions on each would put the
+#   same question to management three times.
+#
+# ONE QUESTION PER ENTRY
+#   DD_master sometimes packs several questions into one bullet under a bold topic label.
+#   Those are split here, with the label kept as `topic`. Three questions in a single IRL
+#   row means the client answers the first and skips the rest — the same outcome as not
+#   asking at all.
+#
+# HOUSE PHRASING RULE  [DD_master p. 84-85]
+#   Ask focused questions, not leading ones. The book's own worked example:
+#     WRONG:  "Does your department deliver value to the business?"
+#     RIGHT:  "Have you had any challenges meeting business requirements, or know of
+#              challenges that may develop in the near future?"
+#   A question that suggests its own answer collects agreement, not evidence.
+#
+# PROVENANCE
+#   `source: dd_master` — the wording is the book's. Do not reword these: the citation is
+#   only honest while the wording is the source's.
+#   Five workstreams (W-SEC, W-DATA, W-SEP, W-INT, W-PROD) have NO sourced questions in
+#   the book. They are listed with an empty set rather than omitted, so the gap is visible.
+#   The LLM writes questions for those areas, marked as model-authored so the distinction
+#   stays visible — the same split DD_master itself uses with [EXT].
+
+version: "1.1"
+source: "docs/reference/DD_master.md §6 (Roehl-Anderson 2013)"
+
+workstreams:
+
+  W-OPS:
+    title: IT Operating Model, Organisation and People
+    citation: "DD_master p. 73"
+    source: dd_master
+    questions:
+      - text: >-
+          Is IT managed to deliver value to the business?
+      - text: >-
+          Is the IT organization sufficient to support the current business and
+          expected growth?
+      - text: >-
+          What is the mix of staff skills and experience?
+      - text: >-
+          Are there any areas where IT staff support is limited?
+      - text: >-
+          Is there sufficient redundancy or cross-training on critical knowledge
+          areas?
+      - text: >-
+          Are there succession plans for staff?
+      - text: >-
+          Is IT leadership capable and well suited for successfully driving the
+          company's IT strategy and operation?
+      - text: >-
+          Are there planned or anticipated changes to the company's operating
+          model?
+
+  W-VEN:
+    title: Vendors, Contracts and Licensing
+    citation: "DD_master p. 73"
+    source: dd_master
+    questions:
+      - text: >-
+          What services are provided by external vendors?
+      - text: >-
+          What contingency plans are in place if the vendor needs to be replaced?
+      - text: >-
+          Does each vendor sufficiently meet company needs, and are their rates
+          competitive?
+      - text: >-
+          How well are strategic vendor relationships managed?
+      - text: >-
+          How flexible are the current vendor contracts?
+      - text: >-
+          Are all software licences current?
+
+  W-PROC:
+    title: IT Processes, Controls and Compliance
+    citation: "DD_master p. 73"
+    source: dd_master
+    questions:
+      - text: >-
+          Are the IT processes and controls well defined and documented?
+      - text: >-
+          Are IT processes sufficient for supporting proper alignment with company
+          strategy and effective management of company IT?
+      - text: >-
+          Do company policies and controls promote compliance with industry and
+          regulatory standards (e.g., HIPAA, PCI)?
+      - text: >-
+          What security/privacy protocols are in place at the company?
+      - text: >-
+          Have there been any historical security breaches?
+      - text: >-
+          Are policies in place to deal with breaches?
+      - text: >-
+          How often are IT operations metrics reviewed?
+
+  W-STRAT:
+    title: IT Strategy and Project Portfolio
+    citation: "DD_master p. 74"
+    source: dd_master
+    questions:
+      - text: >-
+          How well do planned initiatives align with business needs?
+      - text: >-
+          What enhancements or changes to IT are planned or needed?
+      - text: >-
+          What projects do not align with buyer's post-transaction integration
+          plans, IT environment, or IT strategy?
+
+  W-SPEND:
+    title: IT Spending, Run-rate and Capex
+    citation: "DD_master p. 74"
+    source: dd_master
+    questions:
+      - text: >-
+          Does the technology spend seem reasonable and appropriate?
+      - text: >-
+          What future investments in company IT are planned or may be needed?
+      - text: >-
+          Have there been any significant variances in the operating budget year-
+          over-year?
+      - text: >-
+          Have there been any unusual or unexpected costs related to software or
+          infrastructure that have occurred recently?
+
+  W-APP:
+    title: Application Landscape
+    citation: "DD_master p. 75"
+    source: dd_master
+    questions:
+      - topic: Application landscape
+        text: >-
+          What are the major IT applications used to support the business?
+      - topic: Application landscape
+        text: >-
+          What business functionality is supported by each system, and are there
+          any areas where system support is lacking (i.e. require manual
+          processes)?
+      - topic: Application landscape
+        text: >-
+          What system interfaces and dependencies are in place, and how complex
+          are they?
+      - topic: Application landscape
+        text: >-
+          What is the level of system stability, availability, and scalability?
+      - topic: Commercial applications
+        text: >-
+          What version of each application is in use, and what other underlying
+          technology is required?
+      - topic: Commercial applications
+        text: >-
+          What licence, maintenance, and support agreements are there for each
+          application?
+      - topic: Commercial applications
+        text: >-
+          What is the level of customization?
+      - topic: Custom-developed applications
+        text: >-
+          What technology is used to develop each system?
+      - topic: Custom-developed applications
+        text: >-
+          What software development process and coding practices are in place?
+      - topic: Custom-developed applications
+        text: >-
+          What is the level of scalability, reliability, maintainability, and
+          security of the systems?
+      - topic: Custom-developed applications
+        text: >-
+          Does the system support the required functionality to have parity with
+          comparative systems?
+      - topic: Custom-developed applications
+        text: >-
+          Does the system design and architecture support the preceding
+          attributes?
+      - topic: Ad hoc tools
+        text: >-
+          Are any business processes supported by ad hoc tools (e.g. Excel
+          spreadsheets)?
+
+  W-INFRA:
+    title: Infrastructure, Hosting and Resilience
+    citation: "DD_master p. 76"
+    source: dd_master
+    questions:
+      - text: >-
+          What is the state of the data center environment (HVAC, power, backup
+          power, backup generator, etc.)?
+      - text: >-
+          What level of excess capacity is in the data center?
+      - text: >-
+          What is the composition of the company's IT asset inventory (including
+          existing assets, useful life, and refresh/replacement expectations)?
+      - text: >-
+          What type of network connections and bandwidth does the company have?
+      - text: >-
+          What is the current utilization of servers, storage, and network
+          capacity?
+      - text: >-
+          How does the company support system availability and performance
+          monitoring?
+      - text: >-
+          What is the level of redundancy in servers, storage, network, and data
+          center HVAC and power?
+      - text: >-
+          Does the company have established data backup and disaster recovery
+          procedures?
+      - text: >-
+          What information security mechanisms are in place at the company?
+
+  # ---------------------------------------------------------------------
+  # No sourced questions in DD_master. Listed rather than omitted so the gap
+  # is visible; the model writes questions for these, marked as generated.
+  # Adding sourced questions here upgrades them with no code change.
+  # ---------------------------------------------------------------------
+  W-SEC:
+    title: Cyber Security, Risk and Controls
+    citation: ""
+    source: none
+    questions: []
+
+  W-DATA:
+    title: Data, Privacy and Migration/Separation
+    citation: ""
+    source: none
+    questions: []
+
+  W-SEP:
+    title: Separation / Carve-out Readiness and TSA Scope
+    citation: ""
+    source: none
+    questions: []
+
+  W-INT:
+    title: Integration Effort, Day 1 Readiness and Synergy Sizing
+    citation: ""
+    source: none
+    questions: []
+
+  W-PROD:
+    title: Product and Platform Deep-Dive
+    citation: ""
+    source: none
+    questions: []

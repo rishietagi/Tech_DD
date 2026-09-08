@@ -13,7 +13,7 @@ import { useToast } from "@/components/ui/toast";
 import { API_BASE_URL, ApiError } from "@/lib/api/client";
 import { engagementsApi } from "@/lib/api/engagements";
 import { irlApi } from "@/lib/api/irl";
-import type { ImportResponsesResult, IrlRead } from "@/types/irl";
+import type { ImportResponsesResult, IrlRead, IrlTracking } from "@/types/irl";
 
 export function IrlPage({ engagementId }: { engagementId: string }) {
   const queryClient = useQueryClient();
@@ -59,6 +59,21 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
   ) => {
     try {
       replace(await irlApi.updateQuestion(engagementId, questionId, patch));
+    } catch {
+      show("Could not save that change", "error");
+    }
+  };
+
+  const saveTracking = async (
+    questionId: string,
+    patch: {
+      status?: IrlTracking["status"];
+      document_type?: string;
+      remarks?: string;
+    },
+  ) => {
+    try {
+      replace(await irlApi.saveTracking(engagementId, questionId, patch));
     } catch {
       show("Could not save that change", "error");
     }
@@ -235,6 +250,14 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
           {payload.functions.length} function{payload.functions.length === 1 ? "" : "s"}
         </span>
         <span>{answered} answered</span>
+        <span>
+          {
+            Object.values(irl.tracking).filter(
+              (t) => t.status === "received_completely",
+            ).length
+          }{" "}
+          received
+        </span>
         {!payload.used_research && (
           <Link
             href={`/engagements/${engagementId}/research`}
@@ -287,8 +310,10 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
         engagementId={engagementId}
         payload={payload}
         responses={irl.responses}
+        tracking={irl.tracking}
         onUpdate={updateQuestion}
         onDelete={deleteQuestion}
+        onTrack={saveTracking}
       />
 
       <IrlAddQuestion

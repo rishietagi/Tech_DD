@@ -14,9 +14,10 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.models.irl import InformationRequestList, IrlDocumentStatus, IrlResponse
-from app.schemas.irl import ImportResponsesResult, IrlPayload, IrlQuestion
+from app.schemas.irl import ImportResponsesResult, IrlPayload, IrlQuestion, IrlTracking
 from app.schemas.research import ResearchPayload
 from app.schemas.scope import ScopeOfWorkPayloadV2
+from app.services.checklist.ranking import rank_questions
 from app.services.engagements import assemble_intake_full, get_engagement
 from app.services.irl.composer import group_functions
 from app.services.irl.import_xlsx import import_responses
@@ -463,3 +464,105 @@ def import_responses_from_workbook(
     db.commit()
     db.refresh(irl)
     return irl, result
+
+
+# ------------------------------------------------- tracking merged in (2026-09-02)
+#
+# The checklist's per-request tracking now renders inside the IRL, so the analyst works
+# one screen. Storage is unchanged: `irl_response` holds what the client wrote and
+# `irl_document_status` what the deal team observed. They keep different authors and
+# different lifecycles — the shared-drive scanner will write status without touching a
+# client's typed answer — so merging them into one table would be wrong even though they
+# now render together.
+
+
+def tracking_for(db: Session, engagement_id: str, irl: InformationRequestList) -> dict[str, IrlTracking]:
+    """Status, document type, remarks and priority for every question in this IRL.
+
+    Priority is computed from the scope rather than stored, exactly as the checklist does
+    it — the two views must never disagree, and the only way to guarantee that is one
+    source of truth.
+    """
+    try:
+        payload = IrlPayload.model_validate(irl.payload_json)
+    except Exception:  # noqa: BLE001 - a stale payload must not break the read
+        return {}
+
+    ranked = rank_questions(payload.questions, _scope_for_ranking(db, engagement_id))
+    stored = {s.question_id: s for s in irl.document_statuses}
+
+    merged: dict[str, IrlTracking] = {}
+    for question in payload.questions:
+        priority, reason = ranked.get(question.id, ("medium", "Not ranked"))
+        record = stored.get(question.id)
+        merged[question.id] = IrlTracking(
+            status=record.status if record else "not_received",
+            document_type=record.document_type if record else "",
+            remarks=record.notes if record else "",
+            priority=priority,
+            priority_reason=reason,
+            set_by_human=record.set_by_human if record else False,
+            updated_at=record.updated_at if record else None,
+        )
+    return merged
+
+
+def _scope_for_ranking(db: Session, engagement_id: str) -> ScopeOfWorkPayloadV2 | None:
+    """The scope the ranking reads tiers from. Absent scope degrades, never raises."""
+    try:
+        row = scope_service.get_latest_scope(db, engagement_id)
+    except AppError:
+        return None
+    if row.payload_json.get("schema_version") != 2:
+        return None
+    try:
+        return ScopeOfWorkPayloadV2.model_validate(row.payload_json)
+    except Exception:  # noqa: BLE001 - a stale scope must not break the IRL
+        return None
+
+
+def save_tracking(
+    db: Session,
+    engagement_id: str,
+    question_id: str,
+    status: str | None = None,
+    document_type: str | None = None,
+    remarks: str | None = None,
+) -> InformationRequestList:
+    """Set what the deal team observes about one request's document.
+
+    Marked `set_by_human` so a later shared-drive scan does not overwrite a judgement
+    someone made deliberately — the first of the scanner's four rules.
+    """
+    irl = get_latest_irl(db, engagement_id)
+
+    known = {q.get("id") for q in irl.payload_json.get("questions") or []}
+    if question_id not in known:
+        raise AppError(
+            code="unknown_question",
+            message=f"No question {question_id} in this request list",
+            status_code=404,
+        )
+
+    record = db.execute(
+        select(IrlDocumentStatus).where(
+            IrlDocumentStatus.irl_id == irl.id,
+            IrlDocumentStatus.question_id == question_id,
+        )
+    ).scalar_one_or_none()
+
+    if record is None:
+        record = IrlDocumentStatus(irl_id=irl.id, question_id=question_id)
+        db.add(record)
+
+    if status is not None:
+        record.status = status
+    if document_type is not None:
+        record.document_type = document_type.strip()
+    if remarks is not None:
+        record.notes = remarks.strip()
+    record.set_by_human = True
+
+    db.commit()
+    db.refresh(irl)
+    return irl

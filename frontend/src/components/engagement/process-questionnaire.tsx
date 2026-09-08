@@ -41,7 +41,7 @@ function TextAnswer({
   questionId: string;
   value: string;
   placeholder: string;
-  onSave: (questionId: string, value: string) => Promise<void>;
+  onSave: (questionId: string, patch: { value?: string; remarks?: string }) => Promise<void>;
 }) {
   const [draft, setDraft] = useState(value);
   const [state, setState] = useState<SaveState>("idle");
@@ -65,7 +65,7 @@ function TextAnswer({
     timer.current = setTimeout(async () => {
       setState("saving");
       try {
-        await onSave(questionId, next);
+        await onSave(questionId, { value: next });
         committed.current = next;
         setState("saved");
       } catch {
@@ -90,6 +90,75 @@ function TextAnswer({
   );
 }
 
+
+/**
+ * The consultant's note on the option they just picked.
+ *
+ * Rishi, 2026-09-02: the option alone is not the evidence. "Data ingested" is the answer;
+ * *where from, by whom, how often* is what makes it defensible in a report.
+ *
+ * Appears only once an option is selected — a remark has no meaning before there is an
+ * answer to qualify, and showing 20 empty boxes would bury the questionnaire.
+ */
+function RemarksBox({
+  questionId,
+  value,
+  onSave,
+}: {
+  questionId: string;
+  value: string;
+  onSave: (questionId: string, patch: { value?: string; remarks?: string }) => Promise<void>;
+}) {
+  const [draft, setDraft] = useState(value);
+  const [state, setState] = useState<SaveState>("idle");
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const committed = useRef(value);
+
+  useEffect(() => {
+    if (value !== committed.current) {
+      committed.current = value;
+      setDraft(value);
+    }
+  }, [value]);
+
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+
+  const handleChange = (next: string) => {
+    setDraft(next);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(async () => {
+      setState("saving");
+      try {
+        // Only `remarks` is sent, so saving a note never disturbs the selected option.
+        await onSave(questionId, { remarks: next });
+        committed.current = next;
+        setState("saved");
+      } catch {
+        setState("error");
+      }
+    }, SAVE_DEBOUNCE_MS);
+  };
+
+  return (
+    <div className="mt-3 border-l-2 border-line-strong pl-4">
+      <p className="mb-1.5 font-mono text-[10px] uppercase tracking-wide text-muted">
+        Remarks
+      </p>
+      <TextArea
+        rows={2}
+        value={draft}
+        placeholder="What was said — systems named, volumes quoted, caveats given"
+        onChange={(event) => handleChange(event.target.value)}
+        aria-label="Remarks"
+        className="min-h-0 text-[14px]"
+      />
+      <div className="mt-1 flex justify-end">
+        <SaveIndicator state={state} />
+      </div>
+    </div>
+  );
+}
+
 /**
  * A follow-up that appeared because of the answer above it.
  *
@@ -103,7 +172,7 @@ function NudgeBlock({
 }: {
   nudge: Nudge;
   value: string;
-  onSave: (questionId: string, value: string) => Promise<void>;
+  onSave: (questionId: string, patch: { value?: string; remarks?: string }) => Promise<void>;
 }) {
   return (
     <div className="mt-3 border-l-2 border-steel pl-4">
@@ -124,11 +193,13 @@ function NudgeBlock({
 function QuestionBlock({
   question,
   answers,
+  remarks,
   onSave,
 }: {
   question: Question;
   answers: Record<string, string>;
-  onSave: (questionId: string, value: string) => Promise<void>;
+  remarks: Record<string, string>;
+  onSave: (questionId: string, patch: { value?: string; remarks?: string }) => Promise<void>;
 }) {
   const answer = answers[question.id] ?? "";
   const [selectState, setSelectState] = useState<SaveState>("idle");
@@ -139,7 +210,7 @@ function QuestionBlock({
     const next = answer === label ? "" : label;
     setSelectState("saving");
     try {
-      await onSave(question.id, next);
+      await onSave(question.id, { value: next });
       setSelectState("saved");
     } catch {
       setSelectState("error");
@@ -192,6 +263,13 @@ function QuestionBlock({
           <div className="mt-1 flex justify-end">
             <SaveIndicator state={selectState} />
           </div>
+          {answer && (
+            <RemarksBox
+              questionId={question.id}
+              value={remarks[question.id] ?? ""}
+              onSave={onSave}
+            />
+          )}
         </>
       ) : (
         <TextAnswer
@@ -293,12 +371,14 @@ function AddQuestion({
 function StepBlock({
   step,
   answers,
+  remarks,
   onSave,
   onAdd,
 }: {
   step: ProcessStep;
   answers: Record<string, string>;
-  onSave: (questionId: string, value: string) => Promise<void>;
+  remarks: Record<string, string>;
+  onSave: (questionId: string, patch: { value?: string; remarks?: string }) => Promise<void>;
   onAdd: (stepKey: string, text: string) => Promise<void>;
 }) {
   const answered = step.questions.filter((q) => (answers[q.id] ?? "").trim()).length;
@@ -327,6 +407,7 @@ function StepBlock({
           key={question.id}
           question={question}
           answers={answers}
+          remarks={remarks}
           onSave={onSave}
         />
       ))}
@@ -342,11 +423,14 @@ export function ProcessQuestionnaire({
   onAdd,
 }: {
   assessment: AssessmentRead;
-  onSave: (questionId: string, value: string) => Promise<void>;
+  onSave: (questionId: string, patch: { value?: string; remarks?: string }) => Promise<void>;
   onAdd: (stepKey: string, text: string) => Promise<void>;
 }) {
   const answers: Record<string, string> = Object.fromEntries(
     Object.entries(assessment.answers).map(([id, a]) => [id, a.value]),
+  );
+  const remarks: Record<string, string> = Object.fromEntries(
+    Object.entries(assessment.answers).map(([id, a]) => [id, a.remarks ?? ""]),
   );
 
   return (
@@ -356,6 +440,7 @@ export function ProcessQuestionnaire({
           key={step.key}
           step={step}
           answers={answers}
+          remarks={remarks}
           onSave={onSave}
           onAdd={onAdd}
         />
