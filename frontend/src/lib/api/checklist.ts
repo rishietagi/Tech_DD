@@ -13,8 +13,8 @@ export const checklistApi = {
     patch: { status?: DocumentStatus; document_type?: string; notes?: string },
   ) => apiClient.patch<ChecklistRead>(`/engagements/${engagementId}/checklist/${questionId}`, patch),
 
-  /** Not connected yet — returns 501 `scan_not_implemented` until the shared-drive
-   *  walk is wired at deployment. */
+  /** Walks the shared drive, matches files to requests, and updates the checklist.
+   *  The response carries a `scan` block describing what the walk did. */
   scan: (engagementId: string) =>
     apiClient.post<ChecklistRead>(`/engagements/${engagementId}/checklist/scan`, {}),
 };

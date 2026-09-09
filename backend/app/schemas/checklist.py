@@ -47,10 +47,21 @@ class ChecklistItem(BaseModel):
     source_row_id: str | None = None
     source_row_title: str | None = None
 
-    # Filenames the scanner matched. Empty until the shared-drive walk is built.
+    # Filenames the scanner matched, relative to the drive root. Empty until scanned.
     matched_files: list[str] = Field(default_factory=list)
     set_by_human: bool = False
     updated_at: datetime | None = None
+
+    # --- what the last scan found. Scan-owned: a human editing the row leaves these be.
+    #
+    # What to go back and ask when what arrived is not enough. Populated for partially
+    # received documents; empty for a request nothing has arrived against, because the
+    # checklist already says it is outstanding.
+    follow_up_questions: list[str] = Field(default_factory=list)
+    # Why the scan called the status what it did. An automatic status without a stated
+    # reason is an assertion nobody can check.
+    scan_reasoning: str = ""
+    scanned_at: datetime | None = None
 
 
 class ChecklistSummary(BaseModel):
@@ -62,6 +73,32 @@ class ChecklistSummary(BaseModel):
     not_received: int
     outstanding_critical: int
     outstanding_high: int
+    # Open follow-ups the last scan raised, across every request.
+    follow_ups: int = 0
+
+
+class ScanResult(BaseModel):
+    """What one walk of the shared drive did — returned alongside the new checklist.
+
+    Reported rather than inferred from the rows: a scan that read 52 files and updated
+    nothing is a different event from one that found no drive at all, and the consultant
+    needs to be able to tell them apart.
+    """
+
+    files_seen: int
+    requests_considered: int
+    updated: int
+    # Requests left alone because a human had already set them. Rule 1 of scanner.py.
+    skipped_human: int
+    follow_ups: int
+    # "llm", "rules", or "rules (llm failed)" — the same vocabulary the scope and assess
+    # modules use for a generated artefact.
+    generator: str
+    scanned_path: str
+    # Files on the drive that no request claimed. Worth showing rather than discarding:
+    # a target that sent something nobody asked for is a fact about the deal, and an
+    # unmatched file is equally often a request whose wording missed it.
+    unmatched_files: list[str] = Field(default_factory=list)
 
 
 class ChecklistRead(BaseModel):
@@ -71,8 +108,10 @@ class ChecklistRead(BaseModel):
     company_name: str | None = None
     items: list[ChecklistItem]
     summary: ChecklistSummary
-    # When the shared drive was last walked. None until the scanner exists.
+    # When the shared drive was last walked. None until a scan has run.
     last_scanned_at: datetime | None = None
+    # Present only on the response to a scan, not on a plain read of the checklist.
+    scan: ScanResult | None = None
 
 
 class ChecklistItemUpdate(BaseModel):

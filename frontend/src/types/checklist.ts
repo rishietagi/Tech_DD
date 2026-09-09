@@ -46,6 +46,12 @@ export interface ChecklistItem {
   matched_files: string[];
   set_by_human: boolean;
   updated_at?: string | null;
+
+  /** What to go back and ask when what arrived is not enough. Written by the scan. */
+  follow_up_questions: string[];
+  /** Why the scan called the status what it did. */
+  scan_reasoning: string;
+  scanned_at?: string | null;
 }
 
 export interface ChecklistSummary {
@@ -55,6 +61,20 @@ export interface ChecklistSummary {
   not_received: number;
   outstanding_critical: number;
   outstanding_high: number;
+  /** Open follow-ups the last scan raised, across every request. */
+  follow_ups: number;
+}
+
+/** What one walk of the shared drive did. Present only on a scan response. */
+export interface ScanResult {
+  files_seen: number;
+  requests_considered: number;
+  updated: number;
+  skipped_human: number;
+  follow_ups: number;
+  generator: string;
+  scanned_path: string;
+  unmatched_files: string[];
 }
 
 export interface ChecklistRead {
@@ -64,6 +84,8 @@ export interface ChecklistRead {
   company_name: string | null;
   items: ChecklistItem[];
   summary: ChecklistSummary;
-  /** When the shared drive was last walked. Null until the scanner exists. */
+  /** When the shared drive was last walked. Null until a scan has run. */
   last_scanned_at: string | null;
+  /** Present only on the response to a scan, not on a plain read. */
+  scan?: ScanResult | null;
 }

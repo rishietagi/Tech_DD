@@ -22,6 +22,7 @@ from app.schemas.assess import (
     BAND_MEANINGS,
     AssessmentScorePayload,
     ProcessQuestionnaire,
+    ProcessShape,
     ProcessStep,
     ScorePointer,
     StepScore,
@@ -120,24 +121,42 @@ def compute_index(steps: list[StepScore]) -> float:
     return round((weighted / weight_total) * 20, 1)
 
 
-def _shape_note(steps: list[StepScore]) -> str | None:
-    """Name the recurring shapes from P2P_AUTOMATION_MODEL.md §6.
+def _shape_note(steps: list[StepScore], shape: ProcessShape | None = None) -> str | None:
+    """Name the recurring shapes from the process's own automation model, §6.
 
     The index alone hides these: a front-loaded 52 and a uniform 52 imply remediation
     costs an order of magnitude apart.
+
+    The *arithmetic* is process-agnostic — the mean of the early steps against the mean
+    of the late ones — but where the ends sit and what a gap between them means are not.
+    Both come from the questionnaire's `shape` block, so a new process declares its own
+    commercial reading in YAML rather than inheriting P2P's. A questionnaire with no
+    `shape` block falls back to the nine-step P2P split and its wording.
     """
     assessed = [s for s in steps if s.assessed and s.score is not None]
     if len(assessed) < 4:
         return None
 
-    front = [s for s in assessed if s.sn <= 3]
-    back = [s for s in assessed if s.sn >= 7]
+    if shape is not None:
+        front = [s for s in assessed if s.sn in shape.front_steps]
+        back = [s for s in assessed if s.sn in shape.back_steps]
+    else:
+        front = [s for s in assessed if s.sn <= 3]
+        back = [s for s in assessed if s.sn >= 7]
     if not front or not back:
         return None
 
     front_mean = sum(s.score or 0 for s in front) / len(front)
     back_mean = sum(s.score or 0 for s in back) / len(back)
     gap = front_mean - back_mean
+    measured = f" (front {front_mean:.1f}/5, back {back_mean:.1f}/5)"
+
+    if shape is not None:
+        if gap >= 1.0:
+            return f"{shape.front_loaded}{measured}"
+        if gap <= -1.0:
+            return f"{shape.back_loaded}{measured}"
+        return f"{shape.even}{measured}"
 
     if gap >= 1.0:
         return (
@@ -340,7 +359,7 @@ def score_assessment(
         coverage_note=_coverage_note(steps, scored, scoreable),
         executive_summary=_fallback_summary(questionnaire, index, band, steps),
         pointers=_pointers(steps, questionnaire),
-        shape_note=_shape_note(steps),
+        shape_note=_shape_note(steps, questionnaire.shape),
         generator="rules",
         generated_at=datetime.now(UTC),
         disclaimer=DISCLAIMER,

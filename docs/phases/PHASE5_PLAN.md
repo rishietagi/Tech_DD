@@ -1,7 +1,7 @@
 # Phase 5 — Assess (business process automation)
 
-**Status: BUILT** for Procure to Pay. The other four processes are named and listed with
-no questionnaire behind them, by instruction.
+**Status: BUILT** for Procure to Pay and Order to Cash. The other three processes are
+named and listed with no questionnaire behind them, by instruction.
 
 ## What this phase adds
 
@@ -21,7 +21,7 @@ process automation reveals what is used. The gap between the two is where findin
 
 ## The five processes
 
-`procure_to_pay` is defined. `order_to_cash`, `plan_to_make`, `hire_to_retire` and
+`procure_to_pay` and `order_to_cash` are defined. `plan_to_make`, `hire_to_retire` and
 `record_to_report` are registered with `defined: false` — **listed rather than hidden**, so
 the shape of the module is visible, and returning **409 `process_not_defined`** rather than
 404, which would wrongly imply the process does not exist.
@@ -156,6 +156,92 @@ reading as the problem colour and high as the green already reserved for "arrive
   selection (14→15 follow-ups), the custom question tagged "Added", the score table with 9
   rows and 7 pointers, and the honest 409 empty state for an undefined process
 
+## Order to Cash — the second process (2026-09-09)
+
+`docs/reference/O2C_AUTOMATION_MODEL.md` defines **eight** L1 steps, not nine. O2C has no
+equivalent of P2P's sourcing event, and credit assessment and customer master data are one
+decision in practice rather than two.
+
+| # | Step | Weight |
+|---|---|---|
+| 1 | Customer setup & credit | 10 |
+| 2 | Order capture | 13 |
+| 3 | Pricing, contracting & configuration | 12 |
+| 4 | Fulfilment & delivery confirmation | 10 |
+| 5 | Invoicing & billing | 18 |
+| 6 | Cash application & remittance | 15 |
+| 7 | Collections & dunning | 12 |
+| 8 | Disputes, deductions & credit control reporting | 10 |
+
+Invoicing and cash application weigh heaviest: highest transaction volume, and unlike P2P
+they are directly **working-capital-bearing**. That is the substantive difference between
+the two processes — a manual P2P leaks cost and control slowly, a manual O2C leaks cash
+visibly and the customer sees it. `[EXT]`, like the P2P model: **`DD_master.md` has no
+order-to-cash process material**, which was checked before the document was written and is
+stated in its §7 rather than papered over with page cites it does not have.
+
+`order_to_cash.yaml` carries 28 questions (21 scoring, 7 free-text) and 30 nudges.
+
+### What defining it changed in code
+
+Almost nothing, which was the claim being tested — but not *quite* nothing. `_shape_note`
+hardcoded `sn <= 3` / `sn >= 7` and P2P's own vocabulary, so an O2C score would have
+carried a note about accounts payable. The prose moved into an optional **`shape` block**
+on the questionnaire: front and back step ranges, and the three notes. A questionnaire
+without one falls back to the previous behaviour, so P2P is untouched and declares none.
+
+The arithmetic of a shape is process-agnostic; its commercial reading is not. See the
+decision entry in `docs/PROJECT_LOG.md`.
+
+**A second fix followed from reading the output**: the model was overwriting the authored
+shape note with its own paraphrase, discarding both the judgement and the measured means.
+Where a `shape` block exists it now wins, and the model writes prose only.
+
+### Verification
+
+- backend `pytest` 388 (25 new) · `ruff` · `mypy` clean · frontend `tsc` · `eslint` clean
+- **generated a real score with the live model** on Project Kiln: 40 answers on a
+  front-loaded distributor returned an index of **36.4/100 (Emerging)**, 8 of 8 steps
+  assessed, one refinement of −0.3 within the ±1 bound, and a summary built from the
+  analyst's own evidence — 78-day DSO against 45-day terms, 8 days of internal DSO before
+  the customer is asked to pay, EUR 640k unapplied cash, EUR 900k in dispute, 6,800
+  invoices against 5 billing FTEs
+- **drove it in a browser**: 5 processes with 3 honest "Not yet defined" badges, 8 step
+  sections, 113 options, 42 remarks and evidence boxes, a nudge revealing live on
+  selection, the score view with its index, band, authored shape note and 8-row step
+  table, and the honest 409 empty state for `plan_to_make`
+
+## Adding the next process — the exact shape to follow
+
+Procure to Pay and Order to Cash are the worked examples. Defining Plan to Make, Hire to
+Retire or Record to Report is the **same six artefacts**, in this order:
+
+1. **`docs/reference/<PROCESS>_AUTOMATION_MODEL.md`** — write this FIRST; scoring reads
+   from it. It defines the L1 steps, their weights (summing to 100), and what each rung of
+   the 0-5 ladder looks like *for that process*, in observable evidence rather than
+   adjectives. Mark it `[EXT]` — built for this platform, a calibration to be tuned.
+2. **`backend/app/reference/processes/<key>.yaml`** — the questionnaire: steps, weights,
+   `single_select` questions with a `score` on every option, `text` questions that capture
+   evidence, `nudges` (`when: {equals | in | answered}`), and a **`shape` block** giving
+   the front and back step ranges and what a front-loaded, back-loaded or even cycle means
+   commercially *for that process*. Without it the score falls back to P2P's nine-step
+   split and P2P's wording.
+3. **`_registry.yaml`** — flip `defined: false` to `true`.
+4. **Tests** in `tests/test_assess.py` — the library ones are parameterised in spirit
+   already; add the process to them.
+5. **Nothing else.** The ladder (§2), the scoring arithmetic (§4), the banding (§5), the
+   API, the scoring prompt, the frontend and the remarks field are **all process-agnostic**
+   and need no change. If you find yourself editing `scoring.py` or a route, stop and
+   check why — the design intends the new process to be pure content. Defining O2C found
+   the one place where that was not yet true and fixed it by moving the prose into YAML;
+   there should be no second such place.
+6. **Read the generated score**, do not just run the tests. Every real bug in this module
+   was found by generating output and reading it.
+
+The startup validation enforces: weights sum to 100, question and nudge ids unique, and
+**every nudge fires on an option that actually exists** — a nudge naming a stale label
+would silently never appear.
+
 ## Deferred, deliberately
 
 **A client-facing export.** The score view is internal-facing by decision — frank,
@@ -163,4 +249,5 @@ diagnostic, names weak spots plainly. A PPT/PDF in the KPMG house voice is the o
 step and the payload carries everything it needs, but it was not built rather than guessed
 at. Same treatment as the shared-drive scanner.
 
-**The other four processes.** Named only, by instruction.
+**The other three processes.** Plan to Make, Hire to Retire and Record to Report are
+named only, by instruction.

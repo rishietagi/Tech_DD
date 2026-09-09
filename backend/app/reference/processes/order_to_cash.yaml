@@ -1,0 +1,556 @@
+# Order to Cash — automation assessment questionnaire.
+#
+# The domain model behind this file is docs/reference/O2C_AUTOMATION_MODEL.md. Read it
+# before changing weights or scores: every `score` below is a level on the 0-5 maturity
+# ladder defined in §2, and every step weight comes from §3.
+#
+# A practitioner edits this file without a developer. It is validated at startup and a
+# malformed file fails loudly.
+#
+# QUESTION TYPES
+#   single_select  - scores. Each option carries the ladder level it evidences.
+#   text           - does not score. Captures evidence, volumes and caveats; this is
+#                    what the exec summary draws on. In O2C the numbers worth having are
+#                    DSO, invoice and order volume, auto-cash-application rate, and the
+#                    value in dispute or unapplied.
+#
+# NUDGES
+#   A nudge is a conditional follow-up: "if X is the answer, ask Y". They evaluate as
+#   the analyst answers, so the follow-up appears immediately beneath its parent.
+#   `when.equals` matches one option; `when.in` matches any of several; `when.answered`
+#   fires on any non-empty answer. Nudges never score - they exist to make the evidence
+#   behind a score defensible, and a nudge that scored would double-count its parent.
+#
+# WEIGHTS sum to 100. See O2C_AUTOMATION_MODEL.md §3 for why each step carries what it
+# does. Weight reflects transaction volume and financial exposure, not assessment effort.
+#
+# SHAPE. The front/back step ranges and the three notes come from O2C_AUTOMATION_MODEL.md
+# §6. They are declared here rather than in code because the commercial reading of a
+# front-loaded cycle is process-specific: in P2P it means a procurement tool never rolled
+# through to AP, in O2C it means the working capital problem grows with revenue.
+
+process_key: order_to_cash
+name: Order to Cash
+short_name: O2C
+version: "1.0"
+model_ref: docs/reference/O2C_AUTOMATION_MODEL.md
+description: >-
+  How an order becomes revenue and revenue becomes collected cash. Assessed for
+  automation maturity across eight steps, weighted by transaction volume and financial
+  exposure.
+
+shape:
+  front_steps: [1, 2, 3]
+  back_steps: [6, 7, 8]
+  front_label: the order capture and pricing end
+  back_label: the billing, cash application and collections end
+  front_loaded: >-
+    Front-loaded: the selling end of the cycle is materially more automated than the cash
+    end. This is the classic Order to Cash signature — a modern order channel or pricing
+    tool in front of a manual billing and collections back end. Orders arrive faster than
+    they can be billed and collected, so the working capital problem grows with revenue
+    rather than shrinking: a growth case built on this shape is underwriting a rising
+    receivables balance and more collections headcount, usually without having priced
+    either.
+  back_loaded: >-
+    Back-loaded: the cash end of the cycle is materially more automated than the selling
+    end. Finance has modernised what it controls, but orders and pricing are still manual
+    upstream, so billing is accurate about the wrong thing — disputes and credit notes
+    stay high because the error is created at order entry, and collections effort is
+    being spent recovering from an upstream defect. Further automation of collections
+    will not fix it.
+  even: >-
+    Broadly even across the cycle, so the constraint is the overall level rather than one
+    weak end. Read the index next to days sales outstanding before concluding the process
+    is adequate: the same score against a 45-day and a 95-day DSO describes two different
+    businesses.
+
+steps:
+  # ---------------------------------------------------------------- 1
+  - key: o2c_customer_credit
+    sn: 1
+    title: Customer setup & credit
+    weight: 10
+    intent: >-
+      Customer master creation, credit assessment and limits, blocks and their release.
+      Master data quality gates the cycle and the credit decision is the one control
+      that sits ahead of the risk.
+    questions:
+      - id: O2C-01-01
+        text: How is a new customer created and credit-assessed before the first order?
+        type: single_select
+        options:
+          - { label: "Created on request, with no credit assessment", score: 0 }
+          - { label: "A manual form and a credit check performed by judgement, limits held in a spreadsheet", score: 1 }
+          - { label: "A defined in-system process with mandatory fields and recorded limits", score: 2 }
+          - { label: "Limits configured and enforced by the system, with systematic duplicate checking", score: 3 }
+          - { label: "Automated credit scoring from bureau or trade data with scheduled limit review", score: 4 }
+          - { label: "Continuous credit risk monitoring feeding order release and collections automatically", score: 5 }
+        nudges:
+          - when: { in: ["Created on request, with no credit assessment", "A manual form and a credit check performed by judgement, limits held in a spreadsheet"] }
+            ask: >-
+              What is the current bad-debt provision and what was written off in the last
+              two years? With no credit assessment in front of the order, this is where
+              the absence of the control shows up.
+          - when: { equals: "Automated credit scoring from bureau or trade data with scheduled limit review" }
+            ask: >-
+              Which data source is used, what share of the customer base is actually
+              scored, and when were limits last refreshed? Confirm this is running rather
+              than contracted.
+
+      - id: O2C-01-02
+        text: What happens when an order breaches a customer's credit limit?
+        type: single_select
+        options:
+          - { label: "Nothing — limits are not enforced at order entry", score: 0 }
+          - { label: "Noticed later by finance, after the order has shipped", score: 1 }
+          - { label: "The system warns but the order proceeds; release is by convention", score: 2 }
+          - { label: "The order blocks and requires a documented release by an authorised approver", score: 3 }
+          - { label: "Risk-based release rules with exposure monitored and reported", score: 4 }
+        nudges:
+          - when: { in: ["Nothing — limits are not enforced at order entry", "Noticed later by finance, after the order has shipped"] }
+            ask: >-
+              Ask for an example of an order shipped to a customer already over limit or
+              in arrears. This is a control finding — record the answer verbatim.
+          - when: { equals: "The system warns but the order proceeds; release is by convention" }
+            ask: >-
+              Who can override the warning, and is the override logged? An unlogged
+              override is functionally the same as no control.
+
+      - id: O2C-01-03
+        text: How many active customer records exist, how many were invoiced in the last twelve months, and is the master cleansed?
+        type: text
+
+  # ---------------------------------------------------------------- 2
+  - key: o2c_order_capture
+    sn: 2
+    title: Order capture
+    weight: 13
+    intent: >-
+      The channels an order arrives through, and whether it is re-keyed. The entry point
+      sets the data quality for everything downstream — re-keyed orders are the origin of
+      most billing errors.
+    questions:
+      - id: O2C-02-01
+        text: How does a customer order actually reach the business, and how is it entered?
+        type: single_select
+        options:
+          - { label: "By phone, email or fax, worked from the message itself", score: 0 }
+          - { label: "Re-keyed from an email or PDF by an order-entry team", score: 1 }
+          - { label: "Entered directly into a system by internal staff, validated by the person", score: 2 }
+          - { label: "Portal or EDI for a meaningful share of volume, validated automatically against master data", score: 3 }
+          - { label: "Most volume arrives electronically and posts straight through, touchless rate measured", score: 4 }
+          - { label: "Touchless by design, with exception patterns fed back into validation rules", score: 5 }
+        nudges:
+          - when: { in: ["By phone, email or fax, worked from the message itself", "Re-keyed from an email or PDF by an order-entry team"] }
+            ask: >-
+              How many orders are taken per month, and how many FTEs sit in order entry
+              or customer service? Orders per FTE per month is the most comparable
+              productivity metric in this process — get both numbers.
+          - when: { in: ["Portal or EDI for a meaningful share of volume, validated automatically against master data", "Most volume arrives electronically and posts straight through, touchless rate measured"] }
+            ask: >-
+              What share of order volume and of order value arrives electronically, and
+              which customers are still manual? Ask for the reported figure rather than
+              an estimate — volume and value often differ sharply.
+          - when: { equals: "Touchless by design, with exception patterns fed back into validation rules" }
+            ask: >-
+              How complex is the order book this runs against — single product and price,
+              or contracted, configured and multi-currency? A touchless rate on a simple
+              book does not evidence a capability that will survive the growth case.
+
+      - id: O2C-02-02
+        text: How are order errors caught, and what proportion of orders are amended after entry?
+        type: single_select
+        options:
+          - { label: "Not tracked — errors surface when the customer complains or the invoice is disputed", score: 0 }
+          - { label: "Corrected informally as they are noticed", score: 1 }
+          - { label: "A manual check of orders before release", score: 2 }
+          - { label: "System validation at entry with exceptions routed for review", score: 3 }
+          - { label: "Amendment and error rates measured and reported, with root causes worked", score: 4 }
+        nudges:
+          - when: { in: ["Not tracked — errors surface when the customer complains or the invoice is disputed", "Corrected informally as they are noticed"] }
+            ask: >-
+              Reconcile this with the dispute step. If order errors are untracked but
+              disputes are high, the disputes are the measurement — say so in the finding.
+
+      - id: O2C-02-03
+        text: Which system holds the order, and is it the same system that raises the invoice?
+        type: text
+
+  # ---------------------------------------------------------------- 3
+  - key: o2c_pricing
+    sn: 3
+    title: Pricing, contracting & configuration
+    weight: 12
+    intent: >-
+      How price is derived and what was actually sold. Directly determines what is
+      billable; manual pricing is the largest single source of silent revenue leakage.
+    questions:
+      - id: O2C-03-01
+        text: How is the price on an order determined?
+        type: single_select
+        options:
+          - { label: "Agreed case by case and held outside any system", score: 0 }
+          - { label: "From a price list in a spreadsheet, applied manually at order entry", score: 1 }
+          - { label: "Held in the system but overridden freely at order entry", score: 2 }
+          - { label: "Contracted and customer-specific pricing configured and applied automatically", score: 3 }
+          - { label: "Pricing and entitlement derive from the contract, with margin guardrails enforced at order", score: 4 }
+          - { label: "Centrally governed with automated monitoring of realised versus contracted price", score: 5 }
+        nudges:
+          - when: { in: ["Agreed case by case and held outside any system", "From a price list in a spreadsheet, applied manually at order entry"] }
+            ask: >-
+              Could management state today what a named customer's contracted price is,
+              without asking a salesperson? If not, record it as a data-room gap — and
+              note that contracted uplifts and indexation are almost certainly not being
+              applied.
+          - when: { equals: "Held in the system but overridden freely at order entry" }
+            ask: >-
+              What proportion of order lines carry a manual price override, and is
+              override activity reported to anyone? Free override makes the configured
+              price list decorative.
+
+      - id: O2C-03-02
+        text: How are discounts and non-standard terms approved?
+        type: single_select
+        options:
+          - { label: "By whoever is negotiating, with no retained record", score: 0 }
+          - { label: "By email, attached to the record afterwards", score: 1 }
+          - { label: "In-system, but the approval matrix is a document people consult", score: 2 }
+          - { label: "In-system with delegation of authority configured and enforced, full audit trail", score: 3 }
+          - { label: "Margin-based routing with exceptions reported and reviewed", score: 4 }
+
+      - id: O2C-03-03
+        text: How do contracted price increases, indexation or rebates get applied?
+        type: single_select
+        options:
+          - { label: "They are not systematically applied", score: 0 }
+          - { label: "Someone remembers to raise them, tracked in a spreadsheet", score: 1 }
+          - { label: "Diarised manually and applied by finance", score: 2 }
+          - { label: "Held against the contract in-system and applied automatically", score: 3 }
+          - { label: "Applied automatically with realised uplift and rebate accrual reported", score: 4 }
+        nudges:
+          - when: { in: ["They are not systematically applied", "Someone remembers to raise them, tracked in a spreadsheet"] }
+            ask: >-
+              Quantify what has been missed if management can — unapplied indexation is
+              revenue that was contracted and never billed, and it compounds. It rarely
+              appears in any register, so ask directly.
+
+      - id: O2C-03-04
+        text: How complex is the pricing model — list, contracted, tiered, usage-based, multi-currency?
+        type: text
+
+  # ---------------------------------------------------------------- 4
+  - key: o2c_fulfilment
+    sn: 4
+    title: Fulfilment & delivery confirmation
+    weight: 10
+    intent: >-
+      The event that makes an order billable. Without a reliable billable-event signal,
+      invoicing cannot be automated however good the billing tool is.
+    questions:
+      - id: O2C-04-01
+        text: How is delivery of goods or completion of a service confirmed?
+        type: single_select
+        options:
+          - { label: "Not systematically recorded — billing is triggered by someone remembering", score: 0 }
+          - { label: "Proof of delivery or a completion note captured on paper or by email, keyed later", score: 1 }
+          - { label: "Confirmed in-system, often in a batch after the fact", score: 2 }
+          - { label: "Timely in-system confirmation reliably triggering the billable event", score: 3 }
+          - { label: "Automated from logistics, scanning, usage metering or project systems", score: 4 }
+          - { label: "The fulfilment system generates the billable event itself, with exception-only confirmation", score: 5 }
+        nudges:
+          - when: { in: ["Not systematically recorded — billing is triggered by someone remembering", "Proof of delivery or a completion note captured on paper or by email, keyed later"] }
+            ask: >-
+              How would the business know today that something was delivered and never
+              invoiced? If there is no answer, that is the finding — unbilled fulfilment
+              is revenue leakage nobody discovers.
+          - when: { equals: "Confirmed in-system, often in a batch after the fact" }
+            ask: >-
+              What is the typical lag between delivery and system confirmation, and does
+              it delay invoicing? Days of lag here are days of DSO before collections
+              even begins.
+
+      - id: O2C-04-02
+        text: Is fulfilled-but-unbilled work visible and reported?
+        type: single_select
+        options:
+          - { label: "No — there is no view of it", score: 0 }
+          - { label: "Reconstructed manually at period end", score: 1 }
+          - { label: "A manual report someone produces periodically", score: 2 }
+          - { label: "A standing system report of unbilled fulfilment, worked as a list", score: 3 }
+          - { label: "Monitored with ageing and escalation, and the value is trending down", score: 4 }
+        nudges:
+          - when: { in: ["No — there is no view of it", "Reconstructed manually at period end"] }
+            ask: >-
+              What is the current value of delivered-but-unbilled work? If nobody can
+              produce it, record that it could not be produced — the quality of earnings
+              team will need to know.
+
+  # ---------------------------------------------------------------- 5
+  - key: o2c_invoicing
+    sn: 5
+    title: Invoicing & billing
+    weight: 18
+    intent: >-
+      Generation, timing, accuracy and delivery of the invoice. The highest-volume,
+      highest-manual-effort step in the cycle; billing accuracy governs both DSO and
+      disputes.
+    questions:
+      - id: O2C-05-01
+        text: How is a customer invoice produced?
+        type: single_select
+        options:
+          - { label: "Prepared manually, one at a time, from source documents", score: 0 }
+          - { label: "Produced from a spreadsheet or template and keyed into the ledger afterwards", score: 1 }
+          - { label: "Generated in-system but needing substantial manual preparation or correction", score: 2 }
+          - { label: "Generated automatically from the order or confirmed fulfilment, on a defined cycle", score: 3 }
+          - { label: "High straight-through billing across most volume, including complex constructs", score: 4 }
+          - { label: "Touchless billing as the norm, with error root causes continuously reduced", score: 5 }
+        nudges:
+          - when: { in: ["Prepared manually, one at a time, from source documents", "Produced from a spreadsheet or template and keyed into the ledger afterwards"] }
+            ask: >-
+              What is the monthly invoice volume, and how many FTEs are in billing?
+              Invoices per FTE per month is the single most comparable productivity
+              metric in this process — get both numbers.
+          - when: { equals: "Generated in-system but needing substantial manual preparation or correction" }
+            ask: >-
+              What share of invoices need manual intervention before release, and what
+              are they intervening for? If it is the same correction every cycle, it is a
+              configuration gap rather than an inherent complexity.
+          - when: { in: ["High straight-through billing across most volume, including complex constructs", "Touchless billing as the norm, with error root causes continuously reduced"] }
+            ask: >-
+              What is the reported first-time-right billing rate, and does it cover
+              recurring, usage and milestone billing or only simple product lines? Ask
+              for the actual figure and what it is measured across.
+
+      - id: O2C-05-02
+        text: How long after the billable event is the invoice issued?
+        type: single_select
+        options:
+          - { label: "Not measured; whenever billing gets to it", score: 0 }
+          - { label: "Weeks, or at period end in a batch", score: 1 }
+          - { label: "Within a defined cycle of several days", score: 2 }
+          - { label: "Next working day or on a daily cycle", score: 3 }
+          - { label: "Same day or on the event, and billing lag is measured and reported", score: 4 }
+        nudges:
+          - when: { in: ["Not measured; whenever billing gets to it", "Weeks, or at period end in a batch"] }
+            ask: >-
+              Billing lag is DSO the business is choosing to carry before collections
+              begins. Estimate the days with management, and note it separately from
+              customer payment behaviour — the two are usually conflated in the DSO
+              figure.
+
+      - id: O2C-05-03
+        text: How does the invoice reach the customer?
+        type: single_select
+        options:
+          - { label: "Printed and posted, or attached to an individual email by hand", score: 0 }
+          - { label: "Emailed in bulk from a manual mail merge", score: 1 }
+          - { label: "Emailed automatically by the system as a PDF", score: 2 }
+          - { label: "Delivered to the customer's channel of choice, including portal upload where required", score: 3 }
+          - { label: "E-invoicing or EDI for the majority of volume, with tax determination automated", score: 4 }
+        nudges:
+          - when: { equals: "Delivered to the customer's channel of choice, including portal upload where required" }
+            ask: >-
+              How many customer portals does the team upload to manually, and how much
+              time does that take? Customer-mandated portals are a hidden and growing
+              manual cost that rarely appears in a process description.
+          - when: { equals: "E-invoicing or EDI for the majority of volume, with tax determination automated" }
+            ask: >-
+              Which e-invoicing mandates does the target fall under, and is it compliant
+              in every jurisdiction it bills from? Mandates are expanding and
+              non-compliance is a dated remediation cost.
+
+      - id: O2C-05-04
+        text: How are credit notes and rebilling handled, and what is the credit note rate?
+        type: single_select
+        options:
+          - { label: "Raised freely on request, with no analysis of why", score: 0 }
+          - { label: "Raised with informal approval, tracked in a spreadsheet", score: 1 }
+          - { label: "Raised in-system with documented approval", score: 2 }
+          - { label: "Approval enforced by delegation of authority, reason codes captured", score: 3 }
+          - { label: "Credit note volume and value reported by root cause and actively reduced", score: 4 }
+        nudges:
+          - when: { answered: true }
+            ask: >-
+              What is the credit note value as a share of gross billings? It is the
+              cleanest single proxy for billing accuracy in this process, and it is a
+              number finance can usually produce on request.
+
+      - id: O2C-05-05
+        text: What is the monthly invoice volume, and what does the billing function cost to run?
+        type: text
+
+  # ---------------------------------------------------------------- 6
+  - key: o2c_cash_application
+    sn: 6
+    title: Cash application & remittance
+    weight: 15
+    intent: >-
+      Matching received cash to invoices. Very high volume and directly working-capital
+      bearing — unapplied cash is a hidden receivable that ages while nobody chases it.
+    questions:
+      - id: O2C-06-01
+        text: How is incoming cash matched to open invoices?
+        type: single_select
+        options:
+          - { label: "A person reads the bank statement and applies receipts by hand", score: 0 }
+          - { label: "A spreadsheet reconciles receipts before they are keyed into the ledger", score: 1 }
+          - { label: "Applied in-system manually, with remittance advice chased by email", score: 2 }
+          - { label: "Bank statements imported and auto-matched on a defined rule set, exceptions worked", score: 3 }
+          - { label: "High auto-match rate including partial and consolidated payments, rate reported", score: 4 }
+          - { label: "Machine-assisted matching that learns from analyst corrections", score: 5 }
+        nudges:
+          - when: { in: ["A person reads the bank statement and applies receipts by hand", "A spreadsheet reconciles receipts before they are keyed into the ledger"] }
+            ask: >-
+              How many receipts are applied per month and by how many people? And ask how
+              long after receipt cash is typically applied — cash sitting unapplied is
+              invisible to collections, who will chase a customer that has already paid.
+          - when: { in: ["High auto-match rate including partial and consolidated payments, rate reported", "Machine-assisted matching that learns from analyst corrections"] }
+            ask: >-
+              What is the reported auto-application rate, and is it measured by count or
+              by value? A high rate by count can hide the large, complex remittances
+              being worked by hand.
+
+      - id: O2C-06-02
+        text: What is the position on unapplied and unidentified cash?
+        type: single_select
+        options:
+          - { label: "Not tracked — nobody could state the balance", score: 0 }
+          - { label: "Known at period end from a manual reconciliation", score: 1 }
+          - { label: "Visible in-system but cleared only periodically", score: 2 }
+          - { label: "A standing worklist cleared on a defined cycle, with ageing visible", score: 3 }
+          - { label: "Effectively transient, monitored and reported", score: 4 }
+        nudges:
+          - when: { in: ["Not tracked — nobody could state the balance", "Known at period end from a manual reconciliation", "Visible in-system but cleared only periodically"] }
+            ask: >-
+              What is the current unapplied cash balance and how old is the oldest item?
+              Ageing unapplied cash overstates the debtor book and inflates DSO —
+              quantify it, because it is one of the few working-capital corrections a
+              buyer can make immediately.
+
+      - id: O2C-06-03
+        text: What payment methods do customers use, and how is remittance advice received?
+        type: text
+
+  # ---------------------------------------------------------------- 7
+  - key: o2c_collections
+    sn: 7
+    title: Collections & dunning
+    weight: 12
+    intent: >-
+      Where DSO is actually won or lost, and the step most commonly run entirely on
+      spreadsheets in a mid-market target.
+    questions:
+      - id: O2C-07-01
+        text: How does the business decide who to chase, and how?
+        type: single_select
+        options:
+          - { label: "Chasing happens when someone notices; there is no worked ageing report", score: 0 }
+          - { label: "An aged debtors spreadsheet worked down by one or two people", score: 1 }
+          - { label: "Ageing visible in-system, but chase activity and notes are manual and personal", score: 2 }
+          - { label: "A system-prioritised worklist with automated reminders on a defined dunning ladder", score: 3 }
+          - { label: "Risk- or value-based segmented strategies with automated escalation and self-service", score: 4 }
+          - { label: "Predictive prioritisation on payment behaviour, tuned against realised DSO", score: 5 }
+        nudges:
+          - when: { in: ["Chasing happens when someone notices; there is no worked ageing report", "An aged debtors spreadsheet worked down by one or two people"] }
+            ask: >-
+              What is DSO, and what is the aged debtor profile beyond 60 and 90 days? Get
+              both. A manual collections function with a long tail is the clearest
+              working-capital opportunity in this process, and the cheapest to fix.
+          - when: { equals: "Ageing visible in-system, but chase activity and notes are manual and personal" }
+            ask: >-
+              If a collections person left tomorrow, what would be lost? Personal notes
+              and relationships held outside the system are a key-person dependency
+              dressed as a process.
+
+      - id: O2C-07-02
+        text: Are contact history, promises to pay and outcomes recorded against the account?
+        type: single_select
+        options:
+          - { label: "No record is kept", score: 0 }
+          - { label: "In personal notes or email folders", score: 1 }
+          - { label: "In a shared spreadsheet or mailbox", score: 2 }
+          - { label: "Recorded against the customer in-system, with promises diarised", score: 3 }
+          - { label: "Promise-to-pay kept against actual payment, with collector effectiveness measured", score: 4 }
+
+      - id: O2C-07-03
+        text: Can customers see their own account and pay themselves?
+        type: single_select
+        options:
+          - { label: "No — statements are produced and sent on request", score: 0 }
+          - { label: "Statements emailed on a manual cycle", score: 1 }
+          - { label: "Statements generated automatically and sent", score: 2 }
+          - { label: "A self-service portal showing invoices and statements", score: 3 }
+          - { label: "Self-service with online payment and proactive notification", score: 4 }
+        nudges:
+          - when: { in: ["No — statements are produced and sent on request", "Statements emailed on a manual cycle"] }
+            ask: >-
+              Roughly how much collections time goes on producing statements and copy
+              invoices rather than actually chasing? It is usually a surprisingly large
+              share of the team's capacity.
+
+      - id: O2C-07-04
+        text: What is DSO today, how is it defined, and how has it moved over the last twelve months?
+        type: text
+
+  # ---------------------------------------------------------------- 8
+  - key: o2c_disputes
+    sn: 8
+    title: Disputes, deductions & credit control reporting
+    weight: 10
+    intent: >-
+      Whether automation elsewhere converts into collected cash. Unresolved disputes are
+      the most common cause of an aged debtor book.
+    questions:
+      - id: O2C-08-01
+        text: When a customer disputes an invoice or short-pays, what happens to it?
+        type: single_select
+        options:
+          - { label: "It sits in someone's inbox; no list of what is in query exists", score: 0 }
+          - { label: "Tracked in a spreadsheet or shared mailbox", score: 1 }
+          - { label: "Recorded in-system, but assignment and chasing are manual", score: 2 }
+          - { label: "Logged with a reason code, routed automatically to an owner, aged and escalated", score: 3 }
+          - { label: "SLA-managed with root-cause analysis feeding billing and fulfilment change", score: 4 }
+          - { label: "Dispute causes intercepted before invoicing", score: 5 }
+        nudges:
+          - when: { in: ["It sits in someone's inbox; no list of what is in query exists", "Tracked in a spreadsheet or shared mailbox"] }
+            ask: >-
+              What value of receivables is currently in dispute, and how old is it? If
+              nobody can answer, that is itself the finding — record that it could not be
+              produced, and treat the aged debtor tail as unexplained until it is.
+          - when: { in: ["Logged with a reason code, routed automatically to an owner, aged and escalated", "SLA-managed with root-cause analysis feeding billing and fulfilment change"] }
+            ask: >-
+              What are the top three dispute reason codes by value? They point straight
+              at the upstream step that is failing — usually pricing or fulfilment
+              confirmation rather than billing itself.
+
+      - id: O2C-08-02
+        text: How are write-offs and bad debt authorised?
+        type: single_select
+        options:
+          - { label: "Informally, with no threshold or retained approval", score: 0 }
+          - { label: "By email approval, recorded afterwards", score: 1 }
+          - { label: "Against a documented policy, approved manually", score: 2 }
+          - { label: "Delegation of authority enforced in-system with a full audit trail", score: 3 }
+          - { label: "Enforced and reported, with write-off causes analysed", score: 4 }
+
+      - id: O2C-08-03
+        text: What receivables reporting does management actually receive, and how is it produced?
+        type: single_select
+        options:
+          - { label: "None routinely — produced on request", score: 0 }
+          - { label: "A spreadsheet assembled manually each month", score: 1 }
+          - { label: "A system report exported and reformatted by hand", score: 2 }
+          - { label: "Standing system reporting on ageing, DSO and collections activity", score: 3 }
+          - { label: "Dashboards used to drive process change, with targets and trend", score: 4 }
+        nudges:
+          - when: { in: ["None routinely — produced on request", "A spreadsheet assembled manually each month"] }
+            ask: >-
+              How long does it take to produce, and who produces it? A manually assembled
+              receivables pack is both a cost and a reason nobody acts on ageing between
+              month ends.
+
+      - id: O2C-08-04
+        text: What is the current bad debt provision, and what has been written off in the last two years?
+        type: text

@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 16000
     llm_temperature: float = 0.2
 
+    # Where the client drops documents. A relative path resolves against the repo root
+    # (the backend runs from `backend/`), which is what makes the local fixture work
+    # unchanged; at deployment this is an absolute path to the real share.
+    shared_drive_root: str = "../shared-drive/project-kiln"
+
     @property
     def llm_enabled(self) -> bool:
         return bool(self.gemini_api_key)

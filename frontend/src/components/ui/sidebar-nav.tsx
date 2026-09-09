@@ -118,12 +118,6 @@ export function SidebarNav() {
               >
                 Initial request list
               </NavLink>
-              <NavLink
-                href={`/engagements/${activeEngagementId}/checklist`}
-                active={pathname === `/engagements/${activeEngagementId}/checklist`}
-              >
-                Checklist
-              </NavLink>
               {/* Prefix match, not exact: Assess has a sub-route per business process,
                   and the section should stay lit while the user is inside one. */}
               <NavLink

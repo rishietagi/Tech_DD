@@ -72,6 +72,14 @@ export interface IrlTracking {
   priority_reason: string;
   set_by_human: boolean;
   updated_at?: string | null;
+
+  /** Files the scan inferred the status from. */
+  matched_files: string[];
+  /** What to go back and ask when what arrived is not enough. */
+  follow_up_questions: string[];
+  /** Why the scan called the status what it did. */
+  scan_reasoning: string;
+  scanned_at?: string | null;
 }
 
 export interface IrlRead {

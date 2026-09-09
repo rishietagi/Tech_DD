@@ -123,6 +123,18 @@ class IrlTracking(BaseModel):
     set_by_human: bool = False
     updated_at: datetime | None = None
 
+    # --- what the shared-drive scan found. Scan-owned: a human editing the row above
+    # --- leaves these alone, and the next scan replaces them.
+    #
+    # The files the status was inferred from, so a wrong auto-match is visible.
+    matched_files: list[str] = Field(default_factory=list)
+    # What to go back and ask when what arrived is not enough — the output the scan
+    # exists for. Empty where nothing arrived: the request is already outstanding.
+    follow_up_questions: list[str] = Field(default_factory=list)
+    # Why the scan called the status what it did.
+    scan_reasoning: str = ""
+    scanned_at: datetime | None = None
+
 
 class IrlRead(BaseModel):
     id: str

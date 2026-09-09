@@ -5,15 +5,33 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 
 import { IrlAddQuestion } from "@/components/engagement/irl-add-question";
-import { IrlTable } from "@/components/engagement/irl-table";
+import { IrlRequestList } from "@/components/engagement/irl-request-list";
+import { IrlSummaryRail, summarise } from "@/components/engagement/irl-summary-rail";
+import { ReminderPanel } from "@/components/engagement/reminder-panel";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { API_BASE_URL, ApiError } from "@/lib/api/client";
+import { checklistApi } from "@/lib/api/checklist";
 import { engagementsApi } from "@/lib/api/engagements";
 import { irlApi } from "@/lib/api/irl";
+import type { ChecklistRead } from "@/types/checklist";
 import type { ImportResponsesResult, IrlRead, IrlTracking } from "@/types/irl";
+
+/**
+ * The Initial Request List — the single screen for what was asked for and what arrived.
+ *
+ * Absorbed the checklist page on 2026-09-09 (Rishi). The split had been defensible while
+ * the checklist was only a progress view, but the shared-drive scan writes findings —
+ * follow-up questions, document types, matched files — that only make sense next to the
+ * request they belong to. Two pages meant the scan ran on one and its output appeared on
+ * the other.
+ */
+
+/** A pill button. Primary is the one action that produces something new. */
+const ACTION =
+  "rounded-full border border-line-strong px-3.5 py-2 font-sans text-[12.5px] font-medium transition-colors hover:bg-paper-2 disabled:opacity-50";
 
 export function IrlPage({ engagementId }: { engagementId: string }) {
   const queryClient = useQueryClient();
@@ -42,10 +60,7 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
       show("Request list generated");
     },
     onError: (err: unknown) => {
-      show(
-        err instanceof ApiError ? err.message : "Could not generate a request list",
-        "error",
-      );
+      show(err instanceof ApiError ? err.message : "Could not generate a request list", "error");
     },
   });
 
@@ -66,11 +81,7 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
 
   const saveTracking = async (
     questionId: string,
-    patch: {
-      status?: IrlTracking["status"];
-      document_type?: string;
-      remarks?: string;
-    },
+    patch: { status?: IrlTracking["status"]; document_type?: string; remarks?: string },
   ) => {
     try {
       replace(await irlApi.saveTracking(engagementId, questionId, patch));
@@ -117,6 +128,53 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
     onError: (err: unknown) => {
       setImportResult(null);
       show(err instanceof ApiError ? err.message : "Could not read that workbook", "error");
+    },
+  });
+
+  // ------------------------------------------------------- the shared-drive scan
+  const scanMutation = useMutation({
+    mutationFn: () => checklistApi.scan(engagementId),
+    onSuccess: async (fresh: ChecklistRead) => {
+      // The scan writes to the document-status table, which the IRL reads for its
+      // tracking — so the list itself has to be refetched, not just this response cached.
+      replace(await irlApi.getLatest(engagementId));
+
+      const scan = fresh.scan;
+      if (!scan) {
+        show("Request list updated from the shared drive");
+        return;
+      }
+      // Say what the walk actually did. A scan that read 52 files and changed nothing is
+      // a different event from one that found no drive, and the consultant needs to be
+      // able to tell them apart without diffing the rows.
+      const parts = [
+        `${scan.files_seen} file${scan.files_seen === 1 ? "" : "s"} read`,
+        `${scan.updated} request${scan.updated === 1 ? "" : "s"} updated`,
+      ];
+      if (scan.follow_ups > 0) {
+        parts.push(`${scan.follow_ups} follow-up${scan.follow_ups === 1 ? "" : "s"} raised`);
+      }
+      if (scan.skipped_human > 0) parts.push(`${scan.skipped_human} left as set by hand`);
+      if (scan.unmatched_files.length > 0) {
+        parts.push(`${scan.unmatched_files.length} file(s) nothing asked for`);
+      }
+
+      // A scan that fell back to filename matching cannot judge completeness and writes
+      // no follow-up questions. It looks identical to a good one unless we say so — and
+      // a consultant who thinks the drive was read would trust it too far.
+      if (scan.generator !== "llm") {
+        show(
+          `${parts.join(" · ")} — matched on filenames only, so completeness was not ` +
+            `assessed and no follow-up questions were raised. Run the scan again to read ` +
+            `the documents.`,
+          "error",
+        );
+        return;
+      }
+      show(parts.join(" · "));
+    },
+    onError: (err: unknown) => {
+      show(err instanceof ApiError ? err.message : "Could not scan the shared drive", "error");
     },
   });
 
@@ -181,92 +239,108 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
   }
 
   const { payload } = irl;
-  const answered = Object.values(irl.responses).filter((v) => v.trim()).length;
+  const kinds = Object.fromEntries(payload.questions.map((q) => [q.id, q.kind]));
+  const progress = summarise(irl.tracking, irl.responses, kinds);
+  const lastScannedAt =
+    Object.values(irl.tracking)
+      .map((t) => t.scanned_at)
+      .filter((v): v is string => Boolean(v))
+      .sort()
+      .at(-1) ?? null;
 
   return (
-    <main className="mx-auto w-full max-w-[1600px] px-7 pt-12 pb-24">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <span className="font-sans text-[13px] text-muted">
-          Version {irl.version}
-          {" · "}
-          {new Date(irl.created_at).toLocaleDateString()}
-          {payload.source_scope_version != null && ` · from scope v${payload.source_scope_version}`}
-        </span>
-        <div className="flex items-center gap-2">
-          <a
-            href={`${API_BASE_URL}/engagements/${engagementId}/irl/export.xlsx`}
-            download
-            className="rounded-full bg-kpmg-blue px-4 py-2 font-sans text-[13px] font-medium text-paper-on-ink transition-colors hover:bg-kpmg-blue-dark"
-          >
-            Download Excel
-          </a>
-          {/* The completed workbook comes back here. The input is hidden because a bare
-              file input cannot be styled to match, and the button is the real control. */}
-          <input
-            ref={fileInput}
-            type="file"
-            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            className="hidden"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) importMutation.mutate(file);
-              event.target.value = "";
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => fileInput.current?.click()}
-            disabled={importMutation.isPending}
-            className="rounded-full border border-line-strong px-4 py-2 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2 disabled:opacity-50"
-          >
-            {importMutation.isPending ? "Reading…" : "Upload responses"}
-          </button>
-          <button
-            type="button"
-            onClick={() => generateMutation.mutate()}
-            disabled={generateMutation.isPending}
-            className="rounded-full border border-line-strong px-4 py-2 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2 disabled:opacity-50"
-          >
-            {generateMutation.isPending ? "Regenerating…" : "Regenerate"}
-          </button>
-        </div>
-      </div>
+    <main className="mx-auto w-full max-w-[1600px] px-7 pb-24">
+      <IrlSummaryRail
+        companyName={payload.company_name ?? null}
+        version={irl.version}
+        createdAt={irl.created_at}
+        sourceScopeVersion={payload.source_scope_version ?? null}
+        lastScannedAt={lastScannedAt}
+        progress={progress}
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => scanMutation.mutate()}
+              disabled={scanMutation.isPending}
+              title="Reads every file on the shared drive, matches it to a request, and writes the status, document type and any follow-up questions"
+              className="rounded-full bg-ink px-3.5 py-2 font-sans text-[12.5px] font-medium text-paper-on-ink transition-colors hover:bg-ink-2 disabled:opacity-50"
+            >
+              {scanMutation.isPending ? "Reading the drive…" : "Scan shared drive"}
+            </button>
+            <a
+              href={`${API_BASE_URL}/engagements/${engagementId}/irl/export.xlsx`}
+              download
+              className="rounded-full bg-kpmg-blue px-3.5 py-2 font-sans text-[12.5px] font-medium text-paper-on-ink transition-colors hover:bg-kpmg-blue-dark"
+            >
+              Download Excel
+            </a>
+            {/* The completed workbook comes back here. The input is hidden because a bare
+                file input cannot be styled to match, and the button is the real control. */}
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) importMutation.mutate(file);
+                event.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInput.current?.click()}
+              disabled={importMutation.isPending}
+              className={ACTION}
+            >
+              {importMutation.isPending ? "Reading…" : "Upload responses"}
+            </button>
+            <button
+              type="button"
+              onClick={() => generateMutation.mutate()}
+              disabled={generateMutation.isPending}
+              className={ACTION}
+            >
+              {generateMutation.isPending ? "Regenerating…" : "Regenerate"}
+            </button>
+          </>
+        }
+      />
 
-      <div className="mb-6">
-        <p className="mb-1 font-sans text-xs font-semibold tracking-[0.08em] text-kpmg-blue uppercase">
-          Initial request list
-        </p>
-        <h1 className="mb-4 font-display text-3xl font-semibold text-text">
-          {payload.company_name ?? "The target"}
-        </h1>
-        <p className="max-w-[72ch] font-sans text-[15px] leading-[1.65] text-text">
+      {/* A scan reads and judges every file, so it runs for the better part of a minute.
+          Saying so beats a button that looks stuck. */}
+      {scanMutation.isPending && (
+        <div
+          role="status"
+          className="mb-6 flex items-start gap-3 rounded-2xl border border-steel/40 bg-steel-tint px-5 py-4"
+        >
+          <span
+            aria-hidden
+            className="mt-1 h-2 w-2 flex-none animate-pulse rounded-full bg-steel"
+          />
+          <p className="font-sans text-[13.5px] leading-[1.55] text-text">
+            Reading each document on the shared drive and matching it to a request. This
+            usually takes under a minute — statuses, document types and follow-up
+            questions land on the rows below when it finishes.
+          </p>
+        </div>
+      )}
+
+      {payload.intro && (
+        <p className="mb-6 max-w-[78ch] font-sans text-[14.5px] leading-[1.65] text-muted">
           {payload.intro}
         </p>
-      </div>
+      )}
 
-      <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-1 font-sans text-[13px] text-muted">
-        <span>
-          {payload.questions.length} request{payload.questions.length === 1 ? "" : "s"} across{" "}
-          {payload.functions.length} function{payload.functions.length === 1 ? "" : "s"}
-        </span>
-        <span>{answered} answered</span>
-        <span>
-          {
-            Object.values(irl.tracking).filter(
-              (t) => t.status === "received_completely",
-            ).length
-          }{" "}
-          received
-        </span>
-        {!payload.used_research && (
-          <Link
-            href={`/engagements/${engagementId}/research`}
-            className="text-steel underline underline-offset-2"
-          >
-            Run company research to tailor these questions
-          </Link>
-        )}
-      </div>
+      {!payload.used_research && (
+        <Link
+          href={`/engagements/${engagementId}/research`}
+          className="mb-6 inline-block font-sans text-[13px] text-steel underline underline-offset-2"
+        >
+          Run company research to tailor these questions
+        </Link>
+      )}
 
       {/* What the upload actually changed. Reported rather than assumed: an import that
           matched nothing looks identical to one that worked. */}
@@ -276,8 +350,8 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
             <div>
               <p className="font-sans text-[14px] text-text">
                 {importResult.updated} response
-                {importResult.updated === 1 ? "" : "s"} imported from{" "}
-                {importResult.matched} matched row
+                {importResult.updated === 1 ? "" : "s"} imported from {importResult.matched}{" "}
+                matched row
                 {importResult.matched === 1 ? "" : "s"}
                 {importResult.skipped_blank > 0 &&
                   ` · ${importResult.skipped_blank} left blank`}
@@ -306,7 +380,7 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
         </div>
       )}
 
-      <IrlTable
+      <IrlRequestList
         engagementId={engagementId}
         payload={payload}
         responses={irl.responses}
@@ -321,6 +395,8 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
         functions={Array.from(new Set(payload.questions.map((q) => q.function))).sort()}
         onAdd={addQuestion}
       />
+
+      <ReminderPanel progress={progress} companyName={payload.company_name ?? null} />
     </main>
   );
 }

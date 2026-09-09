@@ -49,11 +49,13 @@ List**: the document the buyer sends the target, listing every artefact the team
 - **Excel out.** Three columns — Function, Question, Response — with Response blank for
   the client to fill and return.
 
-**Phase 4 — the checklist.** Tracks what has actually arrived against each request:
-`Documents Requested | Document Type | Status`, with every item ranked
-Critical/High/Medium/Low and a legend explaining the colours. The ranking comes from the
-scope — security and regulatory evidence is critical, deep-dive areas are high — so it
-is explainable rather than a guess.
+**Phase 4 — tracking what arrived.** Every request carries its status, document type and
+remarks, ranked Critical/High/Medium/Low. The ranking comes from the scope — security and
+regulatory evidence is critical, deep-dive areas are high — so it is explainable rather
+than a guess. This began as a separate checklist page; on 2026-09-09 it was folded into
+the request list itself, because the shared-drive scan's findings only mean anything
+beside the request they belong to. One screen: what was asked, what came back, what to
+chase.
 
 Two parts are **deliberately deferred to deployment** and documented in
 `docs/phases/PHASE4_PLAN.md`: automatic shared-drive scanning (the endpoint returns 501
@@ -108,6 +110,26 @@ deterministic scope with a logged warning, and the payload records which happene
 (`llm`, `rules (llm tailoring rejected)`, `rules (llm error)`, `rules (llm unavailable)`).
 
 `.env` is gitignored. Never commit a key.
+
+### Optional: point the shared-drive scan at a folder
+
+The request list can walk the folder a client drops documents into, match each file to a
+request, and write the document type, the receiving status and any follow-up questions.
+It defaults to the local test fixture:
+
+```
+SHARED_DRIVE_ROOT=../shared-drive/project-kiln
+```
+
+A relative path resolves against the repo root, because the backend runs from `backend/`.
+At deployment set an absolute path to the real share. **The scan is read-only** — it never
+writes to, moves or deletes anything on the drive.
+
+Without `GEMINI_API_KEY` the scan still runs, matching on filenames alone. It then cannot
+judge completeness, so it never reports "received partially" and writes no follow-up
+questions; the response's `generator` field says `rules` rather than `llm`, and the UI
+says so too. A full scan of ~26 files takes 45-60 seconds, because every shortlisted
+request is judged individually.
 
 ## Run the app
 
@@ -218,6 +240,13 @@ Tech_DD/
 ## Known gaps
 
 Recorded honestly rather than left to be discovered:
+
+- **The shared-drive scan's matching is a calibration, not a solved problem.** Filename
+  and folder overlap shortlists candidates; the model decides. On the Kiln fixture 26 of
+  35 document requests shortlist, and the model correctly rejects the wrong candidates —
+  but a request whose wording shares no distinctive words with the filename will not
+  shortlist at all, and is left `not_received` rather than guessed at. Files nothing
+  claimed are reported as `unmatched_files` so the gap is visible from either side.
 
 - **The "Archived" status filter never returns anything.** `list_engagements` excludes
   archived rows before applying the filter, and `get_engagement` 404s on them, so an

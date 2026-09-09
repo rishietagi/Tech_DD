@@ -178,7 +178,7 @@ Tech_DD/
 │   │   ├── irl/               # seeds, composer, llm, export_xlsx, import_xlsx + prompts/
 │   │   ├── assess/            # process questionnaires, scoring, llm + prompts/
 │   │   ├── research/          # grounded web search + prompts/
-│   │   └── checklist/         # ranking, service, scanner (deferred stub)
+│   │   └── checklist/         # ranking, service, scanner + extract + scan_llm
 │   │   └── reference/         # enums + kpmg_scope/*.yaml + scope_rules.yaml
 │   │                          #   + investigation_questions.yaml (the IRL's questions)
 │   │                          #   + processes/*.yaml (the Assess questionnaires)
@@ -325,14 +325,21 @@ at `docs/phases/PHASE3_PLAN.md`.
 (`scope_of_work`, `information_request_list`, `company_research`, plus `irl_response`).
 Adding a module later is one more table + service + router — do not reshape what exists.
 
-**Phase 4 — BUILT, with two pieces deferred.** The Checklist tracks what has arrived
-against each IRL request, ranked Critical/High/Medium/Low from the scope tier and the
-workstream, with a colour legend. Plan at `docs/phases/PHASE4_PLAN.md`.
+**Phase 4 — BUILT.** Tracking of what has arrived against each IRL request, ranked
+Critical/High/Medium/Low from the scope tier and the workstream. **The separate checklist
+page was deleted on 2026-09-09** (Rishi) and everything it did — progress, the shared-drive
+scan, the reminder stub — now lives on the Initial Request List, because the scan's
+findings only mean anything beside the request they belong to. The checklist API is
+unchanged and still backs it. Plan at `docs/phases/PHASE4_PLAN.md`.
+
+**The shared-drive scanner was built on 2026-09-09** and is no longer deferred. It reads
+every file on the drive, matches it to a request, and writes the document type, the
+receiving status and — where what arrived is partial — the **follow-up questions** that
+close the gap. It never overwrites a human-set status, records what it matched, and only
+scans `document`-kind requests: a question is answered in a meeting, not by a file. Email
+reminders remain a stub.
 
 **Deferred and in scope — do not treat as missing work:**
-- **Shared-drive scanning** — `services/checklist/scanner.py` holds the contract and the
-  rules it must follow; the endpoint returns 501 rather than being absent. Wired at
-  deployment. Test fixture at `shared-drive/project-lighthouse/` (gitignored).
 - **Email reminders** — frontend stub only, honestly badged "Not connected yet".
 - **A client-facing export of the Assess score** — the view is internal-facing by decision;
   the payload carries everything a PPT/PDF would need. Not built rather than guessed at.

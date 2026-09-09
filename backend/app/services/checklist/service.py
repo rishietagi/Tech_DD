@@ -5,9 +5,12 @@ stored against them, and the priority computed from the scope. Nothing is stored
 could drift out of step with the request list it tracks.
 """
 
+from pathlib import Path
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import Settings, get_settings
 from app.core.errors import AppError
 from app.models.irl import InformationRequestList, IrlDocumentStatus
 from app.schemas.checklist import (
@@ -15,9 +18,11 @@ from app.schemas.checklist import (
     ChecklistItemUpdate,
     ChecklistRead,
     ChecklistSummary,
+    ScanResult,
 )
 from app.schemas.irl import IrlPayload
 from app.schemas.scope import ScopeOfWorkPayloadV2
+from app.services.checklist import scanner
 from app.services.checklist.ranking import PRIORITY_ORDER, rank_questions
 from app.services.engagements import get_engagement
 from app.services.irl import service as irl_service
@@ -71,6 +76,9 @@ def build_checklist(db: Session, engagement_id: str) -> ChecklistRead:
                 matched_files=list(record.matched_files or []) if record else [],
                 set_by_human=record.set_by_human if record else False,
                 updated_at=record.updated_at if record else None,
+                follow_up_questions=list(record.follow_up_questions or []) if record else [],
+                scan_reasoning=record.scan_reasoning if record else "",
+                scanned_at=record.scanned_at if record else None,
             )
         )
 
@@ -85,7 +93,11 @@ def build_checklist(db: Session, engagement_id: str) -> ChecklistRead:
         company_name=payload.company_name,
         items=items,
         summary=_summarise(items),
-        last_scanned_at=None,
+        # The most recent walk of the drive across every row, so the UI can say when the
+        # checklist last learned anything. None until a scan has run.
+        last_scanned_at=max(
+            (i.scanned_at for i in items if i.scanned_at is not None), default=None
+        ),
     )
 
 
@@ -98,6 +110,7 @@ def _summarise(items: list[ChecklistItem]) -> ChecklistSummary:
         not_received=sum(1 for i in items if i.status == "not_received"),
         outstanding_critical=sum(1 for i in outstanding if i.priority == "critical"),
         outstanding_high=sum(1 for i in outstanding if i.priority == "high"),
+        follow_ups=sum(len(i.follow_up_questions) for i in items),
     )
 
 
@@ -145,3 +158,39 @@ def update_item(
 
     db.commit()
     return build_checklist(db, engagement_id)
+
+
+def scan_drive(
+    db: Session,
+    engagement_id: str,
+    *,
+    root: Path | None = None,
+    settings: Settings | None = None,
+) -> ChecklistRead:
+    """Walk the shared drive and update the checklist from what is there.
+
+    Returns the rebuilt checklist with a `scan` block describing what the walk did, so
+    the caller can report "52 files, 21 updated, 3 left alone" rather than leaving the
+    consultant to diff the rows themselves.
+    """
+    get_engagement(db, engagement_id)
+    irl = irl_service.get_latest_irl(db, engagement_id)
+    payload = IrlPayload.model_validate(irl.payload_json)
+
+    settings = settings or get_settings()
+    resolved = root or Path(settings.shared_drive_root)
+
+    outcome = scanner.scan_shared_drive(db, irl, payload, root=resolved, settings=settings)
+
+    checklist = build_checklist(db, engagement_id)
+    checklist.scan = ScanResult(
+        files_seen=outcome.files_seen,
+        requests_considered=outcome.requests_considered,
+        updated=outcome.updated,
+        skipped_human=outcome.skipped_human,
+        follow_ups=outcome.follow_ups,
+        generator=outcome.generator,
+        scanned_path=str(resolved),
+        unmatched_files=outcome.unmatched_files,
+    )
+    return checklist

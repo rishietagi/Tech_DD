@@ -249,8 +249,12 @@ once this has been run against real targets. Both live in
 `backend/app/reference/processes/procure_to_pay.yaml`, editable by a practitioner
 without a developer.
 
-**Not yet defined:** Order to Cash, Plan to Make, Hire to Retire, Record to Report. They
-appear in the product as named processes with no questionnaire behind them. Each needs
-its own version of §3 — the step decomposition, the weights and the per-level evidence —
-before it can be assessed. The ladder in §2, the scoring arithmetic in §4 and the banding
-in §5 are process-agnostic and carry over unchanged.
+**Order to Cash is now defined** — see `O2C_AUTOMATION_MODEL.md`, which follows this
+document's structure and shares its ladder and banding unchanged.
+
+**Not yet defined:** Plan to Make, Hire to Retire, Record to Report. They appear in the
+product as named processes with no questionnaire behind them. Each needs its own version
+of §3 — the step decomposition, the weights and the per-level evidence — before it can be
+assessed. The ladder in §2, the scoring arithmetic in §4 and the banding in §5 are
+process-agnostic and carry over unchanged; the **shape** in §6 is not, and is declared per
+process in its questionnaire YAML.

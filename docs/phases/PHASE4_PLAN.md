@@ -62,7 +62,7 @@ specific judgement ("a Tier 2 security policy matters more than a Tier 3 diagram
 ```
 GET   /engagements/{id}/checklist                the assembled view   404 no_irl
 PATCH /engagements/{id}/checklist/{question_id}  set status/type/notes
-POST  /engagements/{id}/checklist/scan           501 — see below
+POST  /engagements/{id}/checklist/scan           walks the drive — see below
 ```
 
 The checklist is **assembled on read**, never stored: questions + statuses + computed
@@ -85,41 +85,54 @@ Nav gained **Checklist** in the Engagement section, after Initial request list.
 
 ---
 
-## Deferred: shared-drive scanning
+## The checklist page no longer exists (2026-09-09)
 
-**Not built.** `services/checklist/scanner.py` holds the contract and the reasoning; the
-endpoint returns a clear 501 rather than a missing route, so the shape is visible in
-OpenAPI and the UI has something real to call.
+Rishi folded it into the Initial Request List. Progress, the scan button and the reminder
+stub all moved there; `ChecklistTable` and `ChecklistLegend` were deleted as dead code.
+The **API is unchanged** — `GET/PATCH/POST /engagements/{id}/checklist` still back the
+scan and the tracking, because the IRL reads the same `irl_document_status` table. Read
+this plan's API and data-model sections as still current; only the screen is gone.
 
-**Rules it must follow when built** — these are the load-bearing ones:
+## Shared-drive scanning — BUILT 2026-09-09
+
+**No longer deferred.** The endpoint walks the folder the client drops documents into,
+reads each file, matches it to a request, and writes three things per request: the
+**document type**, the **receiving status**, and the **follow-up questions** where what
+arrived is not enough.
+
+Two stages, and the split is what keeps it honest:
+
+1. **Deterministic shortlisting** — token overlap between the filename, its folder and the
+   request's own text picks up to four candidates. Reproducible, and it bounds the prompt.
+2. **A model judgement per shortlisted request** — given the candidates' names *and*
+   content excerpts, it decides the status, names the type, and writes the follow-ups.
+   Without a key, or when the model fails, filename matching alone still writes statuses —
+   but it may not claim "partial", because completeness needs the content, and it writes
+   no follow-ups at all.
+
+**The four rules from the stub, all kept:**
 
 1. **A scan never overwrites a human-set status.** `set_by_human` exists for this.
-   Someone who has looked at a document outranks a filename match.
-2. **Record what was matched** in `matched_files`, so a wrong call is visible and
-   correctable rather than silent.
-3. **Below the confidence threshold, propose nothing.** Leaving a request
-   `not_received` is honest; marking it received on a weak match is not.
-4. **Read-only over the drive.** Never delete or move client files.
+2. **Record what was matched.** `matched_files` makes a wrong call visible.
+3. **Below the confidence threshold, propose nothing.** `not_received` is honest.
+4. **Never delete or move client files.** Read-only, always.
 
-Likely strategy: tokenise the filename and its folder, score against `seed_text` and the
-question text (both already stored on every `IrlQuestion`), and treat the per-function
-folder names as a strong hint.
+**Two things the build added:**
 
-**Test fixtures**: two, both gitignored, each built from that engagement's real IRL and
-deliberately partial so every status is demonstrable.
+- **Only `kind == "document"` requests are scanned.** A question is answered in a meeting,
+  not by a file appearing on a drive.
+- **`unmatched_files`** — files nothing asked for. A target sending unrequested material
+  is a fact about the deal.
 
-| Fixture | Deck | Files | Partial (`-ONLY`) | Functions |
-|---|---|---|---|---|
-| `shared-drive/project-lighthouse/` | Product (SaaS) | 24 | 3 | Engineering, Product, Finance, InfoSec, Legal, HR |
-| `shared-drive/project-kiln/` | Enterprise (distributor) | 25 | 4 | IT, Finance, Legal, HR, Operations, Commercial |
+New: `services/checklist/extract.py`, `services/checklist/scan_llm.py`,
+`services/checklist/prompts/scan.md`, migration `0007_add_scan_findings`.
 
-**Two fixtures on purpose.** The Product and Enterprise decks generate different request
-lists with different function names, so a scanner calibrated only against Lighthouse would
-be tuned on half the problem. Kiln also carries an **empty** `06-Commercial-Department/`
-folder — a scanner must not treat an existing folder as evidence that anything arrived.
+**A scan takes 45–60 seconds** against 26 files, because every shortlisted request is
+judged. The checklist page shows a pending state that says so.
 
-Folder names match each IRL's own model-generated function names, which is the strong
-hint the matching strategy is meant to use.
+**Still deferred: email reminders.** Frontend stub only, honestly badged "Not connected
+yet".
+
 
 ## Deferred: email reminders
 
@@ -140,4 +153,4 @@ address comes from, and whether the mail carries the xlsx as an attachment.
 - drove it in a browser against the real 45-item Lighthouse list: correct columns,
   legend covering all four levels, **four distinct badge colours actually rendering**,
   status change persisted across a reload, summary counts updating, the reminder
-  preview matching the table, Send disabled, and the scan surfacing its 501 message
+  preview matching the table, Send disabled, and the scan walking the fixture drive

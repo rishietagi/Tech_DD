@@ -4,7 +4,7 @@ Same contract as the KPMG scope library: content lives in YAML so a practitioner
 a question or retune a weight without touching Python, and a malformed file fails loudly
 at load rather than producing a quietly wrong score.
 
-Four of the five processes are declared in the registry with `defined: false` — named in
+Some of the five processes are declared in the registry with `defined: false` — named in
 the product, no questionnaire behind them. They are listed rather than hidden so the
 shape of the module is visible; asking for one raises `ProcessNotDefinedError`, which the
 API turns into an honest 409 rather than a 404 that would imply the process does not
@@ -39,9 +39,9 @@ class ProcessNotDefinedError(AppError):
         super().__init__(
             code="process_not_defined",
             message=(
-                f"{name} is not yet defined for assessment. Only Procure to Pay has a "
-                f"questionnaire today; the remaining processes are named but their step "
-                f"decomposition and questions have not been written."
+                f"{name} is not yet defined for assessment. It is named in the product "
+                f"because the process exists, but its step decomposition, weights and "
+                f"questions have not been written."
             ),
             status_code=409,
         )
@@ -100,7 +100,7 @@ def _validate_weights(questionnaire: ProcessQuestionnaire) -> None:
     if total != 100:
         raise ProcessLibraryError(
             f"{questionnaire.process_key}: step weights must sum to 100, got {total}. "
-            "See docs/reference/P2P_AUTOMATION_MODEL.md §3."
+            f"See {questionnaire.model_ref} §3."
         )
 
 

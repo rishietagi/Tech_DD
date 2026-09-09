@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { irlApi } from "@/lib/api/irl";
+import { useAutosize } from "@/lib/use-autosize";
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -62,16 +63,19 @@ export function IrlResponseCell({
     void persist(value);
   };
 
+  const { ref } = useAutosize(value);
+
   return (
     <div>
       <textarea
+        ref={ref}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onBlur={onBlur}
         rows={2}
         aria-label="Response"
         placeholder="Leave blank for the client to complete…"
-        className="w-full resize-y rounded-lg border border-line-strong bg-paper px-2.5 py-1.5 font-sans text-[13px] leading-[1.5] text-text placeholder:text-muted-2 focus:border-steel focus:outline-none"
+        className="w-full resize-none rounded-lg border border-line-strong bg-paper px-2.5 py-1.5 font-sans text-[13px] leading-[1.5] text-text placeholder:text-muted-2 focus:border-steel focus:outline-none"
       />
       <span
         aria-live="polite"

@@ -12,10 +12,11 @@ someone has already typed. Keeping them out of `payload_json` also avoids the
 shallow-copy/`flag_modified` trap recorded in docs/PROJECT_LOG.md.
 """
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import JSON as SAJSON
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin, new_uuid
@@ -101,5 +102,18 @@ class IrlDocumentStatus(TimestampMixin, Base):
     # True when a human last set this, so a later scan does not overwrite a judgement
     # someone made deliberately.
     set_by_human: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # --- scan-owned fields. A human editing the row does not touch these; the next scan
+    # --- replaces them, because they describe the last walk of the drive.
+    #
+    # What to go back and ask when what arrived is not enough. A quarter of monitoring
+    # data against a twelve-month request is an incomplete document, not a missing one,
+    # and the useful output is the question that closes the gap.
+    follow_up_questions: Mapped[list[str] | None] = mapped_column(SAJSON, nullable=True)
+    # Why the scan called the status what it did. An automatic status without a stated
+    # reason is an assertion nobody can check.
+    scan_reasoning: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # Null means never scanned, which is different from scanned and found nothing.
+    scanned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     irl: Mapped["InformationRequestList"] = relationship(back_populates="document_statuses")

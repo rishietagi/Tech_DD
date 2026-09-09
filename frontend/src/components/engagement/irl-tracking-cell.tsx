@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { TextArea } from "@/components/ui/text-area";
 import type { IrlTracking, RequestKind } from "@/types/irl";
+import { useAutosize } from "@/lib/use-autosize";
 
 /**
  * What the deal team observes about one request's document: has it arrived, what kind of
@@ -12,6 +13,11 @@ import type { IrlTracking, RequestKind } from "@/types/irl";
  * Rendered inside the IRL from 2026-09-02 so the analyst does not work two screens. None
  * of this is exported to the client workbook — it is the team's own assessment of what
  * has arrived, and of the target's responsiveness.
+ *
+ * This is the *editable* half only. The shared-drive scan's own output — the follow-up
+ * questions, the files it matched and its reasoning — is rendered by `IrlRequestCard`
+ * around this component, because none of it is a control: it is read, not set. Keeping
+ * them apart is what stops a scan's findings looking like fields a human filled in.
  */
 
 /** The same three states, named for what is actually being tracked.
@@ -58,6 +64,7 @@ export function IrlTrackingCell({
   const [remarks, setRemarks] = useState(tracking.remarks);
   const [docType, setDocType] = useState(tracking.document_type);
   const [saving, setSaving] = useState(false);
+  const { ref: remarksRef } = useAutosize(remarks, 200);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Last value we know the server holds, so a re-render from the whole-list response
   // cannot overwrite what is being typed.
@@ -124,7 +131,8 @@ export function IrlTrackingCell({
       )}
 
       <TextArea
-        rows={2}
+        ref={remarksRef}
+        rows={1}
         value={remarks}
         placeholder={
           kind === "question"
@@ -132,7 +140,12 @@ export function IrlTrackingCell({
             : "Remarks — what arrived, what is missing"
         }
         aria-label="Remarks"
-        className="min-h-0 text-[12.5px]"
+        // `!min-h-0` because TextArea's own `min-h-[104px]` is emitted in the same
+        // layer: without the important flag Tailwind keeps the taller of the two and an
+        // empty remark renders as a grey slab. Ninety of those read as the loudest thing
+        // on the page, which is the opposite of true — the autosize hook grows the box
+        // the moment there is anything to show.
+        className="!min-h-0 resize-none py-1.5 text-[12.5px]"
         onChange={(event) => {
           setRemarks(event.target.value);
           debouncedSave({ remarks: event.target.value });

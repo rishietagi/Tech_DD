@@ -8,26 +8,50 @@ future session would otherwise get wrong.
 
 ---
 
-## Current state — 2026-09-02
+## Current state — 2026-09-09
 
 | | |
 |---|---|
-| **Phase 1 (intake)** | Done, committed, pushed |
-| **Phase 2 (scope engine)** | Done, committed (`62ac027`, `61399a6`) |
-| **Phase 3 (IRL + research)** | Built, uncommitted |
-| **Phase 4 (checklist)** | Built, uncommitted; scanner + email deferred |
-| **Phase 5 (assess)** | Built, uncommitted; P2P only, other 4 processes named |
-| **Backend** | pytest 337/337 · ruff clean · mypy clean (82 files) |
-| **Frontend** | tsc clean · eslint clean · vitest 19/19 · `next build` clean |
-| **API** | 38 routes, OpenAPI clean |
-| **DB** | at `0006_add_answer_remarks` |
-| **Git** | `master`, remote `origin` = `git@github.com:rishietagi/Tech_DD.git` |
+| **Phase 1 (intake)** | Done, committed |
+| **Phase 2 (scope engine)** | Done, committed |
+| **Phase 3 (IRL + research)** | Done, committed. Asks **questions as well as documents**; hand-editable; response upload |
+| **Phase 4 (checklist)** | Done. **The checklist page is gone** (2026-09-09) — it is all inside the IRL now; scanner built; email still deferred |
+| **Phase 5 (assess)** | Done. **Procure to Pay and Order to Cash** defined — the other three are named with nothing behind them |
+| **Backend** | pytest 407/407 · ruff clean · mypy clean (85 files) |
+| **Frontend** | tsc clean · eslint clean · vitest 19/19 |
+| **API** | 46 routes, OpenAPI clean |
+| **DB** | at `0007_add_scan_findings` |
+| **Git** | `master`, at `ec3cb97` **plus uncommitted O2C work**. Rishi does all committing and pushing — never run `git push` |
 
-**Uncommitted: everything from 2026-08-31 and 2026-09-02.** In order: the UI fixes and
-the `tech_is_product` removal, PDF export, the review round (required markers, field help,
-AI-heavy stub, two-pass sequencing, PPT export), the delete button, the tier-badge
-removal, Phase 3 (IRL + research), Phase 4 (checklist), and Phase 5 (assess). Rishi does
-all committing and pushing — never run `git push`.
+**Everything through 2026-09-02 is committed.** The Order to Cash work of 2026-09-09 is
+written and verified but **not yet committed** — see the session log entry below.
+
+### Run it
+
+```powershell
+conda activate techdd
+cd backend; alembic upgrade head; uvicorn app.main:app --reload   # :8000
+cd frontend; npm run dev                                          # :3000
+```
+
+**`.env.local` currently points at `:8002`, not `:8000`.** An orphaned socket is holding
+`:8000` (a LISTEN on a dead PID that cannot be bound or killed); it clears on reboot, after
+which `.env.local` can go back to `:8000` — remember to clear `.next` when you change it.
+
+**Two environment traps, both of which look like broken code and are not.** Both were hit
+in the 2026-09-02 session:
+
+1. **An orphaned socket.** A dead uvicorn can leave a LISTEN on a PID that no longer
+   exists; `Stop-Process` cannot clear it and it does not time out. The frontend then
+   renders its shell with **zero API calls and no console error**, because connections to
+   that socket hang rather than failing fast.
+2. **A stale Next.js build.** `NEXT_PUBLIC_*` is inlined at build time, so changing
+   `.env.local` needs `.next` cleared *and* a restart. Deleting `.next` while the dev
+   server is running produces an `ENOENT ... _document.js` runtime error — stop the server
+   first, then delete, then restart.
+
+**The signature for both: a blank page with no console error means the environment, not
+the code.** Check the ports and the build before reading the source.
 
 **Not in git, and intentionally so:** `shared-drive/` — the checklist scanner's test
 fixtures, gitignored. Two of them, deliberately: `project-lighthouse/` (Product DD of a
@@ -133,6 +157,57 @@ The YAML is validated at startup; a malformed file fails loudly.
 
 These were Rishi's calls. **Do not "fix" them back.** `CLAUDE.md` outranks
 `docs/phases/PHASE2_SPEC.md`, and a later instruction outranks both.
+
+### The checklist page was deleted into the IRL (2026-09-09)
+
+Rishi: *"remove the checklist page and add all the features into the IRL page itself."*
+
+The split had been defensible while the checklist was only a progress view — one screen
+to record, one to chase. The shared-drive scan ended that: it writes follow-up questions,
+document types and matched filenames that only mean anything **next to the request they
+belong to**. The scan ran on the checklist page and its output appeared on the request
+list. Two pages for one dataset had become one page for the button and another for the
+result.
+
+Everything moved and nothing was dropped:
+
+- **progress** → a sticky summary rail with the collection percentage, a stacked
+  received/partial bar, and the follow-up count;
+- **the scan button and its pending state** → the rail's action group;
+- **the reminder stub** → a collapsed section at the foot of the IRL, still honestly
+  badged "Not connected yet". Rishi chose to keep it rather than delete it: PHASE4_PLAN
+  records it as deferred-in-scope, and deleting it would have quietly dropped a planned
+  feature along with its wiring notes.
+
+`ChecklistTable` and `ChecklistLegend` were deleted outright — both had already been dead
+code since per-request editing moved into the IRL on 2026-09-02. The `/checklist` route,
+its nav entry and its link on the engagement overview are gone. **The backend was not
+touched**: `GET/PATCH/POST /checklist` still exist and the scan still writes through them,
+because the IRL reads its tracking from the same table. This was a presentation change.
+
+### The shape note moved from code into YAML (2026-09-09)
+
+Defining Order to Cash was supposed to be pure content — `PHASE5_PLAN.md` §5 of "Adding
+the next process" says so explicitly, and it was almost true. One thing was not:
+`scoring.py::_shape_note` hardcoded `sn <= 3` / `sn >= 7` (a nine-step assumption) *and*
+P2P's vocabulary. An O2C score would have carried a shape note about "the requisition and
+approval end", "the invoice and payment end" and "a procurement tool bought and never
+fully rolled through to accounts payable".
+
+Rishi chose to move the prose into YAML rather than reword it in code or force O2C to nine
+steps. An optional `shape` block on the questionnaire now declares the front and back step
+ranges and the three notes; `_shape_note` reads it and appends the measured means. **A
+questionnaire without a `shape` block falls back to exactly the previous behaviour**, so
+P2P is untouched and still declares none.
+
+Why this is the right cut: the *arithmetic* of a shape is process-agnostic — compare the
+early steps against the late ones — but the *commercial reading* is not. In P2P a
+front-loaded cycle means a procurement tool that never reached accounts payable. In O2C it
+means the working capital problem grows with revenue. That judgement is domain content and
+belongs beside the weights a practitioner already edits.
+
+This should be the last edit a new process needs to process-agnostic code. Plan to Make,
+Hire to Retire and Record to Report are now genuinely content-only.
 
 ### The IRL now asks questions, not only requests documents (2026-09-02)
 
@@ -616,6 +691,215 @@ done.
 ---
 
 ## Session log
+
+### 2026-09-09 — One screen: the checklist folded into the request list
+
+**What changed.** The `/checklist` route is deleted. Everything it did now happens on the
+IRL page, which was rebuilt around the fact that it is the screen an analyst lives in.
+
+**The table became cards.** The old five-column table was already 1,500px wide, and the
+scan had just added follow-up questions, matched filenames and a reasoning line to every
+row. A sixth column would have made a horizontal scrollbar the primary navigation. Each
+request is now a three-column card — the request and its follow-ups on the left where
+reading happens, the client's response in the middle, the team's own tracking on the
+right where deciding happens — grouped under collapsible scope areas, with a coloured
+left edge so status is legible without reading a word.
+
+**New components:** `irl-summary-rail.tsx` (sticky header, progress, all whole-list
+actions), `irl-request-card.tsx`, `irl-request-list.tsx` (grouping, filters, search).
+`irl-table.tsx`, `checklist-table.tsx` and `checklist-legend.tsx` are gone — the last two
+had been dead code since 2026-09-02.
+
+**Filters answer the question an analyst actually arrives with:** All / Outstanding /
+Needs follow-up / Received / Documents / Questions. "Needs follow-up" is the one that
+matters — it is the chase list, and it did not exist before.
+
+**Three problems found by rendering it and looking, not by a test:**
+
+1. **Client responses were clipped mid-sentence.** `rows={2}` on a fixed textarea showed
+   "Last refreshed March…" with no indication there was more, which is worse than a long
+   row because the reader cannot tell anything is missing. Added `lib/use-autosize.ts`,
+   bounded so one pasted email cannot push the next request off screen.
+2. **Empty remarks rendered as grey slabs.** `TextArea`'s own `min-h-[104px]` is emitted
+   in the same Tailwind layer as the `min-h-0` override, so the taller value won and
+   ninety empty boxes were the loudest thing on the page. Fixed with `!min-h-0`; empty
+   remarks are 47px now and grow on content.
+3. **Search lied about spelling.** Typing "licence" returned **nothing** against nine
+   matching requests — the model writes the list in US English while the team searching
+   it is British, and the drive's own filenames are British too. Search now folds the
+   common pairs and also covers the document type and matched filenames, so "licence"
+   finds the row the scan filed under `Software-Licence-Inventory-SAP.xlsx`. "SAP" went
+   from 11 matches to 13 for the same reason.
+
+**Verification.** tsc · eslint · `next build` clean, `/checklist` absent from the route
+list. Backend pytest 407 unchanged — nothing server-side was touched. Browser: the rail
+with its six stats, 6 filter chips, search, collapsible groups (90 → 74 cards on collapse,
+back to 90), 11 follow-up blocks, 19 auto-written document types, the "why this status"
+disclosure revealing the matched filename, and no console errors.
+
+**A trap for the next session:** deleting a route leaves stale types in `.next` and `tsc`
+fails on a module it cannot find. Stop the dev server, `rm -rf .next`, re-run. That is the
+environment, not the code — as already recorded for blank pages.
+
+### 2026-09-09 — The shared-drive scanner, and the follow-up questions it writes
+
+**What this closes.** The scanner was the oldest deferred item in the project: the stub
+had held the contract and its four rules since Phase 4 while the endpoint returned 501.
+It now walks the drive for real, and it does the thing the stub never promised — it
+**reads each document and writes the follow-up question when what arrived is not enough**.
+
+**The three outputs Rishi asked for**, all written automatically per request: the
+**document type** ("Policy", "Architecture diagram", "Org chart"), the **receiving
+status**, and the **follow-up questions** where a document is partial.
+
+**How it decides — two stages, and the split is the point:**
+
+1. **Deterministic shortlisting.** Token overlap between the filename, its folder and the
+   request's own text picks up to four candidates per request. Cheap, reproducible, and it
+   is what bounds the prompt — the model never sees 26 files against 90 requests.
+2. **A model judgement per shortlisted request.** Given the candidates' names *and content
+   excerpts*, it decides the status, names the document type, and writes the follow-ups.
+
+**New files:** `services/checklist/extract.py` (read-only text extraction),
+`services/checklist/scan_llm.py`, `services/checklist/prompts/scan.md`. Migration
+`0007_add_scan_findings` adds `follow_up_questions`, `scan_reasoning` and `scanned_at` to
+`irl_document_status`. `python-docx` added to `requirements.txt`.
+
+**Rishi's three decisions** (asked before building, because they shape the schema):
+follow-ups live on the status row rather than becoming real IRL requests; the extractor
+reads xlsx/docx content rather than filenames alone; and the scan **writes** statuses
+rather than only proposing them.
+
+**The four rules from the stub, all kept and all tested:** a scan never overwrites a
+`set_by_human` row; `matched_files` records what a status was inferred from; a
+below-threshold match proposes nothing; the drive is never written to.
+
+**Two things the design adds beyond the ask:**
+
+- **Only `kind == "document"` requests are scanned.** An IRL also asks 55 questions on
+  Kiln, and a question is answered in a meeting, not by a file appearing on a drive.
+  Scanning them would mark them received the moment anything related turned up.
+- **`unmatched_files`** — files nothing on the list asked for. On the fixture this
+  surfaced the parent recharges, the ransomware summary and the headcount extract: real
+  files that map only to *question*-kind rows, so a target sent material nobody requested.
+  That is a fact about the deal, not noise to discard.
+
+**Four bugs, three of them found by running it rather than by a test.**
+
+1. **The first matcher matched 1 request in 35.** `_score` divided the overlap by the
+   *request's* token count. A request is a sentence and a filename is three words, so it
+   punished exactly the filenames that were obviously right —
+   "Application-Inventory-SAP-and-Bolt-ons.xlsx" scored 25% against a request for an
+   application inventory. Now measured against the **smaller** of the two sets, with a
+   floor for two or three distinctive shared terms. 23 of 35 matched immediately after.
+2. **The fixture's .xlsx and .docx files are plain text with Office extensions.** Real
+   parsing raised `BadZipFile` on every one. `extract.py` now falls back to reading a
+   mislabelled file as text, guarded by a printable-ratio check — which is also correct
+   for real drives, where wrong extensions are ordinary.
+3. **`ChecklistTable` is dead code.** The follow-up UI went in there first and rendered
+   nowhere: per-request editing moved to the request list on 2026-09-02, so the checklist
+   page is a summary only and nothing imports that component. Reverted, and the UI moved
+   to `IrlTrackingCell`, which is what the analyst actually looks at. **Found by driving
+   the browser** — the tests would never have caught it.
+4. **A degraded scan looked identical to a good one.** Gemini returned a 503 mid-session;
+   the fallback worked exactly as designed and logged `rules (llm failed)`, but the toast
+   said only "26 files read · 16 requests updated". A consultant would have trusted a
+   filename-only pass as though the documents had been read. The toast now says so
+   explicitly and shows as an error.
+
+**Verification.** pytest 407 (19 new) · ruff · mypy clean (85 files) · tsc · eslint clean.
+
+**Read the actual output**, against `shared-drive/project-kiln`: 26 files, 35 document
+requests, 25 updated, 19 follow-ups. The judgements discriminate — the fixture's
+deliberate traps were all rejected with a stated reason (customer contracts → helpdesk
+SLAs, employment agreements → DPAs, SDLC tools → the SAP licence inventory, PII data flow
+→ the data-centre inventory), and `Infrastructure-Monitoring-2026Q1-ONLY.xlsx` came back
+partial with a follow-up naming Q1 2026 and offering the "or confirm earlier data is not
+retained" form the prompt asks for.
+
+**Drove it in a browser:** the scan button, a pending state that explains the ~45-60s
+wait, a toast reporting the walk, then on the request list 10 follow-up blocks, 18
+auto-written document types, statuses split 9 partial / 7 complete / 19 not received, and
+matched filenames with the scan's reasoning beneath each status. No console errors.
+
+**A trap worth knowing:** a full scan takes **45–60 seconds** against 26 files, because
+every shortlisted request is judged. A browser check that waits 15 seconds sees a button
+stuck on "Reading the drive…" and looks like a hang. It is not.
+
+### 2026-09-09 — Order to Cash: the second Assess process
+
+**What this proves.** Phase 5 claimed a new process would be pure content. Defining O2C
+tested that claim, and it was *almost* true — one genuine coupling point surfaced, and it
+was found by reading generated output rather than by a failing test. Twice.
+
+**The artefacts, in the order the plan prescribes:**
+
+1. `docs/reference/O2C_AUTOMATION_MODEL.md` — written first, because scoring reads from it.
+   **Eight** L1 steps, not nine: O2C has no equivalent of the sourcing event, and credit
+   assessment and customer master data are one decision in practice. Weights sum to 100,
+   heaviest on Invoicing & billing (18) and Cash application (15) — highest volume, and
+   directly working-capital-bearing. Marked `[EXT]`.
+2. `backend/app/reference/processes/order_to_cash.yaml` — 28 questions (21 scoring, 7
+   free-text) and 30 nudges across the 8 steps, plus the `shape` block.
+3. `_registry.yaml` — `defined: true`.
+4. `tests/test_assess.py` — the three library invariants are now parameterised over both
+   processes; 25 new tests, 388 passing overall.
+
+**DD_master.md has nothing on order-to-cash.** Searched for order-to-cash, revenue,
+billing, collections and credit before writing a word. The only adjacent material is
+incidental: customer terms, customer-specific pricing and revenue-recognition policy in the
+Day 1 data-protection list [p. 519], and "take orders, invoice customers, deliver product"
+as an example at §3. Neither is a process model. The content is therefore `[EXT]` and says
+so — it is **not** dressed up with page cites it does not have.
+
+**Two bugs found by reading the generated score, not by tests.**
+
+1. **The model was overwriting the authored shape note.** `llm.py` assigned
+   `payload.shape_note` from the model unconditionally. The first real O2C score came back
+   with the model's own paraphrase — "the cycle deteriorates from fulfilment onwards" —
+   which discarded both the authored commercial reading *and* the measured `(front 2.9/5,
+   back 1.0/5)` that evidences it. The YAML `shape` block would have been invisible in the
+   one artefact anyone reads. Fixed: where a questionnaire declares a `shape` block, that
+   block wins and the model writes prose only. Where it does not (P2P), previous behaviour
+   is unchanged. Two tests now pin both halves.
+2. **The model invented a vendor.** The first summary said "the licensed SAP billing
+   capability" where the analyst's evidence said **Dynamics 365**. The scoring prompt bans
+   inventing *numbers* ("Never invent a number") but says nothing about names, so a
+   fabricated system name passes every check. **Not fixed — flagged for Rishi**, because
+   tightening the prompt is a product decision, not a typo. It did not recur on the second
+   run, which makes it harder rather than easier to catch: it is intermittent, so looking
+   once proves nothing.
+
+**Verification.** pytest 388 · ruff clean · mypy clean (83 files) · tsc clean · eslint
+clean. `black --check` reports 37 files it would reformat, including files untouched by
+this work (`test_irl.py` among them) — the repo is not black-formatted as a baseline, so
+nothing was reformatted.
+
+**Read the actual output**, per the plan. Answered all 40 O2C questions on Project Kiln
+through the API as a front-loaded distributor — portal and EDI ordering, contract pricing
+configured, then spreadsheet billing, cash application and collections. Deterministic index
+**36.4 (Emerging)**, 8 of 8 steps assessed, one LLM refinement of −0.3 on Pricing, within
+the ±1 bound and with a specific reason drawn from the indexation nudge. The executive
+summary used the analyst's real evidence throughout — 78-day DSO against 45-day terms, the
+8 days of internal DSO before the customer is asked to pay, EUR 640k unapplied cash, EUR
+900k in dispute, 6,800 invoices against 5 FTEs, the 3.1% credit note rate against a 1%
+target. Pointers named the right steps, heaviest-weighted first.
+
+**Drove it in a browser.** Five processes with **three** honest "Not yet defined" badges;
+the O2C questionnaire rendering 8 steps, 113 options and 42 remarks/evidence boxes; a nudge
+appearing live on selection; the score view showing the index, the band and its meaning, the
+authored shape note with its measured means, and an 8-row step table. `plan_to_make` gives
+the honest 409 empty state.
+
+**Three traps for the next session, none a code fault:**
+- A **welcome gate** ("Continue") stands in front of the app on a fresh browser profile.
+  A script that navigates straight to a deep route sees an empty shell and looks exactly
+  like a data-loading failure. Click through it first.
+- Options render as `[role=radio]` **buttons**, not `input[type=radio]`, and badges are
+  uppercased by CSS. Selectors written against the obvious markup silently find nothing.
+- Driving the questionnaire in a browser **writes real answers**. The check clicked the
+  first option on `O2C-01-01` and clobbered a stored answer (index fell 36.4 → 32.4 until
+  it was restored). Use a scratch engagement, or restore what you touch.
 
 ### 2026-09-02 — Phase 5: Assess (business process automation)
 

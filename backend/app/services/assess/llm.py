@@ -366,7 +366,14 @@ class LlmScoreGenerator:
         summary = scoring.executive_summary.strip()
         if summary:
             payload.executive_summary = summary
-        if scoring.shape_note and scoring.shape_note.strip():
+        # The model may only write the shape note where the process has not authored one.
+        # A questionnaire carrying a `shape` block has declared its own commercial reading
+        # of a front- or back-loaded cycle — for O2C, that the working capital problem
+        # grows with revenue — together with the measured front and back means that
+        # evidence it. Letting the model paraphrase that discards both the authored
+        # judgement and its arithmetic, which is what it did the first time this ran.
+        authored_shape = questionnaire.shape is not None
+        if not authored_shape and scoring.shape_note and scoring.shape_note.strip():
             payload.shape_note = scoring.shape_note.strip()
 
         valid_kinds = {"gap", "strength", "probe"}

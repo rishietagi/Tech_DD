@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.schemas.checklist import ChecklistItemUpdate, ChecklistRead
 from app.services.checklist import service as checklist_service
-from app.services.checklist.scanner import scan_shared_drive
 
 router = APIRouter(prefix="/engagements/{engagement_id}/checklist", tags=["checklist"])
 
@@ -32,12 +31,15 @@ def update_checklist_item(
 
 @router.post("/scan", response_model=ChecklistRead)
 def scan_for_documents(engagement_id: str, db: Session = Depends(get_db)) -> ChecklistRead:
-    """Walk the shared drive and update statuses automatically.
+    """Walk the shared drive, match files to requests, and update the checklist.
 
-    **Not connected yet** — returns 501 with an explanation. The route exists so the
-    contract is visible in OpenAPI and the UI has something real to call once the drive
-    path and matching rules are configured at deployment. See
-    `services/checklist/scanner.py`.
+    Reads every file under `SHARED_DRIVE_ROOT`, shortlists candidates per request by
+    filename and folder, and — where a model is configured — judges whether what arrived
+    is complete, naming the document type and writing the follow-up questions that close
+    any gap.
+
+    Returns the rebuilt checklist with a `scan` block saying what the walk did. A
+    human-set status is never overwritten. See `services/checklist/scanner.py` for the
+    rules this obeys.
     """
-    scan_shared_drive(engagement_id)
-    return checklist_service.build_checklist(db, engagement_id)  # pragma: no cover
+    return checklist_service.scan_drive(db, engagement_id)

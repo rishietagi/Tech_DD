@@ -124,6 +124,34 @@ class ProcessStep(BaseModel):
     questions: list[Question]
 
 
+class ProcessShape(BaseModel):
+    """How to read this process's front and back ends, declared as content.
+
+    The arithmetic that produces the shape is process-agnostic — compare the mean of the
+    early steps against the mean of the late ones — but *where the ends are* and *what a
+    gap between them means commercially* are not. P2P has nine steps and a front-loaded
+    cycle means a procurement tool never rolled through to accounts payable; O2C has
+    eight and the same shape means the working capital problem grows with revenue. Both
+    belong in YAML with the rest of the domain content.
+
+    Optional: a questionnaire without a `shape` block falls back to the generic split in
+    `scoring._shape_note`, so an existing file keeps working unchanged.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    # Step serial numbers, not indices — they match `ProcessStep.sn`.
+    front_steps: list[int] = Field(min_length=1)
+    back_steps: list[int] = Field(min_length=1)
+    # Named so the even-shape sentence can say which end is which without the process
+    # being hardcoded into the sentence.
+    front_label: str
+    back_label: str
+    front_loaded: str
+    back_loaded: str
+    even: str
+
+
 class ProcessQuestionnaire(BaseModel):
     """One process's full questionnaire, as loaded from YAML."""
 
@@ -135,6 +163,7 @@ class ProcessQuestionnaire(BaseModel):
     version: str
     model_ref: str
     description: str
+    shape: ProcessShape | None = None
     steps: list[ProcessStep]
 
 

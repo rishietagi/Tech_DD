@@ -503,6 +503,10 @@ def tracking_for(db: Session, engagement_id: str, irl: InformationRequestList) -
             priority_reason=reason,
             set_by_human=record.set_by_human if record else False,
             updated_at=record.updated_at if record else None,
+            matched_files=list(record.matched_files or []) if record else [],
+            follow_up_questions=list(record.follow_up_questions or []) if record else [],
+            scan_reasoning=record.scan_reasoning if record else "",
+            scanned_at=record.scanned_at if record else None,
         )
     return merged
 
