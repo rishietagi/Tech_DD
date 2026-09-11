@@ -1,7 +1,7 @@
 # Phase 5 — Assess (business process automation)
 
-**Status: BUILT** for Procure to Pay and Order to Cash. The other three processes are
-named and listed with no questionnaire behind them, by instruction.
+**Status: BUILT** for Procure to Pay, Order to Cash and Plan to Make. Hire to Retire and
+Record to Report are named and listed with no questionnaire behind them.
 
 ## What this phase adds
 
@@ -21,7 +21,7 @@ process automation reveals what is used. The gap between the two is where findin
 
 ## The five processes
 
-`procure_to_pay` and `order_to_cash` are defined. `plan_to_make`, `hire_to_retire` and
+`procure_to_pay`, `order_to_cash` and `plan_to_make` are defined. `hire_to_retire` and
 `record_to_report` are registered with `defined: false` — **listed rather than hidden**, so
 the shape of the module is visible, and returning **409 `process_not_defined`** rather than
 404, which would wrongly imply the process does not exist.
@@ -211,9 +211,47 @@ Where a `shape` block exists it now wins, and the model writes prose only.
   selection, the score view with its index, band, authored shape note and 8-row step
   table, and the honest 409 empty state for `plan_to_make`
 
+## Plan to Make — the third process (2026-09-11)
+
+`docs/reference/P2M_AUTOMATION_MODEL.md` defines eight L1 steps.
+
+| # | Step | Weight |
+|---|---|---|
+| 1 | Demand planning & forecasting | 14 |
+| 2 | Sales & operations planning | 10 |
+| 3 | Master data: BOMs, routings & parameters | 13 |
+| 4 | Material requirements planning | 15 |
+| 5 | Production scheduling & capacity | 12 |
+| 6 | Shop-floor execution & data capture | 12 |
+| 7 | Quality management | 10 |
+| 8 | Inventory & warehouse management | 14 |
+
+**Three things make this process different**, and the model document says so rather than
+forcing the P2P template onto it:
+
+1. **It is a decision cycle, not a transaction cycle.** P2P and O2C leak FTE cost; a manual
+   planning process leaks working capital and service level at the same time.
+2. **A high rung is only credible if the output is used.** A configured MRP run whose
+   output is exported to Excel, reworked and re-entered scores **2, not 3**. Pinned by
+   `test_the_mrp_spreadsheet_rework_option_scores_as_a_two` — scoring it as integrated
+   would let a licence stand in for a working process, which is what this module exists to
+   catch.
+3. **It need not apply in full.** A distributor has no scheduling, shop floor or quality
+   process. Those steps are left unanswered and their weight redistributes;
+   `test_a_non_manufacturing_target_can_be_scored_on_the_steps_that_apply` covers it.
+
+`[EXT]` — `DD_master.md` has no manufacturing process decomposition, which was checked
+before the document was written and is stated in its §7.
+
+**Verification:** pytest 440 (33 new) · ruff · mypy · tsc · eslint clean. A live score on
+Kiln returned **37.6 (Emerging)** with planning at 0.7-1.0 against a floor at 2.5-3.7, the
+authored shape note intact with its measured means, and an executive summary that used the
+analyst's own evidence and correctly attributed a growing obsolescence provision to the
+demand-planning weakness rather than to the inventory step.
+
 ## Adding the next process — the exact shape to follow
 
-Procure to Pay and Order to Cash are the worked examples. Defining Plan to Make, Hire to
+Procure to Pay, Order to Cash and Plan to Make are the worked examples. Defining Hire to
 Retire or Record to Report is the **same six artefacts**, in this order:
 
 1. **`docs/reference/<PROCESS>_AUTOMATION_MODEL.md`** — write this FIRST; scoring reads
@@ -249,5 +287,4 @@ diagnostic, names weak spots plainly. A PPT/PDF in the KPMG house voice is the o
 step and the payload carries everything it needs, but it was not built rather than guessed
 at. Same treatment as the shared-drive scanner.
 
-**The other three processes.** Plan to Make, Hire to Retire and Record to Report are
-named only, by instruction.
+**The other two processes.** Hire to Retire and Record to Report are named only.

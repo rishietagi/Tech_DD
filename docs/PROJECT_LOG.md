@@ -8,7 +8,7 @@ future session would otherwise get wrong.
 
 ---
 
-## Current state — 2026-09-09
+## Current state — 2026-09-11
 
 | | |
 |---|---|
@@ -16,8 +16,8 @@ future session would otherwise get wrong.
 | **Phase 2 (scope engine)** | Done, committed |
 | **Phase 3 (IRL + research)** | Done, committed. Asks **questions as well as documents**; hand-editable; response upload |
 | **Phase 4 (checklist)** | Done. **The checklist page is gone** (2026-09-09) — it is all inside the IRL now; scanner built; email still deferred |
-| **Phase 5 (assess)** | Done. **Procure to Pay and Order to Cash** defined — the other three are named with nothing behind them |
-| **Backend** | pytest 407/407 · ruff clean · mypy clean (85 files) |
+| **Phase 5 (assess)** | Done. **P2P, O2C and Plan to Make** defined — Hire to Retire and Record to Report are named with nothing behind them |
+| **Backend** | pytest 440/440 · ruff clean · mypy clean (85 files) |
 | **Frontend** | tsc clean · eslint clean · vitest 19/19 |
 | **API** | 46 routes, OpenAPI clean |
 | **DB** | at `0007_add_scan_findings` |
@@ -691,6 +691,86 @@ done.
 ---
 
 ## Session log
+
+### 2026-09-11 — A real company research brief, and Plan to Make
+
+Two pieces of work, and the first turned up a bug that had been live since the research
+module was built.
+
+#### 1. Company research now produces a business brief
+
+The old output was a 3-6 sentence summary and a flat list of findings: it answered "what
+is on the record" but not "what does this company actually do, for whom, in what market".
+A tech DD scope is a function of the business model, so that was the wrong thing to be
+missing.
+
+`business_brief` is a new optional block on the payload with seven cited sections:
+executive summary (2-3 paragraphs), what they do, how they make money, customers and
+markets, the sector, competitive position, and what it means for the diligence. Prompt
+version 2.0. Optional so runs stored before today still load, and **any section the
+sources do not support is omitted** rather than padded — the prompt is explicit that an
+honest gap beats invented sector commentary.
+
+The brief feeds the IRL generator too, so requests are specific to the business rather
+than generic to the sector. `implications_for_diligence` is deliberately **excluded** from
+what the IRL sees: it is the research module's own analysis, and letting it steer the
+request list would have the IRL taking cues from a model's opinion rather than from the
+scope the rules produced. It is the only analytical section and the UI labels it as such.
+
+#### 2. The citation bug — **every run ever produced had zero citations**
+
+Found by reading a live run, not by a test. Source ids (`S1`, `S2`, …) are assigned by
+`generator.py` from the grounding metadata that comes back *with* the response — so at the
+moment the model writes its answer, the ids do not exist and it cannot cite them. Every
+`source_ids` array was empty on every finding of every stored run; the per-claim source
+links rendered nothing and only the list at the foot of the page worked. It affected the
+Kiln and Meridian runs equally, so it predates today's work entirely.
+
+Fixed with a second, cheap model call: hand the model its own text alongside the now
+numbered sources and ask only "which of these supports each claim?". No search tool on
+that pass, so JSON output can be forced; temperature 0. It adds no new claims, and **if it
+fails the run is still stored uncited** — a degraded research note is worth having, one
+that was never stored is lost. Verified live: 10/10 findings and all seven brief sections
+cited, where every previous run had none.
+
+One limitation worth knowing: Gemini's grounding metadata gives only the **domain** as a
+source title and the URLs are opaque redirects, so five pages on rsgroup.com all render as
+"rsgroup.com". The source id is now shown beside each link so they can at least be told
+apart and found in the list below.
+
+#### 3. Plan to Make — the third Assess process
+
+`docs/reference/P2M_AUTOMATION_MODEL.md`, eight steps summing to 100, heaviest on MRP (15)
+and demand planning (14). `plan_to_make.yaml` has 25 questions (19 scoring) and 22 nudges.
+
+Three things make P2M genuinely different from P2P and O2C, and the model document says so
+rather than pretending the template fits:
+
+- **It is a decision cycle, not a transaction cycle.** The cost of being wrong is
+  inventory and service level simultaneously, not FTE effort.
+- **A high rung is only credible if the output is used.** A configured MRP run whose
+  output is exported to Excel, reworked and re-entered scores **2, not 3** — the system
+  proposes and a human decides. That option is pinned by its own test, because scoring it
+  as integrated would let a licence stand in for a working process.
+- **It need not apply in full.** A distributor or service business has no scheduling, shop
+  floor or quality process; those steps are left unanswered and their weight redistributes.
+  A test covers exactly that case, because the alternative is an analyst inventing answers
+  to make the questionnaire look complete.
+
+**Verification.** pytest 440 (33 new) · ruff · mypy clean (85 files) · tsc · eslint clean.
+
+**Read the generated score.** 35 answers on Kiln as a back-loaded distributor-assembler:
+index **37.6 (Emerging)**, 8/8 steps assessed, planning at 0.7-1.0 against a floor at
+2.5-3.7. The authored shape note survived with its measured means (front 0.9 / back 3.1)
+and no P2P or O2C vocabulary leaked. The summary used the real evidence — the single demand
+planner, three days a month assembling S&OP packs, the one-third override rate, the EUR
+2.2m provision — and the model made the inference the model document says a reader should:
+it attributed the growing provision to the demand-planning weakness rather than to the
+inventory step, which scored well.
+
+**Browser:** 2 honest "Not yet defined" badges, 103 options, 34 evidence and remarks
+boxes, the score view with its 8-row table and ascending bar pattern making the shape
+visible at a glance. No console errors.
 
 ### 2026-09-09 — One screen: the checklist folded into the request list
 

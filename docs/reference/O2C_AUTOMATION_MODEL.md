@@ -291,7 +291,8 @@ adjustment once this has been run against real targets. Both live in
 a developer. The bands in §5 are shared with P2P and should not be moved for one process
 alone.
 
-**Still not defined:** Plan to Make, Hire to Retire, Record to Report. They appear in the
+**Still not defined:** Hire to Retire, Record to Report. Plan to Make was defined on
+2026-09-11 - see `P2M_AUTOMATION_MODEL.md`. They appear in the
 product as named processes with no questionnaire behind them. Each needs its own version
 of §3 — the step decomposition, the weights and the per-level evidence — before it can be
 assessed. The ladder in §2, the scoring arithmetic in §4 and the banding in §5 are

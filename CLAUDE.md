@@ -343,14 +343,13 @@ reminders remain a stub.
 - **Email reminders** — frontend stub only, honestly badged "Not connected yet".
 - **A client-facing export of the Assess score** — the view is internal-facing by decision;
   the payload carries everything a PPT/PDF would need. Not built rather than guessed at.
-- **The four undefined business processes** — named only, by instruction.
+- **The two undefined business processes** — Hire to Retire and Record to Report.
 
-**Phase 5 — BUILT, for Procure to Pay only.** The Assess module: a questionnaire with
+**Phase 5 — BUILT, for Procure to Pay, Order to Cash and Plan to Make.** The Assess module: a questionnaire with
 conditional **nudges** (if X is the answer, ask Y) covering the nine steps of P2P, a blank
 response against every question, analyst-added questions, and a deterministic 0-100
-automation index with an executive summary and pointers. The other four processes (Order to
-Cash, Plan to Make, Hire to Retire, Record to Report) are **named and listed with nothing
-behind them**, by instruction — a 409, never a 404. Plan at `docs/phases/PHASE5_PLAN.md`;
+automation index with an executive summary and pointers. Hire to Retire and Record to Report are
+**named and listed with nothing behind them** — a 409, never a 404. Plan at `docs/phases/PHASE5_PLAN.md`;
 the domain model at `docs/reference/P2P_AUTOMATION_MODEL.md`.
 
 **Assess is the one module where the LLM may move a number** (2026-09-02, Rishi's explicit

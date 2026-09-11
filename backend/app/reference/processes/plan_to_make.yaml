@@ -1,0 +1,501 @@
+# Plan to Make — automation assessment questionnaire.
+#
+# The domain model behind this file is docs/reference/P2M_AUTOMATION_MODEL.md. Read it
+# before changing weights or scores: every `score` below is a level on the 0-5 maturity
+# ladder defined in §2, and every step weight comes from §3.
+#
+# A practitioner edits this file without a developer. It is validated at startup and a
+# malformed file fails loudly.
+#
+# QUESTION TYPES
+#   single_select  - scores. Each option carries the ladder level it evidences.
+#   text           - does not score. Captures evidence, volumes and caveats; this is
+#                    what the exec summary draws on. In P2M the numbers worth having are
+#                    forecast accuracy, stock-record accuracy, schedule adherence, the
+#                    planner override rate, inventory value and turns, and OEE.
+#
+# NUDGES
+#   A nudge is a conditional follow-up: "if X is the answer, ask Y". They evaluate as
+#   the analyst answers, so the follow-up appears immediately beneath its parent.
+#   `when.equals` matches one option; `when.in` matches any of several; `when.answered`
+#   fires on any non-empty answer. Nudges never score - they exist to make the evidence
+#   behind a score defensible, and a nudge that scored would double-count its parent.
+#
+# WEIGHTS sum to 100. See P2M_AUTOMATION_MODEL.md §3 for why each step carries what it
+# does. Weight reflects the financial exposure the step controls and the volume of
+# decisions it carries, not assessment effort.
+#
+# APPLICABILITY. This process assumes the target makes something. For a distributor or a
+# service business, steps 4-6 will not apply — leave them unanswered rather than forcing
+# an answer. Unassessed steps drop out of the index and their weight is redistributed,
+# so a partial assessment is still defensible. See §1 of the model document.
+#
+# THE RULE THAT MATTERS MOST HERE. A high rung is only credible if the system's output is
+# actually used. A configured MRP run whose output is exported to Excel, reworked and
+# re-entered is not a 3 — it is a 2, because the system proposes and a human decides. The
+# override-rate and schedule-adherence questions exist to catch exactly that, and where
+# the answers contradict the tooling, the behaviour wins over the licence.
+
+process_key: plan_to_make
+name: Plan to Make
+short_name: P2M
+version: "1.0"
+model_ref: docs/reference/P2M_AUTOMATION_MODEL.md
+description: >-
+  How demand becomes a production plan and a plan becomes finished goods. Assessed for
+  automation maturity across eight steps, weighted by the financial exposure each
+  controls and the volume of decisions it carries.
+
+shape:
+  front_steps: [1, 2, 3]
+  back_steps: [6, 7, 8]
+  front_label: the planning and master-data end
+  back_label: the shop-floor and inventory end
+  front_loaded: >-
+    Front-loaded: planning is materially more automated than execution. The plan is
+    sophisticated but it is built on a work-in-progress and stock position reported late
+    and approximately, so it degrades between publication and execution. Planners
+    compensate with buffer stock, which means inventory sits structurally higher than the
+    plan implies and the gap is invisible in the planning tool. The remediation is on the
+    floor — scanning, confirmations, real-time visibility — not in more planning
+    software, which is usually the opposite of where a management team wants to invest.
+  back_loaded: >-
+    Back-loaded: execution and stock control are materially more automated than planning.
+    The business executes accurately against a plan that is guesswork, so it is efficient
+    at making the wrong things. The signature is high inventory and poor service at the
+    same time, which management will usually attribute to demand volatility rather than
+    to the forecast. Improving the floor further will not help; the constraint is demand
+    planning and the master data underneath it.
+  even: >-
+    Broadly even across the cycle, so the constraint is the overall level rather than one
+    weak end. Read the index next to stock-record accuracy and forecast accuracy before
+    concluding the process is adequate: the same score with 99% and with 85% stock
+    accuracy describes two very different businesses, and the second is the more
+    expensive problem.
+
+steps:
+  # ---------------------------------------------------------------- 1
+  - key: p2m_demand
+    sn: 1
+    title: Demand planning & forecasting
+    weight: 14
+    intent: >-
+      How future demand is estimated and whether anyone measures if it was right.
+      Everything downstream is built on this, and an unmeasured forecast is the most
+      common root cause of both excess stock and stockouts.
+    questions:
+      - id: P2M-01-01
+        text: How is the demand forecast produced?
+        type: single_select
+        options:
+          - { label: "There is no forecast — production follows the orders that arrive", score: 0 }
+          - { label: "A spreadsheet built by one person, largely last year plus a percentage", score: 1 }
+          - { label: "A documented process with sales input collected and consolidated manually", score: 2 }
+          - { label: "Statistical forecasting in a planning system across the main portfolio", score: 3 }
+          - { label: "Multiple statistical models selected by demand behaviour and segmented by product class", score: 4 }
+          - { label: "Machine-learning demand sensing using external signals, continuously retrained", score: 5 }
+        nudges:
+          - when: { in: ["There is no forecast — production follows the orders that arrive", "A spreadsheet built by one person, largely last year plus a percentage"] }
+            ask: >-
+              Who builds the forecast, and what happens when they are on leave? A planning
+              process held by one person is a key-person risk that shows up as a service
+              failure, not as an IT issue — record the name and the cover arrangement.
+          - when: { equals: "Machine-learning demand sensing using external signals, continuously retrained" }
+            ask: >-
+              Which external signals, and what measured improvement over the previous
+              statistical baseline? Confirm this is running in production rather than a
+              pilot or a vendor claim.
+
+      - id: P2M-01-02
+        text: Is forecast accuracy measured?
+        type: single_select
+        options:
+          - { label: "Not measured at all", score: 0 }
+          - { label: "Discussed anecdotally when something goes wrong", score: 1 }
+          - { label: "Measured occasionally, not reported", score: 2 }
+          - { label: "Measured and reported on a defined cycle at an aggregate level", score: 3 }
+          - { label: "Measured by segment with bias tracked and actively corrected", score: 4 }
+        nudges:
+          - when: { in: ["Not measured at all", "Discussed anecdotally when something goes wrong"] }
+            ask: >-
+              Without forecast accuracy, nobody can say whether the inventory position is
+              a planning problem or a demand problem. Ask whether the data exists to
+              calculate it retrospectively, and record that it is not currently measured —
+              this is a finding in its own right.
+          - when: { in: ["Measured and reported on a defined cycle at an aggregate level", "Measured by segment with bias tracked and actively corrected"] }
+            ask: >-
+              What is the current MAPE or forecast accuracy figure, at what level of
+              aggregation, and is there a persistent bias? Ask for the number; an
+              aggregate accuracy can hide poor item-level accuracy entirely.
+
+      - id: P2M-01-03
+        text: How are new products and promotions forecast, as distinct from the steady range?
+        type: single_select
+        options:
+          - { label: "No distinct treatment — they are forecast like anything else, or not at all", score: 0 }
+          - { label: "Judgement by the product or sales team, held outside the system", score: 1 }
+          - { label: "A manual override applied to the statistical forecast", score: 2 }
+          - { label: "Structured NPI and promotional planning held in the system", score: 3 }
+          - { label: "Analogue-based modelling with post-event review feeding the next forecast", score: 4 }
+
+      - id: P2M-01-04
+        text: What is the product range, and how much of it is made to stock versus made to order?
+        type: text
+
+  # ---------------------------------------------------------------- 2
+  - key: p2m_sop
+    sn: 2
+    title: Sales & operations planning
+    weight: 10
+    intent: >-
+      The cycle that reconciles demand, supply, capacity and finance into one agreed
+      plan. A weak S&OP means each function is working to its own numbers.
+    questions:
+      - id: P2M-02-01
+        text: Is there an S&OP or equivalent planning cycle, and how does it run?
+        type: single_select
+        options:
+          - { label: "No S&OP — functions work to their own numbers and reconcile by argument", score: 0 }
+          - { label: "A periodic meeting supported by spreadsheets assembled by hand each cycle", score: 1 }
+          - { label: "A defined monthly cycle with an agreed pack, compiled manually", score: 2 }
+          - { label: "S&OP runs on the planning system and the agreed plan drives MRP", score: 3 }
+          - { label: "Integrated business planning reconciled to the financial plan, with scenario modelling", score: 4 }
+          - { label: "Continuous re-planning against live signals rather than a monthly cadence", score: 5 }
+        nudges:
+          - when: { in: ["No S&OP — functions work to their own numbers and reconcile by argument", "A periodic meeting supported by spreadsheets assembled by hand each cycle"] }
+            ask: >-
+              How long does it take to assemble the pack each cycle, and who does it? This
+              is usually several days of a senior planner's month spent on data assembly
+              rather than on planning.
+          - when: { in: ["S&OP runs on the planning system and the agreed plan drives MRP", "Integrated business planning reconciled to the financial plan, with scenario modelling"] }
+            ask: >-
+              Does the agreed plan actually drive the MRP run, or is it re-entered? Ask to
+              see the link. A plan agreed in one system and re-keyed into another is two
+              plans that will diverge.
+
+      - id: P2M-02-02
+        text: Who owns the final plan when demand and supply cannot be reconciled?
+        type: text
+
+  # ---------------------------------------------------------------- 3
+  - key: p2m_master_data
+    sn: 3
+    title: "Master data: BOMs, routings & parameters"
+    weight: 13
+    intent: >-
+      Bills of material, routings, lead times and safety stocks. The least glamorous step
+      and the most common single cause of a planning system nobody trusts.
+    questions:
+      - id: P2M-03-01
+        text: Where do bills of material and routings live, and how are they changed?
+        type: single_select
+        options:
+          - { label: "Informally — on drawings, in spreadsheets, or in people's heads", score: 0 }
+          - { label: "In spreadsheets or a legacy system, updated when someone notices a problem", score: 1 }
+          - { label: "In the ERP, but changed without a controlled process", score: 2 }
+          - { label: "In the ERP with a controlled engineering change process and measured accuracy", score: 3 }
+          - { label: "Controlled, measured, and integrated with PLM or the design system", score: 4 }
+        nudges:
+          - when: { in: ["Informally — on drawings, in spreadsheets, or in people's heads", "In spreadsheets or a legacy system, updated when someone notices a problem", "In the ERP, but changed without a controlled process"] }
+            ask: >-
+              Has BOM accuracy ever been measured? If not, ask how often production
+              discovers a missing or wrong component mid-run. That frequency is the
+              accuracy figure, and it is usually worse than management expects.
+
+      - id: P2M-03-02
+        text: How are planning parameters — lead times, safety stock, reorder points, lot sizes — set and maintained?
+        type: single_select
+        options:
+          - { label: "Set at implementation and never revisited", score: 0 }
+          - { label: "Changed reactively when something goes wrong", score: 1 }
+          - { label: "Reviewed occasionally as a project", score: 2 }
+          - { label: "Reviewed on a defined cycle against actual performance", score: 3 }
+          - { label: "Recalculated automatically from actual lead times and demand variability", score: 4 }
+          - { label: "Continuously tuned with automated anomaly detection on the master data", score: 5 }
+        nudges:
+          - when: { in: ["Set at implementation and never revisited", "Changed reactively when something goes wrong"] }
+            ask: >-
+              When was the ERP implemented? Parameters set at go-live and never revisited
+              are planning on the business as it was then — quantify the gap if
+              management can, and note it as a quick win with real working-capital value.
+
+      - id: P2M-03-03
+        text: What is the measured BOM and routing accuracy, and how many active part numbers are there?
+        type: text
+
+  # ---------------------------------------------------------------- 4
+  - key: p2m_mrp
+    sn: 4
+    title: Material requirements planning
+    weight: 15
+    intent: >-
+      The MRP run itself, and crucially whether its output is what actually plans. The
+      highest volume of decisions in the cycle and where a licensed capability most often
+      sits unused.
+    questions:
+      - id: P2M-04-01
+        text: How are material requirements calculated and turned into orders?
+        type: single_select
+        options:
+          - { label: "By eye, by someone who knows the product", score: 0 }
+          - { label: "A spreadsheet netting requirements against stock, rebuilt each cycle", score: 1 }
+          - { label: "MRP runs, but its output is exported to a spreadsheet, reworked and re-entered", score: 2 }
+          - { label: "MRP runs on a cycle, exceptions are worked in-system, and orders release without re-keying", score: 3 }
+          - { label: "Frequent netting with exception-based planning and electronic supplier schedules", score: 4 }
+          - { label: "Continuous constraint-aware replenishment with automated action on routine exceptions", score: 5 }
+        nudges:
+          - when: { equals: "MRP runs, but its output is exported to a spreadsheet, reworked and re-entered" }
+            ask: >-
+              This is the single most common finding in this process and it is worth
+              recording verbatim. Ask what the spreadsheet does that the system does not,
+              and who maintains it. The answer is usually a parameter or master-data
+              problem that could be fixed in the system — capex avoided, if so.
+          - when: { in: ["By eye, by someone who knows the product", "A spreadsheet netting requirements against stock, rebuilt each cycle"] }
+            ask: >-
+              Does the target hold an ERP licence that includes MRP? A licensed and unused
+              planning module changes the investment case from new software to
+              configuration and change management, which is a very different risk profile.
+
+      - id: P2M-04-02
+        text: How often does the planning run execute?
+        type: single_select
+        options:
+          - { label: "There is no regular run", score: 0 }
+          - { label: "Monthly, or when someone remembers", score: 1 }
+          - { label: "Weekly", score: 2 }
+          - { label: "Daily or overnight", score: 3 }
+          - { label: "Continuously or on demand as conditions change", score: 4 }
+
+      - id: P2M-04-03
+        text: How often do planners override what the system proposes?
+        type: single_select
+        options:
+          - { label: "Almost always — the system's output is a starting point at best", score: 0 }
+          - { label: "Frequently, and the rate is not measured", score: 1 }
+          - { label: "Sometimes, on judgement, not measured", score: 2 }
+          - { label: "Occasionally and by exception, with the reason recorded", score: 3 }
+          - { label: "Rarely, with the override rate measured and root causes worked", score: 4 }
+        nudges:
+          - when: { in: ["Almost always — the system's output is a starting point at best", "Frequently, and the rate is not measured"] }
+            ask: >-
+              Ask why. A high override rate is a symptom, not a behaviour: usually wrong
+              lead times, wrong safety stock, or a BOM the planners know is inaccurate.
+              Record the reasons given — they point straight at the remediation, and they
+              contradict any claim that the planning system is working.
+          - when: { equals: "Rarely, with the override rate measured and root causes worked" }
+            ask: >-
+              What is the measured override rate, and what are the top causes? A target
+              that can answer this precisely is running a genuinely mature planning
+              process — verify the number rather than accepting the claim.
+
+  # ---------------------------------------------------------------- 5
+  - key: p2m_scheduling
+    sn: 5
+    title: Production scheduling & capacity
+    weight: 12
+    intent: >-
+      Whether the plan is executable. An infinite-capacity plan is a wish list, and the
+      floor will quietly re-plan it.
+    questions:
+      - id: P2M-05-01
+        text: How is the production schedule built?
+        type: single_select
+        options:
+          - { label: "A whiteboard, a printed list, or the supervisor's judgement each morning", score: 0 }
+          - { label: "A spreadsheet Gantt maintained by one scheduler", score: 1 }
+          - { label: "Scheduled in the ERP on infinite capacity, with the real constraint managed informally", score: 2 }
+          - { label: "Finite-capacity scheduling against modelled work centres with sequencing rules", score: 3 }
+          - { label: "Optimised against changeover and constraint rules, with re-scheduling on disruption", score: 4 }
+          - { label: "Automated re-optimisation on live events, visible directly on the floor", score: 5 }
+        nudges:
+          - when: { equals: "Scheduled in the ERP on infinite capacity, with the real constraint managed informally" }
+            ask: >-
+              Who holds the real constraint knowledge, and is it written down anywhere?
+              An infinite-capacity plan corrected by one experienced scheduler is a
+              key-person dependency wearing a system as a disguise.
+          - when: { in: ["A whiteboard, a printed list, or the supervisor's judgement each morning", "A spreadsheet Gantt maintained by one scheduler"] }
+            ask: >-
+              How many work centres or lines are being scheduled, and how far ahead? Scale
+              matters here — a two-line plant scheduled on a whiteboard may be entirely
+              rational, while a twenty-line plant is carrying real risk.
+
+      - id: P2M-05-02
+        text: Is schedule adherence measured?
+        type: single_select
+        options:
+          - { label: "Not measured", score: 0 }
+          - { label: "Known anecdotally", score: 1 }
+          - { label: "Measured informally by the scheduler", score: 2 }
+          - { label: "Measured and reported as a KPI", score: 3 }
+          - { label: "Measured, reported, and the causes of deviation actively worked", score: 4 }
+        nudges:
+          - when: { in: ["Measured and reported as a KPI", "Measured, reported, and the causes of deviation actively worked"] }
+            ask: >-
+              What is the current schedule adherence figure, and what are the main causes
+              of deviation? Material shortages point upstream at MRP and master data;
+              breakdowns point at maintenance; changeovers point at the schedule itself.
+
+      - id: P2M-05-03
+        text: What are the main capacity constraints, and how are they modelled?
+        type: text
+
+  # ---------------------------------------------------------------- 6
+  - key: p2m_execution
+    sn: 6
+    title: Shop-floor execution & data capture
+    weight: 12
+    intent: >-
+      Where the plan meets reality. Without timely confirmation the system's view of
+      work in progress is fiction, and nothing upstream can correct itself.
+    questions:
+      - id: P2M-06-01
+        text: How is work confirmed as it is completed on the floor?
+        type: single_select
+        options:
+          - { label: "Paper travellers, reported verbally or on a clipboard and keyed later", score: 0 }
+          - { label: "Works orders printed from the system, confirmed in a batch at shift or week end", score: 1 }
+          - { label: "Entered in-system by supervisors with a lag, often estimated", score: 2 }
+          - { label: "Timely operator-level confirmation at the workstation — scanning, terminals or MES", score: 3 }
+          - { label: "Machine and labour data captured automatically where equipment allows, with live WIP", score: 4 }
+          - { label: "Connected equipment reporting status, output and downtime without transcription", score: 5 }
+        nudges:
+          - when: { in: ["Paper travellers, reported verbally or on a clipboard and keyed later", "Works orders printed from the system, confirmed in a batch at shift or week end", "Entered in-system by supervisors with a lag, often estimated"] }
+            ask: >-
+              What is the typical lag between work happening and the system knowing about
+              it? Every hour of lag is an hour in which the planning system is working
+              from a WIP position that is not true — and that is what planners are
+              buffering against.
+          - when: { equals: "Machine and labour data captured automatically where equipment allows, with live WIP" }
+            ask: >-
+              What proportion of the equipment base is actually connected, and what is the
+              age profile of the rest? Automated capture on the newest three machines of
+              thirty is a pilot, not a capability.
+
+      - id: P2M-06-02
+        text: Is overall equipment effectiveness or an equivalent measured?
+        type: single_select
+        options:
+          - { label: "Not measured", score: 0 }
+          - { label: "Estimated from production output after the fact", score: 1 }
+          - { label: "Measured manually on key assets", score: 2 }
+          - { label: "Measured systematically with downtime reasons captured", score: 3 }
+          - { label: "Measured automatically and used to drive maintenance and scheduling", score: 4 }
+
+      - id: P2M-06-03
+        text: How many production sites and work centres are in scope, and what systems run them?
+        type: text
+
+  # ---------------------------------------------------------------- 7
+  - key: p2m_quality
+    sn: 7
+    title: Quality management
+    weight: 10
+    intent: >-
+      Inspection, non-conformance and traceability. Control-critical and
+      regulatory-critical — traceability is a deal issue in food, pharma, aerospace and
+      automotive whatever the automation level.
+    questions:
+      - id: P2M-07-01
+        text: How are quality inspections planned and their results recorded?
+        type: single_select
+        options:
+          - { label: "On paper, filed; no analysable record", score: 0 }
+          - { label: "Inspection results in spreadsheets", score: 1 }
+          - { label: "A quality system holds results, but plans and dispositions are managed manually", score: 2 }
+          - { label: "Inspection plans configured against the routing with results captured in-system", score: 3 }
+          - { label: "Statistical process control on key characteristics with cost of quality measured", score: 4 }
+          - { label: "In-line automated inspection feeding SPC continuously", score: 5 }
+
+      - id: P2M-07-02
+        text: How are non-conformances and corrective actions handled?
+        type: single_select
+        options:
+          - { label: "Informally, by email or conversation", score: 0 }
+          - { label: "Logged in a spreadsheet", score: 1 }
+          - { label: "Recorded in-system, chased manually", score: 2 }
+          - { label: "Workflow-managed with ownership, ageing and CAPA tracking", score: 3 }
+          - { label: "Root-cause analysis feeding process change, with recurrence measured", score: 4 }
+        nudges:
+          - when: { in: ["Informally, by email or conversation", "Logged in a spreadsheet"] }
+            ask: >-
+              What is the current cost of quality — scrap, rework, warranty — and is it
+              measured at all? If it cannot be produced, record that it could not.
+
+      - id: P2M-07-03
+        text: If a defective batch had to be recalled, how quickly could every affected unit be identified?
+        type: single_select
+        options:
+          - { label: "It would be a manual reconstruction from paper records, taking days or longer", score: 0 }
+          - { label: "Possible from spreadsheets and system records with significant effort", score: 1 }
+          - { label: "Traceable in-system, but assembling the picture takes manual work", score: 2 }
+          - { label: "Full batch and lot traceability available in-system on demand", score: 3 }
+          - { label: "End-to-end traceability demonstrable within hours and periodically tested", score: 4 }
+        nudges:
+          - when: { in: ["It would be a manual reconstruction from paper records, taking days or longer", "Possible from spreadsheets and system records with significant effort"] }
+            ask: >-
+              Which regulatory regimes apply to this product — food, pharma, medical
+              device, aerospace, automotive? Where traceability is a legal requirement,
+              this is a compliance finding rather than an automation gap, and it should be
+              escalated as one.
+          - when: { equals: "End-to-end traceability demonstrable within hours and periodically tested" }
+            ask: >-
+              When was the last traceability exercise or mock recall, and what was the
+              elapsed time? Ask for the record — a tested capability and an asserted one
+              are different things.
+
+  # ---------------------------------------------------------------- 8
+  - key: p2m_inventory
+    sn: 8
+    title: Inventory & warehouse management
+    weight: 14
+    intent: >-
+      Stock accuracy, location control and movement. Directly working-capital bearing,
+      and stock-record accuracy gates the credibility of every number above it.
+    questions:
+      - id: P2M-08-01
+        text: How are stock movements recorded?
+        type: single_select
+        options:
+          - { label: "Stock is counted when someone needs to know; there is no perpetual record", score: 0 }
+          - { label: "A perpetual record everyone knows is unreliable, corrected by an annual count", score: 1 }
+          - { label: "Location-controlled stock with periodic cycle counting, movements keyed manually", score: 2 }
+          - { label: "Barcode or RFID scanning with systematic cycle counting and measured accuracy", score: 3 }
+          - { label: "A WMS directing put-away and picking, with accuracy reported as a KPI", score: 4 }
+          - { label: "Automated material handling integrated with the WMS, continuously verified", score: 5 }
+        nudges:
+          - when: { in: ["Stock is counted when someone needs to know; there is no perpetual record", "A perpetual record everyone knows is unreliable, corrected by an annual count"] }
+            ask: >-
+              What was the last stock-take adjustment, in value and as a percentage of
+              inventory? That number is the honest measure of the record's reliability,
+              and it should be reconciled with what the finance team booked.
+
+      - id: P2M-08-02
+        text: Is stock-record accuracy measured?
+        type: single_select
+        options:
+          - { label: "Not measured", score: 0 }
+          - { label: "Known only from the annual count", score: 1 }
+          - { label: "Measured through periodic cycle counts", score: 2 }
+          - { label: "Measured continuously and reported, sustained above 95%", score: 3 }
+          - { label: "Sustained above 98% with variances root-caused", score: 4 }
+        nudges:
+          - when: { answered: true }
+            ask: >-
+              What is the current stock-record accuracy figure? It is the single number
+              that governs how much of the rest of this assessment can be believed — a
+              sophisticated planning process on an 85%-accurate stock record is planning
+              on fiction.
+
+      - id: P2M-08-03
+        text: How is slow-moving and obsolete stock identified and dealt with?
+        type: single_select
+        options:
+          - { label: "Not systematically — it is found during stock-takes", score: 0 }
+          - { label: "Reviewed manually when the provision is calculated", score: 1 }
+          - { label: "A periodic report someone works through", score: 2 }
+          - { label: "System-flagged against defined ageing rules and actively worked", score: 3 }
+          - { label: "Monitored continuously with disposal and provisioning driven by policy", score: 4 }
+
+      - id: P2M-08-04
+        text: What is the inventory value, how many turns, and what is the current obsolescence provision?
+        type: text

@@ -32,7 +32,7 @@ processes:
   - key: plan_to_make
     name: Plan to Make
     short_name: P2M
-    defined: false
+    defined: true
     description: >-
       How demand becomes a production plan and a plan becomes finished goods.
 

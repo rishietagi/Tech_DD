@@ -30,16 +30,17 @@ def create_engagement(client) -> dict:
 
 P2P = "procure_to_pay"
 O2C = "order_to_cash"
+P2M = "plan_to_make"
 
 # Both defined processes. The whole point of the design is that a new process is content,
 # so the library invariants must hold for every one of them without a code change.
-DEFINED = [P2P, O2C]
+DEFINED = [P2P, O2C, P2M]
 
 
 # --------------------------------------------------------------------------- library
 
 
-@pytest.mark.parametrize(("key", "steps"), [(P2P, 9), (O2C, 8)])
+@pytest.mark.parametrize(("key", "steps"), [(P2P, 9), (O2C, 8), (P2M, 8)])
 def test_the_questionnaire_loads_and_its_weights_sum_to_100(key: str, steps: int) -> None:
     questionnaire = get_questionnaire(key)
     assert len(questionnaire.steps) == steps
@@ -73,19 +74,19 @@ def test_every_nudge_fires_on_an_option_that_exists(key: str) -> None:
                     assert label in labels, f"{nudge.id} fires on an unknown option"
 
 
-def test_the_three_remaining_processes_are_named_but_not_defined() -> None:
+def test_the_two_remaining_processes_are_named_but_not_defined() -> None:
     registry = get_process_registry()
     by_key = {entry.key: entry for entry in registry.processes}
     for key in DEFINED:
         assert by_key[key].defined is True
-    for key in ("plan_to_make", "hire_to_retire", "record_to_report"):
+    for key in ("hire_to_retire", "record_to_report"):
         assert by_key[key].defined is False
 
 
 def test_asking_for_an_undefined_process_is_a_409_not_a_404() -> None:
     """404 would imply the process does not exist. It does; its questions do not."""
     with pytest.raises(ProcessNotDefinedError) as exc:
-        get_questionnaire("plan_to_make")
+        get_questionnaire("hire_to_retire")
     assert exc.value.status_code == 409
 
 
@@ -486,7 +487,7 @@ def test_an_unscored_process_404s_with_a_named_code(client) -> None:
 
 def test_an_undefined_process_409s_through_the_api(client) -> None:
     engagement = create_engagement(client)
-    response = client.get(f"/api/v1/engagements/{engagement['id']}/assess/plan_to_make")
+    response = client.get(f"/api/v1/engagements/{engagement['id']}/assess/hire_to_retire")
     assert response.status_code == 409
     assert response.json()["detail"]["code"] == "process_not_defined"
 
@@ -935,7 +936,7 @@ def test_an_o2c_refinement_obeys_the_same_one_point_bound() -> None:
 # ------------------------------------------------------------------ O2C through the API
 
 
-def test_the_process_list_shows_o2c_as_defined(client) -> None:
+def test_the_process_list_shows_every_defined_process(client) -> None:
     engagement = create_engagement(client)
 
     response = client.get(f"/api/v1/engagements/{engagement['id']}/assess/processes")
@@ -943,9 +944,8 @@ def test_the_process_list_shows_o2c_as_defined(client) -> None:
 
     processes = response.json()["processes"]
     assert len(processes) == 5
-    assert [p["key"] for p in processes if p["defined"]] == [P2P, O2C]
+    assert [p["key"] for p in processes if p["defined"]] == DEFINED
     assert [p["key"] for p in processes if not p["defined"]] == [
-        "plan_to_make",
         "hire_to_retire",
         "record_to_report",
     ]
@@ -1138,3 +1138,246 @@ def test_the_model_still_writes_the_shape_note_where_none_is_authored() -> None:
     payload = generator.score(questionnaire, answers)
 
     assert payload.shape_note == "Weak at the back end."
+
+
+# --------------------------------------------------- Plan to Make (2026-09-11)
+#
+# The third defined process. The library invariants above are parameterised over all
+# three; what follows is what is specific to P2M — its own decomposition, its own
+# weights, and the one thing that makes it different from P2P and O2C: it is a decision
+# cycle, not a transaction cycle, and it need not apply in full to every target.
+
+
+def test_the_p2m_steps_carry_the_model_documents_weights() -> None:
+    """The weights are the model, so a silent retune must break a test."""
+    questionnaire = get_questionnaire(P2M)
+    weights = {step.key: step.weight for step in questionnaire.steps}
+    assert weights == {
+        "p2m_demand": 14,
+        "p2m_sop": 10,
+        "p2m_master_data": 13,
+        "p2m_mrp": 15,
+        "p2m_scheduling": 12,
+        "p2m_execution": 12,
+        "p2m_quality": 10,
+        "p2m_inventory": 14,
+    }
+    # MRP is the heaviest step: the highest volume of decisions in the cycle, and where a
+    # licensed capability most often sits unused. P2M_AUTOMATION_MODEL.md §3.
+    assert max(weights, key=lambda k: weights[k]) == "p2m_mrp"
+
+
+def test_every_p2m_scoring_option_sits_on_the_shared_ladder() -> None:
+    """0-5, and increasing down the option list, or the ladder has been broken."""
+    questionnaire = get_questionnaire(P2M)
+    for step in questionnaire.steps:
+        for question in step.questions:
+            if not question.scores:
+                continue
+            scores = [option.score for option in question.options]
+            assert all(0 <= s <= 5 for s in scores), f"{question.id} leaves the ladder"
+            assert scores == sorted(scores), f"{question.id} options are not in ladder order"
+
+
+def test_p2m_free_text_questions_never_score() -> None:
+    """They capture stock accuracy, forecast accuracy and turns — not a level."""
+    questionnaire = get_questionnaire(P2M)
+    text_questions = [
+        q for step in questionnaire.steps for q in step.questions if q.type == "text"
+    ]
+    assert text_questions, "the evidence questions are what make the number defensible"
+    assert all(q.options == [] for q in text_questions)
+
+
+def test_the_mrp_spreadsheet_rework_option_scores_as_a_two() -> None:
+    """The rule that matters most in this process, pinned.
+
+    A configured MRP run whose output is exported to Excel, reworked and re-entered is
+    not integrated: the system proposes and a human decides. Scoring it as a 3 would let
+    a licence stand in for a working process, which is the failure this whole module
+    exists to catch.
+    """
+    questionnaire = get_questionnaire(P2M)
+    step = next(s for s in questionnaire.steps if s.key == "p2m_mrp")
+    question = next(q for q in step.questions if q.id == "P2M-04-01")
+    option = next(o for o in question.options if "exported to a spreadsheet" in o.label)
+    assert option.score == 2
+
+
+def test_an_unanswered_p2m_question_is_not_scored_as_zero() -> None:
+    questionnaire = get_questionnaire(P2M)
+    answers = _answer_step_fully("p2m_mrp", 5, P2M)
+
+    payload = score_assessment(questionnaire, answers)
+    mrp = next(s for s in payload.steps if s.key == "p2m_mrp")
+    quality = next(s for s in payload.steps if s.key == "p2m_quality")
+
+    assert mrp.assessed is True
+    assert quality.assessed is False
+    assert quality.score is None
+    assert payload.steps_assessed == 1
+    assert payload.steps_total == 8
+    assert payload.index == pytest.approx((mrp.score or 0) * 20, abs=0.1)
+
+
+def test_a_non_manufacturing_target_can_be_scored_on_the_steps_that_apply() -> None:
+    """The applicability rule from the model document, §1.
+
+    A distributor has no production scheduling, shop floor or quality process. Leaving
+    those steps blank must produce a defensible index from the rest rather than dragging
+    the score down — otherwise the questionnaire forces an invented answer.
+    """
+    questionnaire = get_questionnaire(P2M)
+    answers: dict[str, str] = {}
+    for key in ("p2m_demand", "p2m_sop", "p2m_master_data", "p2m_mrp", "p2m_inventory"):
+        answers |= _answer_step_fully(key, 3, P2M)
+
+    payload = score_assessment(questionnaire, answers)
+
+    assert payload.steps_assessed == 5
+    assert payload.steps_total == 8
+    for key in ("p2m_scheduling", "p2m_execution", "p2m_quality"):
+        assert next(s for s in payload.steps if s.key == key).assessed is False
+    # The index is built only from the assessed steps, so a distributor still scores well.
+    assert payload.index > 50, "unassessed steps must not drag the index down"
+
+
+def test_the_heaviest_p2m_gap_is_the_first_pointer() -> None:
+    questionnaire = get_questionnaire(P2M)
+    answers: dict[str, str] = {}
+    for step in questionnaire.steps:
+        for question in step.questions:
+            if question.scores:
+                answers[question.id] = question.options[0].label
+
+    payload = score_assessment(questionnaire, answers)
+    gaps = [p for p in payload.pointers if p.kind == "gap"]
+    assert gaps, "an all-manual cycle must produce gaps"
+    # Material requirements planning carries 15%, the heaviest weight in the P2M model.
+    assert gaps[0].step_key == "p2m_mrp"
+
+
+def _p2m_shaped(front_rank: int, back_rank: int) -> dict[str, str]:
+    """Answer P2M with one maturity in planning and another on the floor."""
+    questionnaire = get_questionnaire(P2M)
+    shape = questionnaire.shape
+    assert shape is not None
+    answers: dict[str, str] = {}
+    for step in questionnaire.steps:
+        if step.sn in shape.front_steps:
+            rank = front_rank
+        elif step.sn in shape.back_steps:
+            rank = back_rank
+        else:
+            continue
+        for question in step.questions:
+            if question.scores:
+                answers[question.id] = question.options[
+                    min(rank, len(question.options) - 1)
+                ].label
+    return answers
+
+
+def test_a_front_loaded_p2m_cycle_points_at_the_floor_not_the_planning_tool() -> None:
+    """The shape note must be P2M's own — P2P's talks about accounts payable."""
+    questionnaire = get_questionnaire(P2M)
+    payload = score_assessment(questionnaire, _p2m_shaped(front_rank=5, back_rank=0))
+
+    assert payload.shape_note is not None
+    assert payload.shape_note.startswith("Front-loaded")
+    assert "remediation is on the floor" in payload.shape_note
+    assert "accounts payable" not in payload.shape_note, "P2P's wording has leaked"
+    assert "working capital problem grows" not in payload.shape_note, "O2C's wording has leaked"
+
+
+def test_a_back_loaded_p2m_cycle_names_efficient_production_of_the_wrong_things() -> None:
+    questionnaire = get_questionnaire(P2M)
+    payload = score_assessment(questionnaire, _p2m_shaped(front_rank=0, back_rank=5))
+
+    assert payload.shape_note is not None
+    assert payload.shape_note.startswith("Back-loaded")
+    assert "efficient at making the wrong things" in payload.shape_note
+
+
+def test_an_even_p2m_cycle_points_the_reader_at_stock_accuracy() -> None:
+    questionnaire = get_questionnaire(P2M)
+    payload = score_assessment(questionnaire, _p2m_shaped(front_rank=2, back_rank=2))
+
+    assert payload.shape_note is not None
+    assert payload.shape_note.startswith("Broadly even")
+    assert "stock-record accuracy" in payload.shape_note
+
+
+def test_the_p2m_deterministic_score_is_reproducible() -> None:
+    questionnaire = get_questionnaire(P2M)
+    answers = _answer_step_fully("p2m_mrp", 2, P2M) | _answer_step_fully(
+        "p2m_inventory", 3, P2M
+    )
+
+    first = score_assessment(questionnaire, answers)
+    second = score_assessment(questionnaire, answers)
+
+    assert first.index == second.index
+    assert [s.score for s in first.steps] == [s.score for s in second.steps]
+
+
+# ------------------------------------------------------------------ P2M through the API
+
+
+def test_the_p2m_questionnaire_serves_its_eight_steps(client) -> None:
+    engagement = create_engagement(client)
+    response = client.get(f"/api/v1/engagements/{engagement['id']}/assess/{P2M}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["steps"]) == 8
+    assert body["steps"][0]["key"] == "p2m_demand"
+    assert body["answered_count"] == 0
+
+
+def test_the_three_processes_keep_separate_answers(client) -> None:
+    """One engagement can assess all three. An answer to one must not appear on another."""
+    engagement = create_engagement(client)
+    base = f"/api/v1/engagements/{engagement['id']}/assess"
+
+    first = {key: get_questionnaire(key).steps[0].questions[0] for key in DEFINED}
+    for key, question in first.items():
+        client.patch(
+            f"{base}/{key}/answers/{question.id}",
+            json={"value": question.options[1].label},
+        )
+
+    for key in first:
+        body = client.get(f"{base}/{key}").json()
+        assert body["answered_count"] == 1
+        others = [q.id for k, q in first.items() if k != key]
+        for other in others:
+            assert other not in body["answers"]
+
+
+def test_a_p2m_step_key_is_rejected_under_o2c(client) -> None:
+    engagement = create_engagement(client)
+    response = client.post(
+        f"/api/v1/engagements/{engagement['id']}/assess/{O2C}/questions",
+        json={"step_key": "p2m_mrp", "text": "Anything"},
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "unknown_step"
+
+
+def test_p2m_evidence_reaches_the_model() -> None:
+    """Stock accuracy is the number that governs how much of the rest can be believed."""
+    import json
+
+    questionnaire = get_questionnaire(P2M)
+    answers = _answer_step_fully("p2m_inventory", 1, P2M)
+    answers["P2M-08-04"] = "Inventory is EUR 18.4m at 3.1 turns; provision EUR 2.2m."
+
+    generator = _llm_generator(
+        json.dumps({"executive_summary": "x", "step_refinements": [], "pointers": []})
+    )
+    generator.score(questionnaire, answers)
+
+    sent = generator._client.models.last_contents  # type: ignore[attr-defined]
+    assert sent is not None
+    assert "EUR 18.4m at 3.1 turns" in sent

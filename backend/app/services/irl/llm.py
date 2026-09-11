@@ -80,16 +80,45 @@ def _engagement_context(intake: IntakeFull) -> dict[str, Any]:
 
 
 def _research_context(research: ResearchPayload | None) -> dict[str, Any] | None:
-    """The research summary and findings, trimmed to what shapes the questions."""
+    """The research, trimmed to what shapes the questions.
+
+    The **business brief** carries most of the weight here: what the target actually does,
+    who it sells to and how it makes money is what makes a request specific to this
+    business rather than generic to the sector. The findings supply the dated specifics
+    worth asking about directly — an incident, a filing, a named system.
+
+    `implications_for_diligence` is deliberately excluded. It is the research module's own
+    analysis of what to look at, and feeding it in would have the IRL take its cues from a
+    model's opinion rather than from the scope the rules produced.
+    """
     if research is None:
         return None
-    return {
+
+    context: dict[str, Any] = {
         "summary": research.summary,
         "findings": [
             {"topic": f.topic, "category": f.category, "detail": f.detail}
             for f in research.findings
         ],
     }
+
+    brief = research.business_brief
+    if brief is not None:
+        sections = {
+            name: getattr(brief, name).text
+            for name in (
+                "executive_summary",
+                "what_they_do",
+                "how_they_make_money",
+                "customers_and_markets",
+                "sector_context",
+                "competitive_position",
+            )
+            if getattr(brief, name).text.strip()
+        }
+        if sections:
+            context["business_brief"] = sections
+    return context
 
 
 def _seeds_for_prompt(seeds: list[SeedRequest]) -> list[dict[str, Any]]:

@@ -98,7 +98,7 @@ owns the answer. See `docs/PROJECT_LOG.md` for the reasoning and the import rule
 
 | Route | What it is |
 |---|---|
-| `/engagements/[id]/research` | summary, findings with sources, disclaimer |
+| `/engagements/[id]/research` | business brief (7 cited sections), findings with sources, disclaimer |
 | `/engagements/[id]/irl` | the grouped table with inline autosaving responses |
 
 The sidebar gained an **Engagement** section (Overview / Scope of work / Company
