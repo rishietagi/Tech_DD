@@ -43,9 +43,11 @@ List**: the document the buyer sends the target, listing every artefact the team
 - **It derives from the scope.** Each KPMG row's evidence list seeds a request, so every
   question traces back to an area the scope opened — and the list generates with the LLM
   switched off.
-- **Company research informs it.** A grounded web search over the target returns findings
-  with real source links, which shape the questions and the function names. If the model
-  returns no sources the run is refused, not stored.
+- **Company research informs it.** A grounded web search over the target returns a
+  seven-section **business brief** — what they do, how they make money, who they sell to,
+  the sector, the competition — alongside dated findings, every claim carrying real source
+  links. The brief shapes the questions and the function names. If the model returns no
+  sources the run is refused, not stored.
 - **Excel out.** Three columns — Function, Question, Response — with Response blank for
   the client to fill and return.
 
@@ -57,9 +59,50 @@ the request list itself, because the shared-drive scan's findings only mean anyt
 beside the request they belong to. One screen: what was asked, what came back, what to
 chase.
 
-Two parts are **deliberately deferred to deployment** and documented in
-`docs/phases/PHASE4_PLAN.md`: automatic shared-drive scanning (the endpoint returns 501
-with an explanation) and email reminders to the consultant (frontend stub only).
+**The shared-drive scan** reads every file the client has dropped in a folder, matches it
+to a request, and writes the document type, the receiving status, and — where what arrived
+is only part of what was asked for — the **follow-up questions** that close the gap. It
+never overwrites a status a human has set, records which files it matched so a wrong call
+is visible, and only scans requests that ask for a document: a question is answered in a
+meeting, not by a file appearing on a drive.
+
+**Phase 5 — assessing the processes.** The first question a tech DD asks of an operating
+business is how automated its core processes actually are — because licences reveal what
+was bought, and process automation reveals what is used. The gap between the two is where
+findings live.
+
+- **All five processes are defined**: Procure to Pay (9 steps), Order to Cash (8), Plan to
+  Make (8), Hire to Retire (9) and Record to Report (8). Each has its own evaluation
+  reference in `docs/reference/`.
+- **They are not all the same kind of process, and the weights say so.** P2P and O2C are
+  transaction cycles, weighted by volume and financial exposure. Plan to Make is a decision
+  cycle, weighted by the exposure each decision controls. **Hire to Retire is an identity
+  lifecycle**, weighted by what breaks when a step is manual — offboarding handles almost
+  no events and carries one of the heaviest weights, because a leaver whose access is never
+  revoked is a live credential. **Record to Report is a periodic close**, where volume
+  barely applies and the currency is days to close, manual journal count and reconciliation
+  backlog.
+- **Hire to Retire is the one process whose automation gap is also a security finding.**
+  Joiner-mover-leaver is where access is granted and revoked, so the questionnaire asks for
+  the **measured revocation lag in days**, not whether an offboarding checklist exists — a
+  documented but unmeasured process scores 2, not 4.
+- **A questionnaire with nudges.** Conditional follow-ups declared as data: pick an option,
+  and the question that makes that answer defensible appears beneath it.
+- **A deterministic 0-100 index**, banded Manual to Optimised, with the **shape** reported
+  beside the number — a front-loaded 52 and a uniform 52 imply remediation costs an order
+  of magnitude apart.
+- **An unanswered question is never scored as zero.** A blank is an absence of evidence,
+  not evidence of manual working, so it drops out of the denominator. A step with nothing
+  answered drops out of the index entirely and its weight redistributes.
+
+Adding a process is **content, not code**: a model document, a questionnaire YAML, a
+registry flip and tests — no change to the ladder, the arithmetic, the banding, the API or
+the frontend. The last two processes needed none, which is the evidence the claim holds.
+See `docs/phases/PHASE5_PLAN.md`.
+
+**Email reminders to the consultant** remain deliberately deferred — a frontend stub,
+honestly badged "Not connected yet", with a live preview built from real counts. See
+`docs/phases/PHASE4_PLAN.md`.
 
 ## Stack
 

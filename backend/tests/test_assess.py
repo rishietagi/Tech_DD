@@ -5,6 +5,8 @@ unanswered question is not a zero, an unassessed step drops out of the index, an
 model may move a step by at most ±1 with a stated reason.
 """
 
+from unittest import mock
+
 import pytest
 
 from app.schemas.assess import StepScore, band_for_index
@@ -31,16 +33,19 @@ def create_engagement(client) -> dict:
 P2P = "procure_to_pay"
 O2C = "order_to_cash"
 P2M = "plan_to_make"
+H2R = "hire_to_retire"
+R2R = "record_to_report"
 
-# Both defined processes. The whole point of the design is that a new process is content,
-# so the library invariants must hold for every one of them without a code change.
-DEFINED = [P2P, O2C, P2M]
+# Every process in the registry. The whole point of the design is that a new process is
+# content, so the library invariants must hold for all of them without a code change —
+# and as of 2026-09-14 there is no longer a named-but-undefined process to exclude.
+DEFINED = [P2P, O2C, P2M, H2R, R2R]
 
 
 # --------------------------------------------------------------------------- library
 
 
-@pytest.mark.parametrize(("key", "steps"), [(P2P, 9), (O2C, 8), (P2M, 8)])
+@pytest.mark.parametrize(("key", "steps"), [(P2P, 9), (O2C, 8), (P2M, 8), (H2R, 9), (R2R, 8)])
 def test_the_questionnaire_loads_and_its_weights_sum_to_100(key: str, steps: int) -> None:
     questionnaire = get_questionnaire(key)
     assert len(questionnaire.steps) == steps
@@ -74,20 +79,50 @@ def test_every_nudge_fires_on_an_option_that_exists(key: str) -> None:
                     assert label in labels, f"{nudge.id} fires on an unknown option"
 
 
-def test_the_two_remaining_processes_are_named_but_not_defined() -> None:
+def test_every_registered_process_is_now_defined() -> None:
+    """Five of five, as of 2026-09-14. No process is named with nothing behind it.
+
+    This test previously asserted the opposite for two of them. Keeping it inverted
+    rather than deleting it is deliberate: it pins that the registry and the
+    questionnaire files agree, which is the invariant that mattered all along.
+    """
     registry = get_process_registry()
     by_key = {entry.key: entry for entry in registry.processes}
+    assert set(by_key) == set(DEFINED)
     for key in DEFINED:
-        assert by_key[key].defined is True
-    for key in ("hire_to_retire", "record_to_report"):
-        assert by_key[key].defined is False
+        assert by_key[key].defined is True, f"{key} is registered but not defined"
 
 
-def test_asking_for_an_undefined_process_is_a_409_not_a_404() -> None:
-    """404 would imply the process does not exist. It does; its questions do not."""
-    with pytest.raises(ProcessNotDefinedError) as exc:
-        get_questionnaire("hire_to_retire")
+def test_the_undefined_path_still_raises_a_409_rather_than_a_404() -> None:
+    """No registered process reaches it any more, but the path must stay correct.
+
+    A 404 would imply the process does not exist. The distinction is what makes adding a
+    sixth process safe: register it, and it is listed honestly until its questionnaire is
+    written. Exercised against a synthetic registry entry, since there is no longer a real
+    one to use.
+    """
+    from app.services.assess.library import ProcessRegistry, RegistryEntry
+
+    stub = ProcessRegistry(
+        processes=[
+            RegistryEntry(
+                key="idea_to_product",
+                name="Idea to Product",
+                short_name="I2P",
+                defined=False,
+                description="A sixth process, registered and not yet written.",
+            )
+        ]
+    )
+    with mock.patch(
+        "app.services.assess.library.get_process_registry", return_value=stub
+    ):
+        get_questionnaire.cache_clear()
+        with pytest.raises(ProcessNotDefinedError) as exc:
+            get_questionnaire("idea_to_product")
+    get_questionnaire.cache_clear()
     assert exc.value.status_code == 409
+    assert exc.value.code == "process_not_defined"
 
 
 def test_an_unknown_process_key_is_a_library_error() -> None:
@@ -386,7 +421,7 @@ def test_the_deterministic_index_survives_refinement() -> None:
 # --------------------------------------------------------------------------- API
 
 
-def test_the_process_list_shows_all_five_with_three_undefined(client) -> None:
+def test_the_process_list_shows_all_five_defined(client) -> None:
     engagement = create_engagement(client)
 
     response = client.get(f"/api/v1/engagements/{engagement['id']}/assess/processes")
@@ -396,6 +431,9 @@ def test_the_process_list_shows_all_five_with_three_undefined(client) -> None:
     assert len(processes) == 5
     defined = [p for p in processes if p["defined"]]
     assert [p["key"] for p in defined] == DEFINED
+    assert not [p for p in processes if not p["defined"]], (
+        "no process should render a 'Not yet defined' badge any more"
+    )
 
 
 def test_an_answer_round_trips_and_moves_the_progress_count(client) -> None:
@@ -485,11 +523,23 @@ def test_an_unscored_process_404s_with_a_named_code(client) -> None:
     assert response.json()["detail"]["code"] == "no_score"
 
 
-def test_an_undefined_process_409s_through_the_api(client) -> None:
+def test_the_409_path_is_no_longer_reachable_through_the_api(client) -> None:
+    """Every registered process is now defined, so no API call can produce a 409.
+
+    The path itself is still correct and still covered at the library level by
+    test_the_undefined_path_still_raises_a_409_rather_than_a_404 — this asserts only that
+    no *real* process reaches it, which is the thing that changed on 2026-09-14.
+
+    An unregistered key is a different matter and is deliberately not asserted here:
+    `ProcessLibraryError` is a plain RuntimeError rather than an `AppError`, so it
+    surfaces as a 500. That is pre-existing behaviour, unchanged by this work, and it is
+    recorded as a known gap in docs/PROJECT_LOG.md rather than fixed inside a
+    content-only change.
+    """
     engagement = create_engagement(client)
-    response = client.get(f"/api/v1/engagements/{engagement['id']}/assess/hire_to_retire")
-    assert response.status_code == 409
-    assert response.json()["detail"]["code"] == "process_not_defined"
+    for key in DEFINED:
+        response = client.get(f"/api/v1/engagements/{engagement['id']}/assess/{key}")
+        assert response.status_code == 200, f"{key} should serve a questionnaire"
 
 
 def test_the_processes_route_is_not_shadowed_by_the_process_key_route(client) -> None:
@@ -945,10 +995,7 @@ def test_the_process_list_shows_every_defined_process(client) -> None:
     processes = response.json()["processes"]
     assert len(processes) == 5
     assert [p["key"] for p in processes if p["defined"]] == DEFINED
-    assert [p["key"] for p in processes if not p["defined"]] == [
-        "hire_to_retire",
-        "record_to_report",
-    ]
+    assert [p["key"] for p in processes if not p["defined"]] == []
 
 
 def test_the_o2c_questionnaire_serves_its_eight_steps(client) -> None:
@@ -1381,3 +1428,557 @@ def test_p2m_evidence_reaches_the_model() -> None:
     sent = generator._client.models.last_contents  # type: ignore[attr-defined]
     assert sent is not None
     assert "EUR 18.4m at 3.1 turns" in sent
+
+
+# ------------------------------------------------ Hire to Retire (2026-09-14)
+#
+# The fourth defined process, and the first whose automation gap is also a security
+# finding. The library invariants above are parameterised over all five; what follows is
+# what is specific to H2R - its own decomposition, weights chosen by exposure rather than
+# volume, and the rule that a documented offboarding process with no measured revocation
+# lag cannot score as though it were automated.
+
+
+def test_the_h2r_steps_carry_the_model_documents_weights() -> None:
+    """The weights are the model, so a silent retune must break a test."""
+    questionnaire = get_questionnaire(H2R)
+    weights = {step.key: step.weight for step in questionnaire.steps}
+    assert weights == {
+        "h2r_recruiting": 9,
+        "h2r_onboarding": 14,
+        "h2r_employee_data": 13,
+        "h2r_payroll": 16,
+        "h2r_time": 11,
+        "h2r_performance": 8,
+        "h2r_learning": 7,
+        "h2r_offboarding": 14,
+        "h2r_compliance": 8,
+    }
+    # Payroll is the heaviest: right every period in every jurisdiction, and the payroll
+    # system count predicts separation cost. H2R_AUTOMATION_MODEL.md section 3.
+    assert max(weights, key=lambda k: weights[k]) == "h2r_payroll"
+    # The substantive departure from P2P and O2C: weight follows exposure, not volume.
+    # Offboarding processes a trivial number of events and outweighs recruiting, which
+    # processes more. If that inverts, the model has been rewritten by accident.
+    assert weights["h2r_offboarding"] > weights["h2r_recruiting"]
+
+
+def test_every_h2r_scoring_option_sits_on_the_shared_ladder() -> None:
+    """0-5, and increasing down the option list, or the ladder has been broken."""
+    questionnaire = get_questionnaire(H2R)
+    for step in questionnaire.steps:
+        for question in step.questions:
+            if not question.scores:
+                continue
+            scores = [option.score for option in question.options]
+            assert all(0 <= s <= 5 for s in scores), f"{question.id} leaves the ladder"
+            assert scores == sorted(scores), f"{question.id} options are not in ladder order"
+
+
+def test_h2r_free_text_questions_never_score() -> None:
+    """They capture the revocation lag, the payroll count and headcount - not a level."""
+    questionnaire = get_questionnaire(H2R)
+    text_questions = [
+        q for step in questionnaire.steps for q in step.questions if q.type == "text"
+    ]
+    assert text_questions, "the evidence questions are what make the number defensible"
+    assert all(q.options == [] for q in text_questions)
+
+
+def test_a_documented_but_unmeasured_revocation_process_scores_as_a_two() -> None:
+    """The rule that matters most in this process, pinned.
+
+    Every management team has an offboarding checklist and it evidences nothing. The
+    failure mode here is not the absence of a process but its uneven execution, so the
+    score has to turn on whether anyone has counted the lag. Scoring a documented-but-
+    unmeasured process as integrated would let a policy document stand in for a control,
+    and the finding this process exists to produce - live credentials belonging to people
+    who have left - would be scored away. H2R_AUTOMATION_MODEL.md section 2 and 3.1.
+    """
+    questionnaire = get_questionnaire(H2R)
+    step = next(s for s in questionnaire.steps if s.key == "h2r_offboarding")
+    question = next(q for q in step.questions if q.id == "H2R-08-02")
+
+    documented = next(
+        o for o in question.options if "compliance with it is not measured" in o.label
+    )
+    assert documented.score == 2
+
+    # And measurement, not tooling, is what lifts it.
+    measured = next(
+        o for o in question.options if o.label.startswith("The revocation lag is measured")
+    )
+    assert measured.score == 4
+    assert measured.score > documented.score
+
+
+def test_copying_a_colleagues_access_cannot_score_as_integrated() -> None:
+    """The provisioning half of the same rule.
+
+    Access assigned by copying an existing user is where entitlement creep begins, and it
+    compounds - the colleague's access was itself copied from someone else. A workflow
+    that raises the request does not change what is being granted, so the presence of
+    tooling must not lift this above 2.
+    """
+    questionnaire = get_questionnaire(H2R)
+    step = next(s for s in questionnaire.steps if s.key == "h2r_onboarding")
+    question = next(q for q in step.questions if q.id == "H2R-02-01")
+
+    copied = next(o for o in question.options if "copied from an existing user" in o.label)
+    role_based = next(o for o in question.options if "role-based access profiles" in o.label)
+
+    assert copied.score == 2
+    assert role_based.score == 3, "role-based provisioning is what earns the 3"
+
+
+def test_the_offboarding_step_asks_for_the_lag_as_evidence() -> None:
+    """A score without the measured lag beside it has not tested the finding.
+
+    The model document's section 4 says so explicitly; this pins that the questionnaire
+    actually carries a free-text question to capture it, rather than only scoring the
+    practice.
+    """
+    questionnaire = get_questionnaire(H2R)
+    step = next(s for s in questionnaire.steps if s.key == "h2r_offboarding")
+    evidence = [q for q in step.questions if q.type == "text"]
+    assert evidence, "offboarding must capture the measured lag as evidence"
+    assert any("lag" in q.text.lower() for q in evidence)
+
+
+def test_the_payroll_step_asks_how_many_payroll_systems_there_are() -> None:
+    """The carve-out reading: several countries usually means several payrolls.
+
+    Each is a separate transition service, migration and local compliance obligation, so
+    the count is one of the most useful single numbers in this assessment.
+    """
+    questionnaire = get_questionnaire(H2R)
+    step = next(s for s in questionnaire.steps if s.key == "h2r_payroll")
+    question = next(q for q in step.questions if q.id == "H2R-04-02")
+    assert question.scores, "the payroll estate's fragmentation is scored, not just noted"
+    # Fragmentation scores below consolidation, and consolidation tops out at 3: a single
+    # payroll is a precondition for an automated one, not evidence of one.
+    fragmented = next(o for o in question.options if o.label.startswith("Four or more"))
+    single = next(o for o in question.options if o.label.startswith("One country"))
+    assert fragmented.score < single.score
+    assert single.score == 3
+
+
+def test_an_unanswered_h2r_question_is_not_scored_as_zero() -> None:
+    questionnaire = get_questionnaire(H2R)
+    answers = _answer_step_fully("h2r_payroll", 5, H2R)
+
+    payload = score_assessment(questionnaire, answers)
+    payroll = next(s for s in payload.steps if s.key == "h2r_payroll")
+    learning = next(s for s in payload.steps if s.key == "h2r_learning")
+
+    assert payroll.assessed is True
+    assert learning.assessed is False
+    assert learning.score is None
+    assert payload.steps_assessed == 1
+    assert payload.steps_total == 9
+
+
+def test_a_small_target_can_be_scored_without_the_steps_it_has_outgrown() -> None:
+    """The applicability rule from the model document, section 1.
+
+    A 40-person target genuinely does not need a learning management system, and scoring
+    step 7 harshly for its absence manufactures a finding. The distinction the analyst
+    makes is between too small to need it and too disorganised to have it; the scoring
+    must support the first reading.
+    """
+    questionnaire = get_questionnaire(H2R)
+    answers: dict[str, str] = {}
+    for key in (
+        "h2r_onboarding",
+        "h2r_employee_data",
+        "h2r_payroll",
+        "h2r_offboarding",
+    ):
+        answers |= _answer_step_fully(key, 3, H2R)
+
+    payload = score_assessment(questionnaire, answers)
+
+    assert payload.steps_assessed == 4
+    assert payload.steps_total == 9
+    assert next(s for s in payload.steps if s.key == "h2r_learning").assessed is False
+    assert payload.index > 50, "unassessed steps must not drag the index down"
+
+
+def test_the_heaviest_h2r_gap_is_the_first_pointer() -> None:
+    questionnaire = get_questionnaire(H2R)
+    answers: dict[str, str] = {}
+    for step in questionnaire.steps:
+        for question in step.questions:
+            if question.scores:
+                answers[question.id] = question.options[0].label
+
+    payload = score_assessment(questionnaire, answers)
+    gaps = [p for p in payload.pointers if p.kind == "gap"]
+    assert gaps, "an all-manual lifecycle must produce gaps"
+    # Payroll carries 16%, the heaviest weight in the H2R model.
+    assert gaps[0].step_key == "h2r_payroll"
+
+
+def _h2r_shaped(front_rank: int, back_rank: int) -> dict[str, str]:
+    """Answer H2R with one maturity at the joining end and another at the leaving end."""
+    questionnaire = get_questionnaire(H2R)
+    shape = questionnaire.shape
+    assert shape is not None
+    answers: dict[str, str] = {}
+    for step in questionnaire.steps:
+        if step.sn in shape.front_steps:
+            rank = front_rank
+        elif step.sn in shape.back_steps:
+            rank = back_rank
+        else:
+            continue
+        for question in step.questions:
+            if question.scores:
+                answers[question.id] = question.options[
+                    min(rank, len(question.options) - 1)
+                ].label
+    return answers
+
+
+def test_a_front_loaded_h2r_cycle_reads_as_a_security_finding() -> None:
+    """The shape note must be H2R's own, and must name the credential exposure.
+
+    A front-loaded H2R is not an efficiency observation - it is a growing population of
+    live accounts belonging to people who have left. If this note reads like P2P's or
+    O2C's, the commercial point has been lost.
+    """
+    questionnaire = get_questionnaire(H2R)
+    payload = score_assessment(questionnaire, _h2r_shaped(front_rank=5, back_rank=0))
+
+    assert payload.shape_note is not None
+    assert payload.shape_note.startswith("Front-loaded")
+    assert "live credentials" in payload.shape_note
+    assert "accounts payable" not in payload.shape_note, "P2P's wording has leaked"
+    assert "working capital" not in payload.shape_note, "O2C's wording has leaked"
+    assert "shop floor" not in payload.shape_note, "P2M's wording has leaked"
+
+
+def test_a_back_loaded_h2r_cycle_names_controls_operated_on_bad_data() -> None:
+    questionnaire = get_questionnaire(H2R)
+    payload = score_assessment(questionnaire, _h2r_shaped(front_rank=0, back_rank=5))
+
+    assert payload.shape_note is not None
+    assert payload.shape_note.startswith("Back-loaded")
+    assert "unreliable data" in payload.shape_note
+
+
+def test_an_even_h2r_cycle_points_the_reader_at_the_revocation_lag() -> None:
+    """An even score is exactly where the two real findings hide behind the number."""
+    questionnaire = get_questionnaire(H2R)
+    payload = score_assessment(questionnaire, _h2r_shaped(front_rank=2, back_rank=2))
+
+    assert payload.shape_note is not None
+    assert payload.shape_note.startswith("Broadly even")
+    assert "revocation lag" in payload.shape_note
+    assert "payroll systems" in payload.shape_note
+
+
+def test_the_h2r_deterministic_score_is_reproducible() -> None:
+    questionnaire = get_questionnaire(H2R)
+    answers = _answer_step_fully("h2r_payroll", 2, H2R) | _answer_step_fully(
+        "h2r_offboarding", 3, H2R
+    )
+
+    first = score_assessment(questionnaire, answers)
+    second = score_assessment(questionnaire, answers)
+
+    assert first.index == second.index
+    assert [s.score for s in first.steps] == [s.score for s in second.steps]
+
+
+# ---------------------------------------------- Record to Report (2026-09-14)
+#
+# The fifth and last defined process, and the first that is not a flow at all: a periodic
+# close, where "volume" barely applies and the currency is days to close, the manual
+# journal count and the reconciliation backlog. What follows is what is specific to R2R -
+# weights chosen by close effort and misstatement risk, and a shape note that is
+# deliberately narrower than the other four because the steps of a close are sequentially
+# dependent within one period.
+
+
+def test_the_r2r_steps_carry_the_model_documents_weights() -> None:
+    """The weights are the model, so a silent retune must break a test."""
+    questionnaire = get_questionnaire(R2R)
+    weights = {step.key: step.weight for step in questionnaire.steps}
+    assert weights == {
+        "r2r_subledger": 12,
+        "r2r_reconciliations": 16,
+        "r2r_journals": 15,
+        "r2r_intercompany": 11,
+        "r2r_consolidation": 14,
+        "r2r_external": 10,
+        "r2r_tax": 8,
+        "r2r_management_reporting": 14,
+    }
+    # Reconciliations are the heaviest: the largest single consumer of close effort and
+    # where an error survives longest. R2R_AUTOMATION_MODEL.md section 3.
+    assert max(weights, key=lambda k: weights[k]) == "r2r_reconciliations"
+    # Weight follows close effort and misstatement risk, not transaction volume. Tax is
+    # the lightest because it is largely annual and adviser-led, so it sits mostly outside
+    # the mechanism this model grades - despite being anything but unimportant.
+    assert min(weights, key=lambda k: weights[k]) == "r2r_tax"
+    # Management reporting is not part of the statutory close at all and still outweighs
+    # external reporting, because it is what a buyer experiences from month one.
+    assert weights["r2r_management_reporting"] > weights["r2r_external"]
+
+
+def test_every_r2r_scoring_option_sits_on_the_shared_ladder() -> None:
+    """0-5, and increasing down the option list, or the ladder has been broken."""
+    questionnaire = get_questionnaire(R2R)
+    for step in questionnaire.steps:
+        for question in step.questions:
+            if not question.scores:
+                continue
+            scores = [option.score for option in question.options]
+            assert all(0 <= s <= 5 for s in scores), f"{question.id} leaves the ladder"
+            assert scores == sorted(scores), f"{question.id} options are not in ladder order"
+
+
+def test_r2r_free_text_questions_never_score() -> None:
+    """They capture days to close, manual journals and the backlog - not a level."""
+    questionnaire = get_questionnaire(R2R)
+    text_questions = [
+        q for step in questionnaire.steps for q in step.questions if q.type == "text"
+    ]
+    assert text_questions, "the evidence questions are what make the number defensible"
+    assert all(q.options == [] for q in text_questions)
+
+
+def test_the_close_asks_for_days_and_manual_journals_as_evidence() -> None:
+    """The three numbers the model names as this process's currency, section 4.
+
+    A close cannot be assessed on transaction volume, so the questionnaire has to elicit
+    days to close, the manual journal count and the reconciliation backlog explicitly. A
+    score reported without days-to-close beside it is missing the figure every reader
+    asks for first.
+    """
+    questionnaire = get_questionnaire(R2R)
+    evidence = " ".join(
+        q.text.lower()
+        for step in questionnaire.steps
+        for q in step.questions
+        if q.type == "text"
+    )
+    assert "working days" in evidence, "days to close must be captured"
+    assert "manual journals" in evidence, "the manual journal count must be captured"
+    assert "unreconciled" in evidence, "the reconciliation backlog must be captured"
+
+
+def test_a_single_entity_target_can_be_scored_without_consolidation() -> None:
+    """The applicability rule from the model document, section 1.
+
+    Intercompany and consolidation do not exist in a single-entity target. Scoring them
+    as manual would mark a process deficient for not doing something it has no reason to
+    do, which is the same failure the P2M distributor case pins.
+    """
+    questionnaire = get_questionnaire(R2R)
+    answers: dict[str, str] = {}
+    for key in (
+        "r2r_subledger",
+        "r2r_reconciliations",
+        "r2r_journals",
+        "r2r_external",
+        "r2r_tax",
+        "r2r_management_reporting",
+    ):
+        answers |= _answer_step_fully(key, 3, R2R)
+
+    payload = score_assessment(questionnaire, answers)
+
+    assert payload.steps_assessed == 6
+    assert payload.steps_total == 8
+    for key in ("r2r_intercompany", "r2r_consolidation"):
+        assert next(s for s in payload.steps if s.key == key).assessed is False
+    assert payload.index > 50, "unassessed steps must not drag the index down"
+
+
+def test_an_unanswered_r2r_question_is_not_scored_as_zero() -> None:
+    questionnaire = get_questionnaire(R2R)
+    answers = _answer_step_fully("r2r_reconciliations", 5, R2R)
+
+    payload = score_assessment(questionnaire, answers)
+    recs = next(s for s in payload.steps if s.key == "r2r_reconciliations")
+    tax = next(s for s in payload.steps if s.key == "r2r_tax")
+
+    assert recs.assessed is True
+    assert tax.assessed is False
+    assert tax.score is None
+    assert payload.steps_assessed == 1
+    assert payload.steps_total == 8
+
+
+def test_the_heaviest_r2r_gap_is_the_first_pointer() -> None:
+    questionnaire = get_questionnaire(R2R)
+    answers: dict[str, str] = {}
+    for step in questionnaire.steps:
+        for question in step.questions:
+            if question.scores:
+                answers[question.id] = question.options[0].label
+
+    payload = score_assessment(questionnaire, answers)
+    gaps = [p for p in payload.pointers if p.kind == "gap"]
+    assert gaps, "an all-manual close must produce gaps"
+    # Reconciliations carry 16%, the heaviest weight in the R2R model.
+    assert gaps[0].step_key == "r2r_reconciliations"
+
+
+def _r2r_shaped(front_rank: int, back_rank: int) -> dict[str, str]:
+    """Answer R2R with one maturity in the ledger and another in the reporting."""
+    questionnaire = get_questionnaire(R2R)
+    shape = questionnaire.shape
+    assert shape is not None
+    answers: dict[str, str] = {}
+    for step in questionnaire.steps:
+        if step.sn in shape.front_steps:
+            rank = front_rank
+        elif step.sn in shape.back_steps:
+            rank = back_rank
+        else:
+            continue
+        for question in step.questions:
+            if question.scores:
+                answers[question.id] = question.options[
+                    min(rank, len(question.options) - 1)
+                ].label
+    return answers
+
+
+def test_a_front_loaded_close_reads_as_the_cheaper_of_the_two_problems() -> None:
+    """R2R inverts the usual reading, and the note must say so.
+
+    In P2P, O2C and H2R a front-loaded shape is the bad news. In a close it is the good
+    news: the expensive, risky part - reconciliations and journal control - is already
+    right, and what is manual is the reporting layer built on top of trustworthy data.
+    A note that treated this as a failure would misdirect the remediation estimate.
+    """
+    questionnaire = get_questionnaire(R2R)
+    payload = score_assessment(questionnaire, _r2r_shaped(front_rank=5, back_rank=0))
+
+    assert payload.shape_note is not None
+    assert payload.shape_note.startswith("Front-loaded")
+    assert "reporting layer rather than a finance transformation" in payload.shape_note
+    assert "accounts payable" not in payload.shape_note, "P2P's wording has leaked"
+    assert "live credentials" not in payload.shape_note, "H2R's wording has leaked"
+    assert "shop floor" not in payload.shape_note, "P2M's wording has leaked"
+
+
+def test_a_back_loaded_close_is_named_as_the_more_serious_shape() -> None:
+    """A polished pack on an unreconciled ledger, and the note must escalate it.
+
+    This is the shape most likely to surprise a quality-of-earnings team late, because
+    the pack ties and the ledger does not.
+    """
+    questionnaire = get_questionnaire(R2R)
+    payload = score_assessment(questionnaire, _r2r_shaped(front_rank=0, back_rank=5))
+
+    assert payload.shape_note is not None
+    assert payload.shape_note.startswith("Back-loaded")
+    assert "more serious" in payload.shape_note
+    assert "cannot be re-performed" in payload.shape_note
+    assert "quality-of-earnings" in payload.shape_note
+
+
+def test_an_even_close_is_reported_as_ordinary_rather_than_as_a_finding() -> None:
+    """The judgement recorded in the model document's section 6, pinned.
+
+    The steps of a close are sequentially dependent within one period, so they move
+    together and an even profile is the ordinary result. The note says so and redirects
+    the reader to days-to-close, rather than inventing a narrative to fill the template.
+    That honesty is the thing worth protecting here, so it is asserted.
+    """
+    questionnaire = get_questionnaire(R2R)
+    payload = score_assessment(questionnaire, _r2r_shaped(front_rank=2, back_rank=2))
+
+    assert payload.shape_note is not None
+    assert payload.shape_note.startswith("Broadly even")
+    assert "ordinary result" in payload.shape_note
+    assert "sequentially dependent" in payload.shape_note
+    # And it must carry the caution that a fast close is not an automated one.
+    assert "manual journal count" in payload.shape_note
+
+
+def test_the_r2r_deterministic_score_is_reproducible() -> None:
+    questionnaire = get_questionnaire(R2R)
+    answers = _answer_step_fully("r2r_reconciliations", 2, R2R) | _answer_step_fully(
+        "r2r_consolidation", 3, R2R
+    )
+
+    first = score_assessment(questionnaire, answers)
+    second = score_assessment(questionnaire, answers)
+
+    assert first.index == second.index
+    assert [s.score for s in first.steps] == [s.score for s in second.steps]
+
+
+# ------------------------------------------------------- the last two through the API
+
+
+def test_the_h2r_and_r2r_questionnaires_serve_their_steps(client) -> None:
+    """Both used to 409. Neither does now, and each serves its own decomposition."""
+    engagement = create_engagement(client)
+    for key, steps, first_step in (
+        (H2R, 9, "h2r_recruiting"),
+        (R2R, 8, "r2r_subledger"),
+    ):
+        response = client.get(f"/api/v1/engagements/{engagement['id']}/assess/{key}")
+        assert response.status_code == 200, f"{key} should no longer 409"
+        body = response.json()
+        assert len(body["steps"]) == steps
+        assert body["steps"][0]["key"] == first_step
+        assert body["answered_count"] == 0
+
+
+def test_an_r2r_answer_cannot_be_saved_against_an_h2r_question_id(client) -> None:
+    engagement = create_engagement(client)
+    h2r_question = get_questionnaire(H2R).steps[0].questions[0]
+    response = client.patch(
+        f"/api/v1/engagements/{engagement['id']}/assess/{R2R}/answers/{h2r_question.id}",
+        json={"value": h2r_question.options[0].label},
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"]["code"] == "unknown_question"
+
+
+def test_h2r_evidence_reaches_the_model() -> None:
+    """The revocation lag is the finding this process exists to produce."""
+    import json
+
+    questionnaire = get_questionnaire(H2R)
+    answers = _answer_step_fully("h2r_offboarding", 1, H2R)
+    answers["H2R-08-05"] = (
+        "Last ten leavers: directory disabled a mean of 11 days after last working day, "
+        "worst case 38 days; three CRM accounts still enabled."
+    )
+
+    generator = _llm_generator(
+        json.dumps({"executive_summary": "x", "step_refinements": [], "pointers": []})
+    )
+    generator.score(questionnaire, answers)
+
+    sent = generator._client.models.last_contents  # type: ignore[attr-defined]
+    assert sent is not None
+    assert "mean of 11 days" in sent
+
+
+def test_r2r_evidence_reaches_the_model() -> None:
+    """Days to close and the manual journal count are what the summary must use."""
+    import json
+
+    questionnaire = get_questionnaire(R2R)
+    answers = _answer_step_fully("r2r_journals", 1, R2R)
+    answers["R2R-03-03"] = "Close takes 19 working days; 340 manual journals last period."
+
+    generator = _llm_generator(
+        json.dumps({"executive_summary": "x", "step_refinements": [], "pointers": []})
+    )
+    generator.score(questionnaire, answers)
+
+    sent = generator._client.models.last_contents  # type: ignore[attr-defined]
+    assert sent is not None
+    assert "19 working days" in sent
+    assert "340 manual journals" in sent

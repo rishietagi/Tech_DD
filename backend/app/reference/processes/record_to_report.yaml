@@ -1,0 +1,512 @@
+# Record to Report — automation assessment questionnaire.
+#
+# The domain model behind this file is docs/reference/R2R_AUTOMATION_MODEL.md. Read it
+# before changing weights or scores: every `score` below is a level on the 0-5 maturity
+# ladder defined in §2, and every step weight comes from §3.
+#
+# A practitioner edits this file without a developer. It is validated at startup and a
+# malformed file fails loudly.
+#
+# QUESTION TYPES
+#   single_select  - scores. Each option carries the ladder level it evidences.
+#   text           - does not score. Captures evidence, volumes and caveats; this is
+#                    what the exec summary draws on. In R2R the three numbers worth
+#                    having above all others are WORKING DAYS TO CLOSE, the MANUAL
+#                    JOURNAL COUNT per period, and the number of UNRECONCILED OR AGED
+#                    balance-sheet accounts, together with the finance headcount in the
+#                    close and the number of ledgers and entities.
+#
+# NUDGES
+#   A nudge is a conditional follow-up: "if X is the answer, ask Y". They evaluate as
+#   the analyst answers, so the follow-up appears immediately beneath its parent.
+#   `when.equals` matches one option; `when.in` matches any of several; `when.answered`
+#   fires on any non-empty answer. Nudges never score - they exist to make the evidence
+#   behind a score defensible, and a nudge that scored would double-count its parent.
+#
+# WEIGHTS sum to 100. See R2R_AUTOMATION_MODEL.md §3. THIS IS A PERIODIC CLOSE, NOT A
+# FLOW: "volume" barely applies, so weight reflects WHAT CONSUMES THE CLOSE AND WHERE
+# MISSTATEMENT RISK SITS. Reconciliations carry the most despite producing almost no
+# transactions; tax carries little because it is largely annual and adviser-led, and so
+# sits mostly outside the mechanism this model grades.
+#
+# THE BOUNDARY THAT MATTERS MOST HERE. This grades the automation of the MECHANISM, not
+# the correctness of the accounting. Whether a provision is adequate or revenue was
+# recognised in the right period is the quality-of-earnings team's question, not ours —
+# the same line O2C draws about revenue recognition. What this assessment contributes to
+# them is how much of the reported result is assembled by hand, and therefore how much
+# reliance the historical numbers can bear. Where an answer reveals an accounting or
+# control problem rather than an automation gap, it belongs in the findings and should be
+# handed to the QoE team, not folded into this score.
+#
+# A FAST CLOSE IS NOT AN AUTOMATED CLOSE. A target reporting on working day five with a
+# team that worked three consecutive weekends has bought the deadline with people. Always
+# read days-to-close next to the manual journal count: a five-day close with 400 manual
+# journals is a worse finding than a ten-day close with 40, because the first survives
+# neither growth nor the departure of the financial controller. See §2 of the model.
+#
+# APPLICABILITY. Steps 4 and 5 (intercompany, consolidation) do not exist in a
+# single-entity target and step 6 is minimal in a small private company with no statutory
+# audit. Leave them unanswered rather than scoring them manual — the weight redistributes
+# and a six-step assessment is defensible. Note the carve-out exception in §1: an entity
+# that has never consolidated or reported standalone will have to, and the absence is
+# then a Day 1 cost rather than a non-applicability.
+
+process_key: record_to_report
+name: Record to Report
+short_name: R2R
+version: "1.0"
+model_ref: docs/reference/R2R_AUTOMATION_MODEL.md
+description: >-
+  How transactions become a closed ledger and a reported set of financials. Assessed for
+  automation maturity across eight steps of the periodic close, weighted by what consumes
+  the close and where misstatement risk sits rather than by transaction volume.
+
+# The shape note is deliberately narrower here than in the other four processes, and the
+# model document's §6 records why: the steps of a close are sequentially dependent within
+# one period, so a weak early step CAUSES a late one rather than sitting independently
+# beside it. An even profile is the ordinary result and is written as such — it points the
+# reader at days-to-close instead of implying a finding that is not there. The two
+# lopsided cases do each carry a real reading, and they are not mirror images: one is
+# reassuring and cheap to fix, the other is the more serious of the two.
+shape:
+  front_steps: [1, 2, 3]
+  back_steps: [6, 7, 8]
+  front_label: the ledger and reconciliation end
+  back_label: the reporting and disclosure end
+  front_loaded: >-
+    Front-loaded: the ledger mechanics are materially more automated than what is built on
+    top of them. Reconciliations are controlled, journals are governed and the sub-ledgers
+    close cleanly, while the group report, the statutory disclosures and the management
+    pack are assembled in spreadsheets from a perfectly good ledger. The reading is
+    favourable and specific: the expensive, risky part is already right, so the underlying
+    data can be trusted and the remediation is a reporting layer rather than a finance
+    transformation. This is one of the cheaper findings in this module to fix, and the
+    buyer's reporting-latency problem is solvable without touching the ERP.
+  back_loaded: >-
+    Back-loaded: the reporting end is materially more automated than the ledger underneath
+    it — a polished management pack and presentable statutory accounts sitting on
+    reconciliations that are not done and journals that are not controlled. This is the
+    more serious of the two shapes and deserves its own paragraph in the report: the
+    outputs look credible precisely because the effort went into presentation, while the
+    mechanism that produced them cannot be re-performed. It is also the shape most likely
+    to surprise a quality-of-earnings team late, because the pack ties and the ledger does
+    not. Hand this one to them explicitly.
+  even: >-
+    Broadly even across the close, which is the ordinary result for this process rather
+    than a finding in itself — the steps of a close are sequentially dependent within one
+    period, so they tend to move together and a gap between the ends is a weaker signal
+    here than in a transaction cycle. Read the index next to working days to close and the
+    manual journal count instead. A fast close is not necessarily an automated one: where
+    the cycle time looks competitive and the manual journal count is high, the deadline is
+    being bought with people, and that rests on individuals who can leave.
+
+steps:
+  # ---------------------------------------------------------------- 1
+  - key: r2r_subledger
+    sn: 1
+    title: Sub-ledger close & cut-off
+    weight: 12
+    intent: >-
+      Closing AP, AR, inventory, fixed assets and payroll into the general ledger. The
+      gate on everything after it: a sub-ledger that closes late or posts in summary makes
+      every later step slower and less traceable, and cut-off is where most period-end
+      error originates.
+    questions:
+      - id: R2R-01-01
+        text: How do the sub-ledgers close and post into the general ledger?
+        type: single_select
+        options:
+          - { label: "There are no real sub-ledgers; balances are assembled from spreadsheets and summary journals at period end", score: 0 }
+          - { label: "Sub-ledgers exist but close by manual posting of summary entries, keyed by hand", score: 1 }
+          - { label: "Sub-ledgers post through defined interfaces, run and checked manually each period", score: 2 }
+          - { label: "Automated detailed posting from each sub-ledger, with periods locked in sequence and interface exceptions worked", score: 3 }
+          - { label: "Sub-ledger close scheduled and monitored, largely exception-based, with accruals systematically calculated", score: 4 }
+          - { label: "Continuous sub-ledger close with balances available on demand; period end is a reporting event", score: 5 }
+        nudges:
+          - when: { in: ["There are no real sub-ledgers; balances are assembled from spreadsheets and summary journals at period end", "Sub-ledgers exist but close by manual posting of summary entries, keyed by hand"] }
+            ask: >-
+              Where sub-ledger activity reaches the ledger only in summary, the detail
+              behind a balance cannot be re-performed from the ledger. Ask how a balance
+              would be substantiated to an auditor, and record it — this is the mechanism
+              behind any tie-out difficulty the quality-of-earnings team is having.
+          - when: { equals: "Continuous sub-ledger close with balances available on demand; period end is a reporting event" }
+            ask: >-
+              Ask which sub-ledgers are genuinely closed daily and what the last hard
+              close actually took in working days. A continuous close is the level-5 claim
+              in this process and it is rarely true as stated.
+
+      - id: R2R-01-02
+        text: How is cut-off enforced at period end?
+        type: single_select
+        options:
+          - { label: "By instruction; late items are posted into the closed period when noticed", score: 0 }
+          - { label: "A cut-off date is circulated and applied by the finance team's judgement", score: 1 }
+          - { label: "Periods are closed manually in each module, with exceptions reopened on request", score: 2 }
+          - { label: "Periods locked by the system on a defined calendar, with reopening controlled and logged", score: 3 }
+          - { label: "Cut-off controls configured with automatic accrual of unmatched receipts and deliveries", score: 4 }
+        nudges:
+          - when: { in: ["Periods locked by the system on a defined calendar, with reopening controlled and logged", "Cut-off controls configured with automatic accrual of unmatched receipts and deliveries"] }
+            ask: >-
+              How often was a closed period reopened in the last twelve months, and why?
+              Frequent reopening makes a locked period a formality and is worth recording
+              even where the tooling is sound.
+
+      - id: R2R-01-03
+        text: How are accruals and prepayments prepared each period?
+        type: single_select
+        options:
+          - { label: "From memory and last period's file, by one person", score: 0 }
+          - { label: "A spreadsheet schedule rolled forward manually each period", score: 1 }
+          - { label: "Standard schedules with a defined preparer, posted manually", score: 2 }
+          - { label: "Systematically calculated from open purchase orders, receipts and contracts, with review", score: 3 }
+          - { label: "Automated accrual generation with variance analysis against the prior period", score: 4 }
+
+  # ---------------------------------------------------------------- 2
+  - key: r2r_reconciliations
+    sn: 2
+    title: Reconciliations
+    weight: 16
+    intent: >-
+      The heaviest step in the model. Balance-sheet and bank reconciliation is the largest
+      single consumer of close effort in a mid-market finance function, and the control
+      most likely to be performed in a workbook nobody reviews — an unreconciled balance
+      is where an error survives longest.
+    questions:
+      - id: R2R-02-01
+        text: How are balance-sheet account reconciliations prepared and reviewed?
+        type: single_select
+        options:
+          - { label: "Accounts are not reconciled, or only at year end under audit pressure", score: 0 }
+          - { label: "Prepared in individual spreadsheets on a shared drive, with review evidenced by an initial if at all", score: 1 }
+          - { label: "A standard template and a checklist of accounts, prepared manually with review tracked outside the system", score: 2 }
+          - { label: "A reconciliation tool or module with prepared and reviewed workflow, ageing visible, and a defined policy on frequency", score: 3 }
+          - { label: "Automated matching for high-volume accounts, risk-rated frequency, exception-only review and measured ageing", score: 4 }
+          - { label: "Continuous reconciliation with auto-certification of low-risk accounts and analytics directing effort", score: 5 }
+        nudges:
+          - when: { in: ["Accounts are not reconciled, or only at year end under audit pressure", "Prepared in individual spreadsheets on a shared drive, with review evidenced by an initial if at all"] }
+            ask: >-
+              Ask how many balance-sheet accounts exist, how many were reconciled at the
+              last period end, and whether any carry an unexplained difference that has
+              been rolled forward. An aged unexplained difference is a quality-of-earnings
+              matter as well as an automation one — hand it over rather than scoring it.
+          - when: { equals: "Continuous reconciliation with auto-certification of low-risk accounts and analytics directing effort" }
+            ask: >-
+              Confirm which accounts are auto-certified and on what risk criteria, and
+              that a human still reviews the rules periodically. Auto-certification
+              without rule review moves the risk rather than removing it.
+
+      - id: R2R-02-02
+        text: How is the bank reconciliation performed?
+        type: single_select
+        options:
+          - { label: "Manually against statements, when there is time", score: 0 }
+          - { label: "In a spreadsheet each period from a downloaded statement", score: 1 }
+          - { label: "In the ledger with manual matching of most items", score: 2 }
+          - { label: "Automated statement import with rule-based matching and exception review", score: 3 }
+          - { label: "Daily automated reconciliation with unmatched items aged and worked", score: 4 }
+
+      - id: R2R-02-03
+        text: Is there a defined policy on which accounts are reconciled, by whom and how often?
+        type: single_select
+        options:
+          - { label: "No policy; practice varies by preparer", score: 0 }
+          - { label: "An informal understanding of which accounts matter", score: 1 }
+          - { label: "A documented list of accounts and owners, followed inconsistently", score: 2 }
+          - { label: "A policy with risk-based frequency, enforced through the close task list", score: 3 }
+          - { label: "Risk-rated policy with coverage and ageing reported to the finance leadership each period", score: 4 }
+
+      - id: R2R-02-04
+        text: How many balance-sheet accounts are currently unreconciled or carrying an aged unexplained difference, and what is the largest?
+        type: text
+
+  # ---------------------------------------------------------------- 3
+  - key: r2r_journals
+    sn: 3
+    title: Journal entries & close task management
+    weight: 15
+    intent: >-
+      Effort and risk at once. The manual journal count is the best single proxy for how
+      much of the reported result is assembled by hand, and an uncontrolled journal is the
+      classic misstatement mechanism — this is also where the close is coordinated, or is
+      not.
+    questions:
+      - id: R2R-03-01
+        text: How are manual journals raised, supported and approved?
+        type: single_select
+        options:
+          - { label: "Posted from emails and notes, with no consistent supporting documentation", score: 0 }
+          - { label: "Posted directly by preparers, with support kept separately in files", score: 1 }
+          - { label: "A defined journal form with support attached and an approval convention, enforced by practice", score: 2 }
+          - { label: "Raised in-system with mandatory support and enforced preparer and reviewer segregation, with recurring journals templated", score: 3 }
+          - { label: "Materiality-based approval routing with the manual journal count measured and being reduced", score: 4 }
+          - { label: "Journal creation largely automated from source events, with analytics flagging anomalous entries before posting", score: 5 }
+        nudges:
+          - when: { in: ["Posted from emails and notes, with no consistent supporting documentation", "Posted directly by preparers, with support kept separately in files"] }
+            ask: >-
+              Ask whether any control prevents a single person preparing and posting a
+              journal to any account. This is a segregation-of-duties finding for the
+              controls workstream, and it is the specific mechanism through which a
+              spreadsheet-mediated close becomes a misstatement risk rather than merely a
+              slow one.
+          - when: { answered: true }
+            ask: >-
+              How many manual journals were posted at the last period end, and how many of
+              those were topside entries made after the ledger closed? Read the answer next
+              to days-to-close: a short close with a high manual journal count means the
+              deadline is being met by effort, not by automation.
+
+      - id: R2R-03-02
+        text: How is the close itself coordinated?
+        type: single_select
+        options:
+          - { label: "There is no close calendar; people know what to do", score: 0 }
+          - { label: "A spreadsheet checklist circulated at period end", score: 1 }
+          - { label: "A maintained close calendar with owners, tracked manually", score: 2 }
+          - { label: "A tracked close task list in-system with owners, dependencies and status", score: 3 }
+          - { label: "Close status visible in real time with cycle time reported per task and bottlenecks addressed", score: 4 }
+        nudges:
+          - when: { in: ["There is no close calendar; people know what to do", "A spreadsheet checklist circulated at period end"] }
+            ask: >-
+              Ask who would run the close if the financial controller were unavailable in
+              the first week of a month. An uncodified close is a key-person dependency
+              with a reporting deadline attached, and it is one of the more common
+              post-close surprises for a buyer.
+
+      - id: R2R-03-03
+        text: How many working days does the close take, and how many manual journals are posted each period?
+        type: text
+
+  # ---------------------------------------------------------------- 4
+  - key: r2r_intercompany
+    sn: 4
+    title: Intercompany
+    weight: 11
+    intent: >-
+      Intercompany transactions, matching, settlement and elimination. Consumes
+      disproportionate close time in any group and is the most common cause of a
+      consolidation that will not balance. Near-zero in a single-entity target — leave
+      this step unanswered there rather than scoring it manual.
+    questions:
+      - id: R2R-04-01
+        text: How are intercompany balances agreed between entities?
+        type: single_select
+        options:
+          - { label: "By email between finance teams, and adjusted at consolidation", score: 0 }
+          - { label: "A spreadsheet matrix reconciled manually each period, with differences resolved by negotiation", score: 1 }
+          - { label: "Intercompany transactions flagged in the ledger and matched manually against a counterparty schedule", score: 2 }
+          - { label: "Systematic matching with a defined difference threshold and a dispute process with owners", score: 3 }
+          - { label: "Automated matching and elimination with netting or settlement runs, and differences trending down", score: 4 }
+          - { label: "Real-time intercompany posting with automatic counterparty entries, so differences cannot arise in the ordinary course", score: 5 }
+        nudges:
+          - when: { in: ["By email between finance teams, and adjusted at consolidation", "A spreadsheet matrix reconciled manually each period, with differences resolved by negotiation"] }
+            ask: >-
+              What is the current unreconciled intercompany difference, and how long has it
+              been carried? A balance that is written off at consolidation rather than
+              resolved is both a close-effort finding and something the quality-of-earnings
+              team will want to see.
+
+      - id: R2R-04-02
+        text: How are intercompany transfer pricing entries and recharges handled?
+        type: single_select
+        options:
+          - { label: "Calculated annually in a spreadsheet and posted as a single adjustment", score: 0 }
+          - { label: "Periodic manual recharges based on a schedule maintained outside the ledger", score: 1 }
+          - { label: "A defined recharge calculation applied manually each period", score: 2 }
+          - { label: "Recharges configured and posted systematically on an agreed basis, with documentation retained", score: 3 }
+          - { label: "Automated allocation and recharge with the transfer pricing policy enforced by configuration", score: 4 }
+
+  # ---------------------------------------------------------------- 5
+  - key: r2r_consolidation
+    sn: 5
+    title: Consolidation & group close
+    weight: 14
+    intent: >-
+      Where a spreadsheet does the most damage. A consolidation worked outside a system
+      has no audit trail, breaks when the group structure changes, and is usually held by
+      one person. Leave unanswered for a single-entity target — but see the carve-out note
+      in the model's §1.
+    questions:
+      - id: R2R-05-01
+        text: How is the group result consolidated?
+        type: single_select
+        options:
+          - { label: "In a spreadsheet model maintained by one person", score: 0 }
+          - { label: "Entity trial balances collected by email and consolidated in a workbook with manual eliminations and translation", score: 1 }
+          - { label: "A template collected from entities and loaded into a tool, with adjustments and eliminations still worked outside it", score: 2 }
+          - { label: "A consolidation system fed from entity ledgers, with translation, eliminations and structure configured and topside entries controlled", score: 3 }
+          - { label: "Largely automated consolidation with submission validation, a maintained group structure and a full audit trail to entity detail", score: 4 }
+          - { label: "Continuous consolidation with the group position available on demand and structure changes modelled without rebuilding", score: 5 }
+        nudges:
+          - when: { in: ["In a spreadsheet model maintained by one person", "Entity trial balances collected by email and consolidated in a workbook with manual eliminations and translation"] }
+            ask: >-
+              Ask who maintains the consolidation model, whether anyone else can operate
+              it, and whether it is version-controlled or backed up. A group result
+              produced by one undocumented workbook is a key-person risk that is also a
+              reporting continuity risk on Day 1, and the buyer inherits both.
+          - when: { in: ["A consolidation system fed from entity ledgers, with translation, eliminations and structure configured and topside entries controlled", "Largely automated consolidation with submission validation, a maintained group structure and a full audit trail to entity detail"] }
+            ask: >-
+              How many topside or group-level adjustments were posted at the last close,
+              and what were the largest? Topside entries are where an otherwise automated
+              consolidation becomes manual again, and they are the entries a
+              quality-of-earnings team examines first.
+
+      - id: R2R-05-02
+        text: How is currency translation handled?
+        type: single_select
+        options:
+          - { label: "Rates applied by hand in a spreadsheet each period", score: 0 }
+          - { label: "A manual rate table maintained and applied at consolidation", score: 1 }
+          - { label: "Rates loaded into the ledger and applied with manual checking", score: 2 }
+          - { label: "Rates fed automatically with translation configured by account type and reserve movements calculated systematically", score: 3 }
+          - { label: "Fully automated translation with validation and analysis of translation effects", score: 4 }
+
+      - id: R2R-05-03
+        text: How many legal entities and ledgers are consolidated, and on how many different systems do they sit?
+        type: text
+
+  # ---------------------------------------------------------------- 6
+  - key: r2r_external
+    sn: 6
+    title: External reporting & disclosure
+    weight: 10
+    intent: >-
+      Statutory accounts, lender and group reporting, disclosure tie-out and audit
+      support. Consequential and deadline-bound, but performed a few times a year and
+      often with adviser support, so it consumes less of the recurring close than its
+      visibility suggests.
+    questions:
+      - id: R2R-06-01
+        text: How are statutory and external reports produced?
+        type: single_select
+        options:
+          - { label: "Entirely by an adviser from a trial balance handed over at year end", score: 0 }
+          - { label: "Drafted in a document with figures typed in from the consolidation and checked by eye", score: 1 }
+          - { label: "A standard reporting template populated manually, with a tie-out performed by hand", score: 2 }
+          - { label: "Disclosures generated from the consolidation with linked figures and a controlled review cycle", score: 3 }
+          - { label: "A disclosure management tool with automatic tie-out across statements and notes, and version control", score: 4 }
+          - { label: "Reporting fully linked to the ledger with tagging and filing automated", score: 5 }
+        nudges:
+          - when: { in: ["Entirely by an adviser from a trial balance handed over at year end", "Drafted in a document with figures typed in from the consolidation and checked by eye"] }
+            ask: >-
+              Where the adviser prepares the statutory accounts, ask what in-house
+              capability would remain if that relationship changed at completion. In a
+              carve-out the target may have to report standalone for the first time, and
+              the absence of the capability is then a Day 1 cost rather than a
+              non-applicability.
+
+      - id: R2R-06-02
+        text: How is the audit supported?
+        type: single_select
+        options:
+          - { label: "Requests are answered individually as they arrive, by whoever can find the document", score: 0 }
+          - { label: "A shared folder of files assembled during fieldwork", score: 1 }
+          - { label: "A prepared-by-client list worked through manually against a request log", score: 2 }
+          - { label: "An audit file assembled to a defined structure, with requests tracked to closure", score: 3 }
+          - { label: "Evidence served from a maintained set with system access provided to the auditors directly", score: 4 }
+        nudges:
+          - when: { answered: true }
+            ask: >-
+              Were there audit adjustments at the last year end, how many, and what was
+              their aggregate value? Recurring audit adjustments are a symptom of the
+              close mechanism rather than of judgement, and their size is the most direct
+              evidence available of what this process is producing.
+
+  # ---------------------------------------------------------------- 7
+  - key: r2r_tax
+    sn: 7
+    title: Tax accounting & compliance
+    weight: 8
+    intent: >-
+      Current and deferred tax, the provision and its posting, indirect tax returns and
+      filings. Weighted lightest because it is largely annual and usually adviser-led in a
+      mid-market target, so much of it sits outside the mechanism this model grades —
+      weight it higher for a target with material in-house indirect tax volume.
+    questions:
+      - id: R2R-07-01
+        text: How is the tax provision prepared and posted?
+        type: single_select
+        options:
+          - { label: "Dealt with once a year by an adviser, with no in-house computation process", score: 0 }
+          - { label: "Prepared in spreadsheets from extracts assembled by hand", score: 1 }
+          - { label: "A defined data extract and a documented computation, still spreadsheet-based and posted manually", score: 2 }
+          - { label: "Tax-sensitised data available from the ledger, with the provision computed on a standard model and posted on a controlled cycle", score: 3 }
+          - { label: "Automated provision calculation and posting, reconciled to the ledger", score: 4 }
+          - { label: "Real-time tax determination with continuous compliance monitoring across jurisdictions", score: 5 }
+
+      - id: R2R-07-02
+        text: How are indirect tax returns produced?
+        type: single_select
+        options:
+          - { label: "Compiled manually from ledger exports and reworked in a spreadsheet", score: 0 }
+          - { label: "Produced from a standard report with manual adjustments each period", score: 1 }
+          - { label: "Produced from system reports with a documented adjustment process", score: 2 }
+          - { label: "Generated from the ledger with tax codes configured, reconciled to the return before filing", score: 3 }
+          - { label: "A tax engine or configured determination with filings produced and reconciled automatically", score: 4 }
+        nudges:
+          - when: { in: ["Compiled manually from ledger exports and reworked in a spreadsheet", "Produced from a standard report with manual adjustments each period"] }
+            ask: >-
+              In how many jurisdictions does the target file indirect tax returns, and has
+              any return been filed late or amended in the last two years? Digital filing
+              mandates are tightening in most jurisdictions, so a manual return process is
+              a compliance cost with a known deadline attached rather than an open-ended
+              inefficiency.
+
+  # ---------------------------------------------------------------- 8
+  - key: r2r_management_reporting
+    sn: 8
+    title: Management reporting & analytics
+    weight: 14
+    intent: >-
+      Where the close becomes useful. A target whose pack is rebuilt by hand each month
+      carries an analyst cost, a latency problem and a single point of failure — and this
+      is the step a buyer notices immediately after completion, which is why it is
+      weighted well above its share of statutory close effort.
+    questions:
+      - id: R2R-08-01
+        text: How is the monthly management pack produced?
+        type: single_select
+        options:
+          - { label: "There is no regular pack; numbers are produced when someone asks", score: 0 }
+          - { label: "Rebuilt by hand each month in spreadsheets from ledger exports, by one or two people", score: 1 }
+          - { label: "Standard ledger reports assembled into a pack manually, with some figures re-keyed", score: 2 }
+          - { label: "Produced from a reporting layer or BI tool fed from the ledger, with a defined KPI set and budget comparison built in", score: 3 }
+          - { label: "Self-service reporting on governed definitions with drill-down to transaction detail and automated distribution", score: 4 }
+          - { label: "Analytics integrated with planning and forecasting, with variance insight generated rather than assembled", score: 5 }
+        nudges:
+          - when: { in: ["There is no regular pack; numbers are produced when someone asks", "Rebuilt by hand each month in spreadsheets from ledger exports, by one or two people"] }
+            ask: >-
+              How many days after period end does the board see the result, and who builds
+              the pack? Reporting latency is what a new owner feels from month one, and a
+              pack held by one person is the reason it cannot simply be accelerated.
+
+      - id: R2R-08-02
+        text: How are budgets and forecasts prepared and compared to actuals?
+        type: single_select
+        options:
+          - { label: "An annual budget in a spreadsheet, rarely revisited; no formal comparison", score: 0 }
+          - { label: "Budget held in spreadsheets and compared manually to ledger exports", score: 1 }
+          - { label: "Budget loaded into the ledger with variance reporting run manually", score: 2 }
+          - { label: "Budget and forecast held in a planning tool or the ledger, with variance reported as standard each period", score: 3 }
+          - { label: "Rolling forecast with driver-based planning integrated to actuals and variance analysed systematically", score: 4 }
+
+      - id: R2R-08-03
+        text: Are KPI and metric definitions governed, so the same measure means the same thing across reports?
+        type: single_select
+        options:
+          - { label: "No definitions; each report's author decides", score: 0 }
+          - { label: "Definitions understood informally and applied inconsistently", score: 1 }
+          - { label: "Documented definitions maintained outside the reporting tools", score: 2 }
+          - { label: "Governed definitions held in the reporting layer and applied consistently across the pack", score: 3 }
+          - { label: "Certified metrics with lineage to source and ownership assigned", score: 4 }
+        nudges:
+          - when: { in: ["No definitions; each report's author decides", "Definitions understood informally and applied inconsistently"] }
+            ask: >-
+              Ask whether the same measure — revenue, gross margin, headcount — is reported
+              on the same basis in the board pack, the lender report and the management
+              accounts. Where it is not, the diligence team should reconcile them before
+              relying on any of them, and the difference is a process artefact rather than
+              a disagreement about the business.
+
+      - id: R2R-08-04
+        text: What is the finance headcount involved in the close, and how many working days after period end does the board see the result?
+        type: text

@@ -39,7 +39,7 @@ processes:
   - key: hire_to_retire
     name: Hire to Retire
     short_name: H2R
-    defined: false
+    defined: true
     description: >-
       How a role becomes a hire and an employee's lifecycle is administered through to
       exit.
@@ -47,6 +47,6 @@ processes:
   - key: record_to_report
     name: Record to Report
     short_name: R2R
-    defined: false
+    defined: true
     description: >-
       How transactions become a closed ledger and a reported set of financials.

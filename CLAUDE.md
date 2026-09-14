@@ -26,8 +26,8 @@ The flow the product owns:
 5. **Checklist** — track which requested documents have actually arrived, ranked by
    importance. Built in Phase 4 — see §9.
 6. **Assess** — perform the diligence: work through a business process step by step,
-   recording what management said, and score its level of automation. Built in Phase 5 —
-   see §9.
+   recording what management said, and score its level of automation. Built in Phase 5,
+   **complete for all five processes** — see §9.
 7. **Execution & reporting** — run the remaining workstreams, collect findings, produce
    the report. *(Phase 6+, not planned yet.)*
 
@@ -151,11 +151,17 @@ Tech_DD/
 │   │   ├── PHASE2_SPEC.md     # Phase 2 build spec (scope engine)
 │   │   ├── PHASE2_PROMPT.md   # the Phase 2 handoff prompt
 │   │   ├── PHASE3_PLAN.md     # Phase 3 build plan (IRL + research)
-│   │   └── PHASE4_PLAN.md     # Phase 4 build plan (checklist)
+│   │   ├── PHASE4_PLAN.md     # Phase 4 build plan (checklist + shared-drive scan)
+│   │   └── PHASE5_PLAN.md     # Phase 5 build plan (assess)
 │   └── reference/
 │       ├── DD_master.md       # the domain authority (Roehl-Anderson 2013)
 │       ├── KPMG_SOW_LANGUAGE.md  # house scope-of-work voice, from the source deck
 │       │   # (the source PDF is gitignored — client-confidential, local only)
+│       ├── P2P_AUTOMATION_MODEL.md   # Assess: Procure to Pay, 9 steps  [EXT]
+│       ├── O2C_AUTOMATION_MODEL.md   # Assess: Order to Cash, 8 steps   [EXT]
+│       ├── P2M_AUTOMATION_MODEL.md   # Assess: Plan to Make, 8 steps    [EXT]
+│       ├── H2R_AUTOMATION_MODEL.md   # Assess: Hire to Retire, 9 steps  [EXT]
+│       ├── R2R_AUTOMATION_MODEL.md   # Assess: Record to Report, 8 steps [EXT]
 │       └── mockup_v0.html     # v0 visual reference (architecture superseded)
 ├── assets/                    # brand assets (logos)
 ├── .env.example               # every env var, no real values
@@ -321,6 +327,16 @@ web search that **refuses rather than fabricating** — no grounding metadata, n
 run — and feeds the IRL so its questions and function names fit the actual business. Plan
 at `docs/phases/PHASE3_PLAN.md`.
 
+**Research produces a business brief** (2026-09-11): seven cited sections — executive
+summary, what they do, how they make money, customers and markets, the sector, competitive
+position, and what it means for the diligence. A section the sources do not support is
+**omitted, not padded**. The brief feeds the IRL so requests fit the business, but
+`implications_for_diligence` is deliberately withheld from it — that section is the
+module's own analysis, and the request list takes its cues from the scope, not from a
+model's opinion. Citations come from a **second model call**: source ids are assigned from
+grounding metadata *after* the answer is written, so the model cannot cite ids that did not
+exist when it wrote. Before that pass existed, every stored run carried empty citations.
+
 **Each deliverable is its own versioned child table** hanging off `engagements`
 (`scope_of_work`, `information_request_list`, `company_research`, plus `irl_response`).
 Adding a module later is one more table + service + router — do not reshape what exists.
@@ -343,14 +359,44 @@ reminders remain a stub.
 - **Email reminders** — frontend stub only, honestly badged "Not connected yet".
 - **A client-facing export of the Assess score** — the view is internal-facing by decision;
   the payload carries everything a PPT/PDF would need. Not built rather than guessed at.
-- **The two undefined business processes** — Hire to Retire and Record to Report.
 
-**Phase 5 — BUILT, for Procure to Pay, Order to Cash and Plan to Make.** The Assess module: a questionnaire with
-conditional **nudges** (if X is the answer, ask Y) covering the nine steps of P2P, a blank
+**Phase 5 — COMPLETE. All five processes are defined** (2026-09-14): Procure to Pay,
+Order to Cash, Plan to Make, Hire to Retire and Record to Report. The Assess module is a
+questionnaire per process with conditional **nudges** (if X is the answer, ask Y), a blank
 response against every question, analyst-added questions, and a deterministic 0-100
-automation index with an executive summary and pointers. Hire to Retire and Record to Report are
-**named and listed with nothing behind them** — a 409, never a 404. Plan at `docs/phases/PHASE5_PLAN.md`;
-the domain model at `docs/reference/P2P_AUTOMATION_MODEL.md`.
+automation index with an executive summary and pointers. **No process is named with nothing
+behind it**, and the 409 `process_not_defined` path — still correct, still tested against a
+synthetic entry — is no longer reachable in practice.
+
+**The five are not all the same kind of process, and the models say so rather than
+borrowing P2P's framing.** P2P and O2C are transaction cycles weighted by volume and
+financial exposure. P2M is a decision cycle weighted by the exposure each decision
+controls. **H2R is an identity and obligation lifecycle weighted by what breaks when the
+step is manual** — offboarding processes almost no events and carries one of the heaviest
+weights, because a leaver whose access persists is a live credential. **R2R is a periodic
+close weighted by close effort and misstatement risk**, where "volume" barely applies and
+the currency is days to close, manual journal count and reconciliation backlog.
+
+**H2R is the one process whose automation gap is also a cyber finding.** Joiner-mover-leaver
+is the mechanism the security workstream assumes is working, so the questionnaire elicits
+**revocation timeliness in days**, not whether a checklist exists — a documented but
+unmeasured process scores 2, never 4. Do not soften that; it is pinned by a test.
+
+**R2R grades the mechanism, not the accounting.** Whether a provision is adequate is the
+quality-of-earnings team's question. What this contributes is how much of the reported
+result is assembled by hand. Its shape note is deliberately narrower than the other four —
+the steps of a close are sequentially dependent, so an even profile is the ordinary result
+and the note says so instead of inventing a finding.
+
+**A new process is pure content**: a model document, a questionnaire YAML, a registry flip
+and tests. The maturity ladder, the scoring arithmetic, the banding, the API, the scoring
+prompt and the frontend are process-agnostic. The one exception was the **shape note**,
+whose commercial reading is genuinely process-specific — it moved into a `shape` block in
+each questionnaire on 2026-09-09. **H2R and R2R found no second exception**, which is the
+strongest evidence the claim holds.
+
+Plan at `docs/phases/PHASE5_PLAN.md`; the domain models at
+`docs/reference/{P2P,O2C,P2M,H2R,R2R}_AUTOMATION_MODEL.md`.
 
 **Assess is the one module where the LLM may move a number** (2026-09-02, Rishi's explicit
 choice). It may refine a step score by **at most ±1**, with a stated reason, and the
@@ -379,9 +425,14 @@ multi-user auth.
 - `docs/reference/KPMG_SOW_LANGUAGE.md` — the house scope-of-work voice, transcribed
   verbatim from the KPMG source deck. This is what the generated document must sound
   like.
-- `docs/reference/P2P_AUTOMATION_MODEL.md` — the Assess module's evaluation reference: the
-  nine Procure-to-Pay steps, their weights, and the 0-5 maturity ladder the scoring reads.
-  `[EXT]` — built for this platform, and a calibration to be tuned, not an authority.
+- `docs/reference/{P2P,O2C,P2M,H2R,R2R}_AUTOMATION_MODEL.md` — the Assess module's five
+  evaluation references: each process's step decomposition, its weights, and the 0-5
+  maturity ladder the scoring reads. The ladder, arithmetic and banding are identical
+  across all five; the steps, weights, per-level evidence and shapes differ, and **so does
+  the weighting principle** — §1 of each says what kind of process it is and why that
+  changes what the assessment looks for. All `[EXT]` — built for this platform, and
+  calibrations to be tuned, not authorities. Each §7 records what was searched for in
+  `DD_master.md` and what was not found, rather than implying provenance it does not have.
 
 ## 10. Working agreements
 

@@ -1,0 +1,648 @@
+# Hire to Retire — automation assessment questionnaire.
+#
+# The domain model behind this file is docs/reference/H2R_AUTOMATION_MODEL.md. Read it
+# before changing weights or scores: every `score` below is a level on the 0-5 maturity
+# ladder defined in §2, and every step weight comes from §3.
+#
+# A practitioner edits this file without a developer. It is validated at startup and a
+# malformed file fails loudly.
+#
+# QUESTION TYPES
+#   single_select  - scores. Each option carries the ladder level it evidences.
+#   text           - does not score. Captures evidence, volumes and caveats; this is
+#                    what the exec summary draws on. In H2R the numbers worth having are
+#                    headcount, annual joiners and leavers, the number of payroll systems
+#                    and the countries they cover, HR administration headcount, and above
+#                    all the measured revocation lag in days.
+#
+# NUDGES
+#   A nudge is a conditional follow-up: "if X is the answer, ask Y". They evaluate as
+#   the analyst answers, so the follow-up appears immediately beneath its parent.
+#   `when.equals` matches one option; `when.in` matches any of several; `when.answered`
+#   fires on any non-empty answer. Nudges never score - they exist to make the evidence
+#   behind a score defensible, and a nudge that scored would double-count its parent.
+#
+# WEIGHTS sum to 100. See H2R_AUTOMATION_MODEL.md §3 for why each step carries what it
+# does. WEIGHT HERE REFLECTS WHAT BREAKS WHEN THE STEP IS MANUAL, NOT TRANSACTION VOLUME
+# — that is the substantive departure from P2P and O2C. Offboarding processes a trivial
+# number of events and carries 14, because the exposure per missed event is unbounded.
+#
+# APPLICABILITY. Every target has this process; there is no equivalent of P2M's
+# distributor exemption. But a 40-person target genuinely does not need a learning
+# management system, and scoring step 7 harshly for its absence manufactures a finding.
+# Where a step is not applicable at the target's scale rather than absent through
+# neglect, leave it unanswered and say why in the evidence field. The distinction is
+# between too small to need it and too disorganised to have it. See §1 of the model.
+#
+# THE RULE THAT MATTERS MOST HERE. This is the only process where the automation gap is
+# also a security finding, and the questionnaire is written to elicit revocation
+# TIMELINESS rather than the existence of a checklist. Every management team has an
+# offboarding checklist and it evidences nothing. A documented process with no measured
+# lag is a 2, not a 4 — see the option scores on H2R-08-02 and H2R-08-03, and §2 and
+# §3.1 step 8 of the model document. The same logic governs step 2: access assigned by
+# copying an existing user's permissions cannot score above 2 whatever tooling raised
+# the request, because that is where entitlement creep begins.
+
+process_key: hire_to_retire
+name: Hire to Retire
+short_name: H2R
+version: "1.0"
+model_ref: docs/reference/H2R_AUTOMATION_MODEL.md
+description: >-
+  How a role becomes a hire and an employee's lifecycle is administered through to exit.
+  Assessed for automation maturity across nine steps, weighted by what breaks when the
+  step is manual rather than by the volume of events it carries.
+
+shape:
+  front_steps: [1, 2, 3]
+  back_steps: [7, 8, 9]
+  front_label: the joining and employee-record end
+  back_label: the leaving and compliance end
+  front_loaded: >-
+    Front-loaded: joining is materially more automated than leaving. This is the common
+    shape and the one this assessment exists to find. Hiring is visible, competitive and
+    owned by someone senior, so it attracts tooling; leaving is administrative and
+    nobody's priority. The consequence is not administrative cost but a growing
+    population of live credentials belonging to people who no longer work here, and a
+    personal-data retention position nobody can evidence. Both belong in the security and
+    legal workstreams, not in the cost case, and a buyer's HR systems business case
+    almost never mentions either. Confirm the measured revocation lag before accepting
+    any reassurance about this shape.
+  back_loaded: >-
+    Back-loaded: leaver controls and compliance evidence are materially more automated
+    than the joining and employee-record end. Uncommon, and where it occurs it usually
+    means an auditor or a regulator required training currency and leaver evidence to be
+    demonstrable, while the employee master underneath remains a spreadsheet. The
+    controls are real but they are being operated by hand on unreliable data, so they are
+    more expensive than they look and they will fail quietly as headcount grows. Treat
+    the compliance evidence as sound for now and the cost of sustaining it as understated.
+  even: >-
+    Broadly even across the lifecycle, so the constraint is the overall level rather than
+    one weak end. Read the index next to two specific answers before concluding anything:
+    the measured revocation lag in days, and the number of payroll systems. A respectable
+    index with an eleven-day revocation lag conceals a security finding, and a respectable
+    index across six payroll providers conceals a separation cost the number does not
+    express.
+
+steps:
+  # ---------------------------------------------------------------- 1
+  - key: h2r_recruiting
+    sn: 1
+    title: Workforce planning, recruiting & offer
+    weight: 9
+    intent: >-
+      How a vacancy is approved, filled and turned into an accepted offer. Usually the
+      best-automated step in the process and the least consequential if it is not — a
+      manual recruiting process costs time-to-hire, which is an operational irritation
+      rather than a diligence finding.
+    questions:
+      - id: H2R-01-01
+        text: How are vacancies approved and tracked from requisition to offer?
+        type: single_select
+        options:
+          - { label: "Verbally agreed; CVs sit in individual mailboxes with no record of who applied", score: 0 }
+          - { label: "A spreadsheet tracker of candidates, with offers written and sent by hand", score: 1 }
+          - { label: "An applicant tracking system holds the pipeline, but headcount approval and offers sit outside it", score: 2 }
+          - { label: "Requisition and approval in-system against an approved headcount plan, with offers generated from templates", score: 3 }
+          - { label: "Integrated through to onboarding, with pre-employment checks tracked and time-to-hire reported", score: 4 }
+          - { label: "Workforce planning driven from the organisational plan, with pipeline analytics and automated scheduling", score: 5 }
+        nudges:
+          - when: { in: ["Verbally agreed; CVs sit in individual mailboxes with no record of who applied", "A spreadsheet tracker of candidates, with offers written and sent by hand"] }
+            ask: >-
+              Where do candidate CVs and interview notes physically live, and for how
+              long are they kept? Unsuccessful applicants' data held in mailboxes with no
+              retention rule is a personal-data finding independent of the automation
+              level — record it for the privacy workstream.
+          - when: { equals: "Integrated through to onboarding, with pre-employment checks tracked and time-to-hire reported" }
+            ask: >-
+              Confirm the integration actually creates the employee record rather than
+              exporting a file someone re-keys. Ask to see one recent hire traced from
+              accepted offer to employee number.
+
+      - id: H2R-01-02
+        text: Are pre-employment checks — right to work, references, background screening — recorded and tracked to completion?
+        type: single_select
+        options:
+          - { label: "Not systematically; it is assumed the hiring manager did it", score: 0 }
+          - { label: "Paper or scanned evidence filed against the personnel file", score: 1 }
+          - { label: "A checklist maintained by HR, chased manually", score: 2 }
+          - { label: "Tracked in-system with completion required before the start date", score: 3 }
+          - { label: "Integrated screening with automatic status and re-screening where the role requires it", score: 4 }
+        nudges:
+          - when: { in: ["Not systematically; it is assumed the hiring manager did it", "Paper or scanned evidence filed against the personnel file"] }
+            ask: >-
+              In a regulated target this is a compliance exposure rather than an
+              efficiency point. Ask whether any role requires a statutory check — right
+              to work, DBS or local equivalent, financial services approval — and whether
+              the evidence could be produced on request today.
+
+      - id: H2R-01-03
+        text: What is the annual joiner count, the leaver count, and current headcount?
+        type: text
+
+  # ---------------------------------------------------------------- 2
+  - key: h2r_onboarding
+    sn: 2
+    title: Onboarding & provisioning
+    weight: 14
+    intent: >-
+      How an accepted offer becomes an employee with the right access. One half of the
+      joiner-mover-leaver control and where over-provisioning begins: every excess
+      entitlement granted here persists for the whole of that person's tenure unless
+      something removes it.
+    questions:
+      - id: H2R-02-01
+        text: How are system accounts and access created for a new joiner?
+        type: single_select
+        options:
+          - { label: "The manager emails IT asking for accounts, usually naming a colleague to copy the access from", score: 0 }
+          - { label: "A checklist document worked through by hand across several teams, tracked in a mailbox or spreadsheet", score: 1 }
+          - { label: "A workflow raises the requests, but each account is created manually and access is still copied from an existing user", score: 2 }
+          - { label: "The HR record triggers provisioning and role-based access profiles are applied, so the joiner gets the role's entitlements rather than a colleague's", score: 3 }
+          - { label: "Automated provisioning from the HR system into the identity provider and the major applications, with role definitions maintained", score: 4 }
+          - { label: "Fully automated joiner-mover-leaver across the estate with continuous entitlement certification", score: 5 }
+        nudges:
+          - when: { in: ["The manager emails IT asking for accounts, usually naming a colleague to copy the access from", "A workflow raises the requests, but each account is created manually and access is still copied from an existing user"] }
+            ask: >-
+              Copying a colleague's access is the single most common cause of entitlement
+              creep, and it compounds: the colleague's access was itself copied from
+              someone else. Ask whether any access review has ever been run, and what it
+              found. This belongs in the security workstream as well as here.
+          - when: { in: ["The HR record triggers provisioning and role-based access profiles are applied, so the joiner gets the role's entitlements rather than a colleague's", "Automated provisioning from the HR system into the identity provider and the major applications, with role definitions maintained"] }
+            ask: >-
+              How many applications are actually covered by the provisioning integration,
+              out of how many in the estate? The answer is usually the directory, email
+              and two or three major systems — the unfederated tail is where the exposure
+              persists, and it is the same tail that matters at offboarding.
+
+      - id: H2R-02-02
+        text: How much of onboarding is complete before the joiner's first day?
+        type: single_select
+        options:
+          - { label: "Not tracked; readiness on day one varies and nobody measures it", score: 0 }
+          - { label: "Chased informally by the manager in the week before", score: 1 }
+          - { label: "A checklist is worked through, with completion known only by asking", score: 2 }
+          - { label: "Tasks have owners and due dates in-system and readiness before the start date is tracked", score: 3 }
+          - { label: "Joiner readiness is measured and reported, with exceptions escalated before the start date", score: 4 }
+
+      - id: H2R-02-03
+        text: Is equipment issue recorded against the individual?
+        type: single_select
+        options:
+          - { label: "No asset record; equipment is handed out as available", score: 0 }
+          - { label: "A spreadsheet of who has what, updated when someone remembers", score: 1 }
+          - { label: "An asset register maintained by IT, reconciled occasionally", score: 2 }
+          - { label: "Assets assigned to the employee record in-system, visible at offboarding", score: 3 }
+          - { label: "Asset management integrated with the HR lifecycle, with recovery tracked and unreturned items reported", score: 4 }
+        nudges:
+          - when: { in: ["No asset record; equipment is handed out as available", "A spreadsheet of who has what, updated when someone remembers"] }
+            ask: >-
+              Without an asset record there is no way to know what a leaver is holding.
+              Ask what the last count found and whether any device holding company data
+              is unaccounted for — that is a security finding, not an asset one.
+
+      - id: H2R-02-04
+        text: Which systems are provisioned automatically from the HR record, and which are still created by hand?
+        type: text
+
+  # ---------------------------------------------------------------- 3
+  - key: h2r_employee_data
+    sn: 3
+    title: Core employee data & organisational records
+    weight: 13
+    intent: >-
+      The employee master, the organisational structure and the mover event. This is the
+      source of truth the other eight steps read from; where it is fragmented nothing
+      downstream can be automated and the headcount number cannot be reconciled.
+    questions:
+      - id: H2R-03-01
+        text: Where is the authoritative employee record held?
+        type: single_select
+        options:
+          - { label: "There is no single employee list; headcount is assembled by asking managers, and payroll is the de facto record", score: 0 }
+          - { label: "A master spreadsheet maintained by the HR team and re-sent when someone needs it", score: 1 }
+          - { label: "An HR system exists, but key data is duplicated into payroll, the directory and finance by hand", score: 2 }
+          - { label: "One authoritative employee master holding the organisational and position structure, with changes workflow-approved", score: 3 }
+          - { label: "The HR system is the acknowledged source of truth for every downstream consumer including identity and finance", score: 4 }
+          - { label: "Continuously reconciled across the estate, with position management and effective-dated history", score: 5 }
+        nudges:
+          - when: { in: ["There is no single employee list; headcount is assembled by asking managers, and payroll is the de facto record", "A master spreadsheet maintained by the HR team and re-sent when someone needs it", "An HR system exists, but key data is duplicated into payroll, the directory and finance by hand"] }
+            ask: >-
+              Ask for a headcount figure from HR, from payroll and from the directory on
+              the same date, and compare them. The size of the discrepancy is the honest
+              measure of this step, and it is a number the deal model needs anyway.
+
+      - id: H2R-03-02
+        text: How is the organisational and reporting structure maintained?
+        type: single_select
+        options:
+          - { label: "Not maintained; it is redrawn when someone needs a chart", score: 0 }
+          - { label: "A drawing or slide kept by HR, updated periodically", score: 1 }
+          - { label: "Held in the HR system but known to be out of date between reviews", score: 2 }
+          - { label: "Maintained in-system as the live structure, with reporting lines driving approvals and access", score: 3 }
+          - { label: "Position-based structure supporting planning, with vacancies and changes modelled", score: 4 }
+
+      - id: H2R-03-03
+        text: How is a change of role, manager or location — the mover event — processed?
+        type: single_select
+        options:
+          - { label: "By email to HR and IT separately, if at all; access from the old role is generally left in place", score: 0 }
+          - { label: "An HR form updates the record; access changes are requested separately by the manager", score: 1 }
+          - { label: "A defined change process updates the HR record and raises access requests, worked manually", score: 2 }
+          - { label: "The change in the HR record drives both the approval routing and the access change, with old entitlements removed", score: 3 }
+          - { label: "Automated mover handling across the estate with entitlement differences applied and certified", score: 4 }
+        nudges:
+          - when: { in: ["By email to HR and IT separately, if at all; access from the old role is generally left in place", "An HR form updates the record; access changes are requested separately by the manager"] }
+            ask: >-
+              The mover event is the least-controlled part of joiner-mover-leaver and the
+              one that accumulates: someone who has moved three times carries three roles'
+              worth of access. Ask whether anyone has ever reviewed long-tenured
+              employees' entitlements, and record this alongside the offboarding finding.
+
+      - id: H2R-03-04
+        text: Which HR, payroll and identity systems are in use, and which is treated as the source of truth by each consumer?
+        type: text
+
+  # ---------------------------------------------------------------- 4
+  - key: h2r_payroll
+    sn: 4
+    title: Payroll
+    weight: 16
+    intent: >-
+      The heaviest step in the model. Payroll must be correct every period under
+      statutory deadlines in every jurisdiction, its errors are visible to every
+      employee, and the number of payroll systems is the single most useful predictor of
+      separation cost in this process.
+    questions:
+      - id: H2R-04-01
+        text: How is payroll run?
+        type: single_select
+        options:
+          - { label: "Calculated in a spreadsheet and paid by manual bank transfer", score: 0 }
+          - { label: "A payroll system or bureau is used, but every input is compiled by hand and sent as a file each period", score: 1 }
+          - { label: "A payroll system with structured inputs, reconciled manually each run", score: 2 }
+          - { label: "Payroll integrated with the HR master so changes flow without re-keying, with pre-run validation and a reconciliation to the ledger", score: 3 }
+          - { label: "Largely touchless run with exception-based review, statutory filings automated and payroll cost posted automatically", score: 4 }
+          - { label: "Continuous payroll validation with anomaly detection before the run, on a single global operating model", score: 5 }
+        nudges:
+          - when: { in: ["Calculated in a spreadsheet and paid by manual bank transfer", "A payroll system or bureau is used, but every input is compiled by hand and sent as a file each period"] }
+            ask: >-
+              Who compiles the payroll input, and who can run payroll if they are absent?
+              A payroll held by one person is a key-person risk with a statutory deadline
+              attached, which makes it a different order of risk from the same dependency
+              elsewhere in the business.
+          - when: { equals: "Continuous payroll validation with anomaly detection before the run, on a single global operating model" }
+            ask: >-
+              Confirm this is running rather than contracted for. Ask what the last three
+              runs' error and off-cycle payment counts were — a genuinely optimised
+              payroll knows those numbers.
+
+      - id: H2R-04-02
+        text: How many payroll systems or providers are in use, across how many countries?
+        type: single_select
+        # Not a maturity progression in the usual sense — it counts systems, and fewer is
+        # better. Ordered fragmented-to-consolidated so the scores still ascend down the
+        # list like every other question in the library. The ceiling is 3 deliberately:
+        # a consolidated payroll estate is a precondition for an automated payroll, not
+        # evidence of one, and the run itself is scored by H2R-04-01.
+        options:
+          - { label: "Four or more separate local arrangements, several inherited from acquisitions", score: 1 }
+          - { label: "Two or three separate arrangements, with no consolidated view", score: 2 }
+          - { label: "Several countries, but one provider or platform covering them", score: 3 }
+          - { label: "One country, one payroll arrangement", score: 3 }
+        nudges:
+          - when: { in: ["Two or three separate arrangements, with no consolidated view", "Four or more separate local arrangements, several inherited from acquisitions"] }
+            ask: >-
+              List each provider, the country it covers, the contract end date and whether
+              it is shared with the seller or a parent. In a carve-out each one is a
+              separate transition service, a separate data migration and a separate local
+              compliance obligation on Day 1 — this list goes straight to the separation
+              workstream.
+          - when: { equals: "One country, one payroll arrangement" }
+            ask: >-
+              Confirm there is no second population paid outside it — contractors,
+              directors, an acquired entity still on its old arrangement. There usually is,
+              and it is rarely volunteered.
+
+      - id: H2R-04-03
+        text: Is payroll reconciled to the general ledger and to the employee record each period?
+        type: single_select
+        options:
+          - { label: "No formal reconciliation; the payroll cost is posted as a journal and accepted", score: 0 }
+          - { label: "Checked informally against the prior period for large movements", score: 1 }
+          - { label: "A manual reconciliation performed each period in a spreadsheet", score: 2 }
+          - { label: "A defined reconciliation to the ledger and a headcount check against the HR record, reviewed and retained", score: 3 }
+          - { label: "Automated reconciliation with variance analysis and exception-only review", score: 4 }
+
+      - id: H2R-04-04
+        text: What is the payroll and HR administration headcount, and what were the last period's payroll error and off-cycle payment counts?
+        type: text
+
+  # ---------------------------------------------------------------- 5
+  - key: h2r_time
+    sn: 5
+    title: Time, attendance & absence
+    weight: 11
+    intent: >-
+      Where payroll input is created. A manual feed here makes an otherwise automated
+      payroll a re-keying exercise, and in a shift-based or unionised workforce this is
+      the largest administrative load in the whole process.
+    questions:
+      - id: H2R-05-01
+        text: How are working time and overtime captured?
+        type: single_select
+        options:
+          - { label: "On paper, in a diary or in a manager's head; payroll is told by email", score: 0 }
+          - { label: "Spreadsheet timesheets collected and re-keyed into payroll each period", score: 1 }
+          - { label: "A time system used for some populations, with manual export into payroll", score: 2 }
+          - { label: "Time captured in-system with configured rules, feeding payroll directly without re-keying", score: 3 }
+          - { label: "Automated capture at the point of work — clock, badge, mobile or scheduling — with premia rules configured and exceptions flagged", score: 4 }
+          - { label: "Demand-based scheduling integrated with time capture and payroll, continuously optimised against cost and cover", score: 5 }
+        nudges:
+          - when: { in: ["Automated capture at the point of work — clock, badge, mobile or scheduling — with premia rules configured and exceptions flagged", "Demand-based scheduling integrated with time capture and payroll, continuously optimised against cost and cover"] }
+            ask: >-
+              Where employees are monitored by a time or scheduling system, ask whether
+              the works council or employee representatives were consulted before it was
+              introduced, and whether that consultation is documented. In much of
+              continental Europe this is a legal precondition, and an unconsulted system
+              is a delay sitting in front of any change the buyer intends.
+          - when: { in: ["On paper, in a diary or in a manager's head; payroll is told by email", "Spreadsheet timesheets collected and re-keyed into payroll each period"] }
+            ask: >-
+              How many hours per period does collecting and keying time data consume, and
+              across how many locations? This is usually the largest single administrative
+              load in H2R and the one with the clearest cost case attached.
+
+      - id: H2R-05-02
+        text: How is holiday and sickness absence recorded and approved?
+        type: single_select
+        options:
+          - { label: "Informally, by agreement with the manager; entitlement is tracked by the individual if at all", score: 0 }
+          - { label: "A spreadsheet per team or a central HR log", score: 1 }
+          - { label: "An absence module used inconsistently, with entitlement checked manually", score: 2 }
+          - { label: "Self-service booking with entitlement and approval rules configured and enforced, feeding payroll", score: 3 }
+          - { label: "Absence trends reported by population with triggers for management action, and statutory leave handled by configuration", score: 4 }
+        nudges:
+          - when: { in: ["Informally, by agreement with the manager; entitlement is tracked by the individual if at all", "A spreadsheet per team or a central HR log"] }
+            ask: >-
+              Ask whether the accrued holiday liability at the last year end was
+              calculated from records or estimated. An estimated holiday accrual is a
+              balance-sheet item the quality-of-earnings team will want to know is
+              unsupported, and it is a direct consequence of this automation gap.
+          - when: { answered: true }
+            ask: >-
+              Sickness absence records are health data and therefore a special category
+              under GDPR and its equivalents. Confirm where they are held, who can see
+              them, and whether access is restricted beyond the general HR population.
+
+      - id: H2R-05-03
+        text: What proportion of the workforce is shift-based, hourly paid or covered by a collective agreement?
+        type: text
+
+  # ---------------------------------------------------------------- 6
+  - key: h2r_performance
+    sn: 6
+    title: Performance, compensation review & development
+    weight: 8
+    intent: >-
+      The annual cycle of objectives, review, reward and progression. Consequential for
+      the buyer's people plan and for key-person risk, but a manual cycle here is an
+      inefficiency rather than an exposure, and the data is often reconstructible.
+    questions:
+      - id: H2R-06-01
+        text: How does the performance review cycle run?
+        type: single_select
+        options:
+          - { label: "No records; reviews happen by conversation if at all", score: 0 }
+          - { label: "Review forms completed as documents and filed", score: 1 }
+          - { label: "A system holds review records, with completion chased manually", score: 2 }
+          - { label: "An in-system cycle with objectives, completion tracked and outcomes held against the employee record", score: 3 }
+          - { label: "Performance connected to reward and progression, with cycle completion and distribution reported", score: 4 }
+          - { label: "Continuous feedback and talent data feeding succession and workforce planning, measured for consistency", score: 5 }
+
+      - id: H2R-06-02
+        text: How is the annual compensation and bonus review run?
+        type: single_select
+        options:
+          - { label: "Decided by discussion; changes are told to payroll directly with no auditable trail", score: 0 }
+          - { label: "Modelled in a spreadsheet emailed between managers and approved by reply", score: 1 }
+          - { label: "A spreadsheet round with a defined template and a central consolidation by HR", score: 2 }
+          - { label: "Run in-system against budget with approval rules enforced and changes flowing to payroll", score: 3 }
+          - { label: "Integrated with the reward framework, with budget control, pay-equity analysis and audit trail", score: 4 }
+        nudges:
+          - when: { in: ["Decided by discussion; changes are told to payroll directly with no auditable trail", "Modelled in a spreadsheet emailed between managers and approved by reply"] }
+            ask: >-
+              A compensation change reaching payroll without a recorded approval is a
+              control gap as well as an automation one. Ask how a salary change is
+              authorised today and whether anyone could detect an unauthorised one.
+
+      - id: H2R-06-03
+        text: Are succession and key-person risks recorded for critical roles?
+        type: single_select
+        options:
+          - { label: "Not recorded", score: 0 }
+          - { label: "Discussed at board level and held informally", score: 1 }
+          - { label: "A documented succession list reviewed periodically", score: 2 }
+          - { label: "Maintained in-system against the organisational structure with critical roles identified", score: 3 }
+          - { label: "Talent and succession data maintained continuously and used in workforce planning", score: 4 }
+        nudges:
+          - when: { in: ["Not recorded", "Discussed at board level and held informally"] }
+            ask: >-
+              Name the roles where a single departure would materially disrupt operations,
+              and say whether each has a documented successor or a retention arrangement.
+              This feeds the people-risk section of the diligence directly.
+
+  # ---------------------------------------------------------------- 7
+  - key: h2r_learning
+    sn: 7
+    title: Learning & compliance training
+    weight: 7
+    intent: >-
+      Course delivery, records, and above all the currency of mandatory and regulatory
+      training. The lightest weight in the model in general — but read it as a floor: in
+      a regulated or safety-critical target an unevidenced mandatory-training record is a
+      regulatory finding, and the step is materially heavier.
+    questions:
+      - id: H2R-07-01
+        text: How is training delivery and completion recorded?
+        type: single_select
+        options:
+          - { label: "No record of who has been trained on what", score: 0 }
+          - { label: "Attendance logged in a spreadsheet, or certificates filed", score: 1 }
+          - { label: "A learning system holds courses and completions, chased manually", score: 2 }
+          - { label: "Training assigned by role from the HR record, with completion tracked and evidence retrievable", score: 3 }
+          - { label: "Automated assignment, reminder and escalation, with compliance rates reported by population", score: 4 }
+          - { label: "Skills and competency data maintained against role requirements and feeding development planning", score: 5 }
+
+      - id: H2R-07-02
+        text: How is mandatory or regulatory training currency — and any licence or certification a role requires — monitored?
+        type: single_select
+        options:
+          - { label: "Not monitored; currency is assumed", score: 0 }
+          - { label: "Someone reviews a list periodically and chases", score: 1 }
+          - { label: "Expiry dates held in a spreadsheet with manual reminders", score: 2 }
+          - { label: "Expiry monitored in-system with reminders, and evidence retrievable for audit on request", score: 3 }
+          - { label: "Currency enforced where a lapse would stop someone working, with escalation and reporting", score: 4 }
+        nudges:
+          - when: { in: ["Not monitored; currency is assumed", "Someone reviews a list periodically and chases", "Expiry dates held in a spreadsheet with manual reminders"] }
+            ask: >-
+              Is the target regulated, or does any role require a statutory certification
+              to be performed lawfully — safety-critical work, financial advice, driving,
+              clinical roles? If so this is a compliance exposure rather than an
+              efficiency point, and the weight on this step understates it. Record which
+              populations are affected and whether currency could be evidenced today.
+
+      - id: H2R-07-03
+        text: What mandatory training applies, to which populations, and what is the current completion rate?
+        type: text
+
+  # ---------------------------------------------------------------- 8
+  - key: h2r_offboarding
+    sn: 8
+    title: Offboarding & access revocation
+    weight: 14
+    intent: >-
+      The other half of the joiner-mover-leaver control, and the step that produces a
+      security finding rather than a cost finding. Near-zero volume, unbounded exposure
+      per missed event. Score this step on measurement, never on documentation: every
+      management team has an offboarding checklist and the checklist evidences nothing.
+    questions:
+      - id: H2R-08-01
+        text: How does IT learn that someone is leaving?
+        type: single_select
+        options:
+          - { label: "When a manager mentions it, or when the account goes unused; no leaver list is shared", score: 0 }
+          - { label: "An email from HR or the manager, sometimes after the last working day", score: 1 }
+          - { label: "A leaver notification raised through a defined channel and worked manually", score: 2 }
+          - { label: "The HR termination record itself triggers the revocation tasks, with a dated effective time", score: 3 }
+          - { label: "Automated deprovisioning triggered by the HR record across the integrated estate on the effective date", score: 4 }
+        nudges:
+          - when: { in: ["When a manager mentions it, or when the account goes unused; no leaver list is shared", "An email from HR or the manager, sometimes after the last working day"] }
+            ask: >-
+              Ask how an immediate dismissal is handled out of hours, and who can disable
+              an account at short notice. The hostile-leaver case is where this gap does
+              its damage, and it is never the one the documented process describes.
+
+      - id: H2R-08-02
+        text: Is the time between a leaver's last working day and the disabling of their access measured?
+        type: single_select
+        options:
+          - { label: "Not measured, and nobody could say what it currently is", score: 0 }
+          - { label: "Not measured, but believed to be same-day for the main systems", score: 1 }
+          - { label: "A documented process requires same-day revocation; compliance with it is not measured", score: 2 }
+          - { label: "Completion is tracked per system against the leaver record, so the lag is visible for each departure", score: 3 }
+          - { label: "The revocation lag is measured and reported as a metric, with exceptions investigated", score: 4 }
+          - { label: "Revocation is immediate and policy-driven across the estate, with continuous entitlement certification evidencing it", score: 5 }
+        nudges:
+          - when: { in: ["Not measured, and nobody could say what it currently is", "Not measured, but believed to be same-day for the main systems", "A documented process requires same-day revocation; compliance with it is not measured"] }
+            ask: >-
+              This is the finding this process exists to produce, so do not leave it as a
+              belief. Ask for the last ten leavers and the actual disable date on each of
+              their accounts, and compare against their last working day. An unmeasured
+              process is scored at 2 however good the documentation is — and the ten-name
+              sample is usually obtainable in an afternoon.
+          - when: { in: ["The revocation lag is measured and reported as a metric, with exceptions investigated", "Revocation is immediate and policy-driven across the estate, with continuous entitlement certification evidencing it"] }
+            ask: >-
+              Ask for the actual figure — mean and worst case over the last twelve months —
+              and confirm it covers the unfederated applications and third-party systems,
+              not only the directory. The tail is where live credentials persist.
+
+      - id: H2R-08-03
+        text: Has the active account population ever been reconciled against the active employee list?
+        type: single_select
+        options:
+          - { label: "Never; nobody knows how many accounts belong to people who have left", score: 0 }
+          - { label: "Done once, during an audit or an incident", score: 1 }
+          - { label: "Done occasionally when someone raises it, with the orphans disabled and no root cause pursued", score: 2 }
+          - { label: "Performed on a defined cycle with orphaned accounts investigated and closed out", score: 3 }
+          - { label: "Continuous reconciliation with an auditable position on orphaned accounts across the estate", score: 4 }
+        nudges:
+          - when: { in: ["Never; nobody knows how many accounts belong to people who have left", "Done once, during an audit or an incident", "Done occasionally when someone raises it, with the orphans disabled and no root cause pursued"] }
+            ask: >-
+              Ask for a count of enabled accounts in the primary directory against the
+              current headcount. A gap larger than the contractor and service-account
+              population is the size of the problem, and it is a number the security
+              workstream will need regardless of what this assessment concludes.
+
+      - id: H2R-08-04
+        text: Are final pay, equipment return and records retention handled as part of the leaver process?
+        type: single_select
+        options:
+          - { label: "Handled separately by each team as they notice; equipment recovery is informal", score: 0 }
+          - { label: "A checklist covers them, worked by hand with no completion record", score: 1 }
+          - { label: "Tracked by HR manually, with unreturned equipment written off in practice", score: 2 }
+          - { label: "Workflowed with owners and completion recorded, including final pay and asset recovery", score: 3 }
+          - { label: "Fully tracked with retention rules applied to the leaver's records automatically", score: 4 }
+
+      - id: H2R-08-05
+        text: For the last ten leavers — what was the measured lag between last working day and access revocation, per system?
+        type: text
+
+  # ---------------------------------------------------------------- 9
+  - key: h2r_compliance
+    sn: 9
+    title: HR compliance, reporting & data privacy
+    weight: 8
+    intent: >-
+      The step that proves the others. Without reporting, no claim made about any of the
+      preceding steps can be substantiated — and retention is where the largest
+      personal-data population in the business is either governed or is not.
+    questions:
+      - id: H2R-09-01
+        text: How is HR and headcount reporting produced?
+        type: single_select
+        options:
+          - { label: "No regular reporting; a headcount is assembled on request", score: 0 }
+          - { label: "Periodic reports built by hand in a spreadsheet", score: 1 }
+          - { label: "Standard reports available from the HR system, exported and reworked", score: 2 }
+          - { label: "HR reporting reconciled to payroll and finance, produced on a defined cycle", score: 3 }
+          - { label: "Self-service analytics on headcount, attrition and cost with measured data quality", score: 4 }
+          - { label: "Workforce analytics feeding planning decisions, with the underlying data continuously monitored", score: 5 }
+
+      - id: H2R-09-02
+        text: How is employee data retention governed?
+        type: single_select
+        options:
+          - { label: "Nobody can say where employee data is held or how long it is kept", score: 0 }
+          - { label: "Everything is kept indefinitely; retention has not been considered", score: 1 }
+          - { label: "A retention policy exists as a document but no system enforces it", score: 2 }
+          - { label: "A data inventory covers employee data and retention rules are applied in the principal system", score: 3 }
+          - { label: "Retention and purging automated across systems, with exceptions reported", score: 4 }
+        nudges:
+          - when: { in: ["Nobody can say where employee data is held or how long it is kept", "Everything is kept indefinitely; retention has not been considered", "A retention policy exists as a document but no system enforces it"] }
+            ask: >-
+              Employee data is usually the largest population of personal data a
+              non-consumer business holds, and it includes special categories — health
+              data in absence records, bank details in payroll. Ask how long leaver
+              records are kept and on what basis. An unenforceable policy is a privacy
+              finding for the legal workstream as well as an automation gap here.
+
+      - id: H2R-09-03
+        text: How are employee subject access requests and privacy requests handled?
+        type: single_select
+        options:
+          - { label: "Has not arisen; there is no process", score: 0 }
+          - { label: "Handled ad hoc by whoever receives it, usually with legal help", score: 1 }
+          - { label: "A documented process exists, worked manually against statutory deadlines", score: 2 }
+          - { label: "Tracked with owners and deadlines, and the data locations known in advance", score: 3 }
+          - { label: "Largely automated retrieval across systems with response times measured", score: 4 }
+
+      - id: H2R-09-04
+        text: Where employees are represented, is works council or union consultation on HR systems documented?
+        type: single_select
+        options:
+          - { label: "No representation applies, or consultation has not been considered", score: 0 }
+          - { label: "Representation exists and consultation happens informally, undocumented", score: 1 }
+          - { label: "Consultation occurs for significant changes and is minuted", score: 2 }
+          - { label: "A defined consultation process with agreements retained and their constraints known to the project teams", score: 3 }
+        nudges:
+          - when: { in: ["Representation exists and consultation happens informally, undocumented", "Consultation occurs for significant changes and is minuted", "A defined consultation process with agreements retained and their constraints known to the project teams"] }
+            ask: >-
+              List the jurisdictions with employee representation and any agreement that
+              constrains changes to HR, time or monitoring systems. A buyer's HR systems
+              programme is subject to those agreements, and the consultation period is a
+              delay to the plan rather than a cost in it — the integration workstream
+              needs this.
+
+      - id: H2R-09-05
+        text: What employee data is held, where, and what retention rule applies to leaver records?
+        type: text

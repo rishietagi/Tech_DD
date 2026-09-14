@@ -8,23 +8,28 @@ future session would otherwise get wrong.
 
 ---
 
-## Current state — 2026-09-11
+## Current state — 2026-09-14
 
 | | |
 |---|---|
 | **Phase 1 (intake)** | Done, committed |
 | **Phase 2 (scope engine)** | Done, committed |
-| **Phase 3 (IRL + research)** | Done, committed. Asks **questions as well as documents**; hand-editable; response upload |
+| **Phase 3 (IRL + research)** | Done. Asks **questions as well as documents**; hand-editable; response upload. Research now returns a **7-section business brief**, cited (2026-09-11) |
 | **Phase 4 (checklist)** | Done. **The checklist page is gone** (2026-09-09) — it is all inside the IRL now; scanner built; email still deferred |
-| **Phase 5 (assess)** | Done. **P2P, O2C and Plan to Make** defined — Hire to Retire and Record to Report are named with nothing behind them |
-| **Backend** | pytest 440/440 · ruff clean · mypy clean (85 files) |
+| **Phase 5 (assess)** | **COMPLETE — five of five processes defined.** P2P, O2C, Plan to Make, and **Hire to Retire and Record to Report** (2026-09-14). No process is named with nothing behind it |
+| **Backend** | pytest 475/475 · ruff clean · mypy clean (85 files) |
 | **Frontend** | tsc clean · eslint clean · vitest 19/19 |
 | **API** | 46 routes, OpenAPI clean |
 | **DB** | at `0007_add_scan_findings` |
-| **Git** | `master`, at `ec3cb97` **plus uncommitted O2C work**. Rishi does all committing and pushing — never run `git push` |
+| **Git** | `master`, at `c227afd` **plus uncommitted H2R/R2R work**. Rishi does all committing and pushing — never run `git push` |
 
-**Everything through 2026-09-02 is committed.** The Order to Cash work of 2026-09-09 is
-written and verified but **not yet committed** — see the session log entry below.
+**Uncommitted:** the two model documents, the two questionnaires, the registry flip, the
+test extension and these doc updates. Everything before it is committed through the
+2026-09-11 research brief and Plan to Make work.
+
+**The Assess module's content is finished.** There is no next process to define, and the
+`process_not_defined` 409 is no longer reachable through the API — see the entry below for
+what that path is still for.
 
 ### Run it
 
@@ -121,12 +126,20 @@ is fabrication, not a degraded version of research.
 ### What happens after the checklist (Phase 5)
 
 ```
-procure_to_pay.yaml
-  → get_questionnaire   assess/library.py   9 steps, 26 questions, 31 nudges; validated
+<process>.yaml            five of them, all defined as of 2026-09-14
+  → get_questionnaire   assess/library.py   steps, questions, nudges, shape; validated
   → analyst answers     process_answer      not versioned - working notes
   → score_assessment    assess/scoring.py   weighted 0-100 index, bands, shape, pointers
   → LlmScoreGenerator   assess/llm.py       summary + BOUNDED step refinement (±1)
 ```
+
+| Process | Steps | Questions | Nudges | Weighted by |
+|---|---|---|---|---|
+| `procure_to_pay` | 9 | 26 | 31 | transaction volume and financial exposure |
+| `order_to_cash` | 8 | 28 | 30 | transaction volume and working capital |
+| `plan_to_make` | 8 | 25 | 22 | the exposure each decision controls |
+| `hire_to_retire` | 9 | 34 | 25 | **what breaks when the step is manual**, not volume |
+| `record_to_report` | 8 | 23 | 16 | **close effort and misstatement risk**, not volume |
 
 **Assess is the one place the model may touch a number**, on Rishi's explicit instruction.
 Everywhere else it writes prose only. The deterministic score is always computed and always
@@ -146,14 +159,185 @@ without a developer:
 - `backend/app/services/scope/prompts/tailoring.md` — the scope prompt, versioned
 - `backend/app/services/irl/prompts/irl.md` — the request-list prompt, versioned
 - `backend/app/services/research/prompts/research.md` — what the web research looks for
-- `backend/app/reference/processes/procure_to_pay.yaml` — the P2P questionnaire and nudges
+- `backend/app/reference/processes/*.yaml` — the five questionnaires, their weights,
+  option scores, nudges and `shape` blocks
 - `backend/app/reference/processes/_registry.yaml` — which business processes exist
+  (no `defined: false` entry remains)
 
 The YAML is validated at startup; a malformed file fails loudly.
 
 ---
 
 ## Decisions that override the specs
+
+### Hire to Retire and Record to Report defined — the Assess module is complete (2026-09-14)
+
+The last two processes. **Five of five are now defined**, `_registry.yaml` carries no
+`defined: false` entry, and the "Not yet defined" badge no longer renders anywhere in the
+product. `docs/reference/H2R_AUTOMATION_MODEL.md` and `R2R_AUTOMATION_MODEL.md` are the
+new evaluation references, both `[EXT]`.
+
+**Neither is a transaction cycle, and neither pretends to be.** The instruction was
+explicit that §1 of each model document had to work out what kind of process it actually
+is rather than opening with "this is the sibling of P2P". They are genuinely different:
+
+- **H2R is an identity and obligation lifecycle.** Volume is trivial — 88 joiners and 71
+  leavers a year against Kiln's invoice count — but each event changes four things at
+  once: an HR record, a set of entitlements, a payment obligation and a legal position.
+  So **weights follow what breaks when the step is manual, not volume.** Offboarding
+  processes almost nothing and carries 14, because the exposure per missed event is
+  unbounded. Payroll carries 16, the heaviest, because it must be right every period in
+  every jurisdiction and the payroll-system count predicts separation cost.
+- **R2R is a periodic close.** "Volume" barely applies at all; the currency is **days to
+  close, manual journal count and reconciliation backlog**, and the weights follow what
+  consumes the close and where misstatement risk sits. Reconciliations carry 16 despite
+  producing no transactions. Tax carries 8 — not because it is unimportant but because it
+  is largely annual and adviser-led, so it sits outside the mechanism being graded.
+
+**The two rules that each process needed, and why they are in the option scores rather
+than in prose.** Each model has one failure mode that would otherwise be scored away:
+
+| Process | The rule | Where it lives |
+|---|---|---|
+| H2R | A documented offboarding process with **no measured revocation lag is a 2**, not a 4. Every management team has a checklist and the checklist evidences nothing — the failure mode is uneven execution, not absence of a process | `H2R-08-02` option scores, pinned by `test_a_documented_but_unmeasured_revocation_process_scores_as_a_two` |
+| H2R | Access assigned by **copying a colleague** cannot exceed 2 whatever tooling raised the request — that is where entitlement creep begins, and it compounds | `H2R-02-01`, pinned by `test_copying_a_colleagues_access_cannot_score_as_integrated` |
+
+These are the H2R analogue of P2M's MRP-reworked-in-Excel rule: the artefact is not the
+process. **H2R is the only process in the module where the automation gap is also a cyber
+finding** — joiner-mover-leaver is the mechanism every other control in the security
+workstream assumes is working — so the questionnaire elicits the *measured lag in days*
+and an orphaned-account reconciliation, not the existence of a checklist.
+
+**R2R's shape note is deliberately narrower than the other four, and that was a
+judgement, not an omission.** The brief said to consider whether a front/back split
+carries a real commercial reading for a close and to be honest if it does not. It
+partially does, so the block is written and three notes are authored — but the *even*
+note says plainly that an even close is **the ordinary result** for this process rather
+than a finding, because the steps of a close are sequentially dependent within one period:
+a weak step 1 does not sit beside a weak step 8, it *causes* it. The two lopsided cases
+are also **not mirror images**, which is the substantive difference from P2P and O2C:
+
+- **front-loaded is the good news** — the expensive, risky part (reconciliations, journal
+  control) is already right and what is manual is the reporting layer on top of
+  trustworthy data, so the remediation is cheap and does not touch the ERP;
+- **back-loaded is the serious one** — a polished pack on an unreconciled ledger, and the
+  shape most likely to surprise a QoE team late, because the pack ties and the ledger
+  does not.
+
+`test_an_even_close_is_reported_as_ordinary_rather_than_as_a_finding` pins the honesty of
+that note specifically, because it is the thing most likely to get "improved" into a
+confident narrative by someone tidying the template.
+
+**The QoE boundary is stated in R2R's §1 and it runs both ways.** This grades the
+automation of the *mechanism*, not the correctness of the accounting — the same line
+`O2C_AUTOMATION_MODEL.md` draws about revenue recognition. Whether a provision is adequate
+is not our question; **how much of the reported result is assembled by hand** is, and it is
+the measure of how much reliance the historical numbers can bear.
+
+**DD_master was searched first and has nothing on either process.** Both §7 sections say
+so explicitly rather than dressing up incidental mentions:
+
+- HR appears only as a **data-room folder** [p. 83–84], as **"HR separation"** in the Day 1
+  list [p. 253–254], and as **"IT human resources"** in the risk areas [p. 285] — the last
+  of which is the IT function's own staffing, not the employee lifecycle.
+- R2R has a **phrase collision worth knowing about**: **"financial close" in the source
+  means *deal* close, not accounting close** [p. 5, 253] — "Day 1 (deal closed) — financial
+  close; execution begins". A future session searching for close material will hit it, and
+  citing it would give the model false provenance. The §7 section calls this out by name.
+
+### Did "a new process is pure content" hold? Almost — twice, and both times honestly
+
+The claim `PHASE5_PLAN.md` makes is that the ladder, the arithmetic, the banding, the API,
+the prompt and the frontend are process-agnostic, and defining a process should touch none
+of them. **For these two it held: `scoring.py`, `llm.py`, the routes and the frontend were
+not edited, and the shape-note fix of 2026-09-09 was the last such gap.** Two things did
+come up, and neither was a content problem:
+
+**1. One test convention had to be respected rather than exempted.** Every scoring
+question in the library has options whose scores *ascend down the list*, asserted per
+process. H2R's payroll-fragmentation question (`H2R-04-02`) counts systems, where fewer is
+better, so it naturally wanted to run 3,3,2,1. Rather than carve an exception into an
+invariant that catches real authoring mistakes, the options were **reordered
+fragmented-to-consolidated** so they ascend like everything else — which also reads better.
+The ceiling is deliberately 3: a consolidated payroll estate is a *precondition* for an
+automated payroll, not evidence of one, and the run itself is scored by `H2R-04-01`.
+
+**2. Tests that asserted the old world had to be inverted, not deleted.**
+`test_the_two_remaining_processes_are_named_but_not_defined` became
+`test_every_registered_process_is_now_defined`, and the API 409 test became
+`test_the_409_path_is_no_longer_reachable_through_the_api`. The 409 path itself is still
+covered — `test_the_undefined_path_still_raises_a_409_rather_than_a_404` exercises it
+against a **synthetic registry entry**, since there is no longer a real one. That matters:
+the 409-not-404 distinction is what makes adding a sixth process safe, so it must stay
+tested even though nothing reaches it today.
+
+### Two gaps found by reading the output, both pre-existing, neither fixed here
+
+Both surfaced because these are the **first scores where an LLM refinement actually moved
+the index** — all three existing scores have `index == deterministic_index`, so neither
+could have appeared before.
+
+**1. The executive summary quotes the deterministic index, not the refined one.** The R2R
+summary opens "an overall index of 26.0" while the stored, displayed index is 22.3. The
+cause is ordering: the model writes the summary *before* its own refinements are applied,
+so the only figure it can see is the deterministic one. **Not fixed**, because the fix is
+in `llm.py` or the prompt — process-agnostic code this task was scoped out of — and the
+harm is contained: the score view renders "Rules alone scored 26.0" directly beneath the
+headline 22.3, so both numbers are on screen and reconcilable. But the summary presents it
+as *the* index, which is wrong. Options when someone picks it up: have the model omit the
+figure and let the UI carry it, or run a cheap second pass after refinement. **Worth
+fixing; it will look like a bug to a reader.**
+
+**2. A pointer may carry `step_key: null`.** Two R2R pointers do. This is **not a defect** —
+the scoring prompt explicitly permits `"step_key": "string or null"` for a pointer about
+the process as a whole — but no previous score had exercised it, so it is recorded here
+before someone treats it as one.
+
+**A third, unrelated and long-standing:** an **unregistered** process key raises
+`ProcessLibraryError`, which is a plain `RuntimeError` rather than an `AppError`, so it
+surfaces through the API as a **500 rather than a 404**. Previously masked because the only
+wrong-key case anyone exercised was a registered-but-undefined one, which was a clean 409.
+Left alone for the same reason as the others, and the test says so rather than asserting a
+404 that does not happen.
+
+### Verified by reading the output, not only the tests
+
+- backend **pytest 475** (35 new) · ruff · mypy clean (85 files) · frontend tsc · eslint clean
+- **generated real scores with the live model on Project Kiln**, 34 H2R answers and 23 R2R
+  answers with remarks: **H2R 33.5 deterministic → 31.6 refined (Emerging)**, 9 of 9 steps
+  assessed; **R2R 26.0 deterministic → 23.0 refined (Emerging)**, 8 of 8 assessed
+- **read them.** The H2R summary led on the security finding, as the model document says it
+  must, and used the analyst's own evidence — the 11-day mean revocation lag, three live
+  mailboxes, the 640/651/694 headcount-payroll-AD split, 2.5 FTE, 30 hours a month of
+  timesheet re-keying, the NL bureau TSA. The R2R summary used **days to close, the manual
+  journal count and topside entries** — R2R's own vocabulary, not P2P's or O2C's — and
+  correctly picked up the carve-out angle that the target has never reported standalone
+- **the refinements did what they exist for.** R2R's journals step moved −1.0, at the bound,
+  because the consultant's remark ("the group financial controller can and does post
+  directly without a second pair of eyes") contradicted the option selected ("approval
+  convention, enforced by practice"). That is precisely the case the ±1 rule was built for:
+  the multiple-choice answer alone could not see it
+- **the refined index is not reproducible run to run, and that is the accepted cost.**
+  Re-scoring gave v2 at 28.8 and 22.3 against v1 at 31.6 and 23.0, while the **deterministic
+  figures were identical at 33.5 and 26.0**. Versioning is why this is safe; the decision
+  entry of 2026-09-02 records the trade
+- **drove it in a browser**, 34 checks: five processes with **zero "Not yet defined"
+  badges**, 9 and 8 step sections, 137 and 103 options, 48 and 32 remarks boxes, 26 and 19
+  saved answers restored after reload, both authored shape notes rendered with their
+  measured means, both step tables complete with each refinement showing its reason, the
+  deterministic figure shown beside each refined index, and a **nudge revealing live on
+  selection** with its FOLLOW UP badge — the unmeasured-revocation follow-up asking for the
+  last ten leavers
+- the nudge check ran on a **scratch engagement** that was deleted afterwards, since driving
+  a questionnaire in a browser writes real answers
+
+**Two selector traps cost time and are worth recording.** The score view's tabs are **plain
+buttons, not `role=tab`**, and `getByRole("button", {name: /score/i})` matches **"Score this
+process"** — the generate action — before **"Score & summary"**, so the view silently never
+switches and every score assertion fails while the questionnaire ones pass. Match the exact
+label. Separately, a nudge's text is **truncated in the rendered line**, so asserting on a
+phrase from the middle of it fails; assert on the opening.
+
 
 These were Rishi's calls. **Do not "fix" them back.** `CLAUDE.md` outranks
 `docs/phases/PHASE2_SPEC.md`, and a later instruction outranks both.

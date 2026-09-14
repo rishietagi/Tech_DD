@@ -1,7 +1,8 @@
 # Phase 5 — Assess (business process automation)
 
-**Status: BUILT** for Procure to Pay, Order to Cash and Plan to Make. Hire to Retire and
-Record to Report are named and listed with no questionnaire behind them.
+**Status: COMPLETE.** All five processes are defined — Procure to Pay, Order to Cash,
+Plan to Make, and **Hire to Retire and Record to Report** (2026-09-14). No process is
+named with nothing behind it, and the "Not yet defined" badge no longer renders.
 
 ## What this phase adds
 
@@ -21,10 +22,15 @@ process automation reveals what is used. The gap between the two is where findin
 
 ## The five processes
 
-`procure_to_pay`, `order_to_cash` and `plan_to_make` are defined. `hire_to_retire` and
-`record_to_report` are registered with `defined: false` — **listed rather than hidden**, so
-the shape of the module is visible, and returning **409 `process_not_defined`** rather than
-404, which would wrongly imply the process does not exist.
+All five are defined: `procure_to_pay`, `order_to_cash`, `plan_to_make`,
+`hire_to_retire` and `record_to_report`. `_registry.yaml` carries no `defined: false`
+entry.
+
+**The 409 `process_not_defined` path still exists and is still correct**, even though
+nothing reaches it in practice. It is what makes adding a sixth process safe: register it,
+and it is listed honestly — rather than 404, which would wrongly imply the process does not
+exist. It is tested against a synthetic registry entry, since there is no longer a real
+one.
 
 Defining one is: a `<key>.yaml` questionnaire, a reference document for its step
 decomposition, and flipping `defined` to true. The maturity ladder, the scoring arithmetic
@@ -133,7 +139,7 @@ order, the trap already recorded for `export.pdf`.
 
 | Route | What it is |
 |---|---|
-| `/engagements/[id]/assess` | the five processes, four badged "Not yet defined" |
+| `/engagements/[id]/assess` | the five processes, all defined, each with its index and band |
 | `/engagements/[id]/assess/[processKey]` | questionnaire and score, as two tabs |
 
 Nav gained **Assess** in the Engagement section, after Checklist — a prefix match, not
@@ -249,10 +255,130 @@ authored shape note intact with its measured means, and an executive summary tha
 analyst's own evidence and correctly attributed a growing obsolescence provision to the
 demand-planning weakness rather than to the inventory step.
 
+## Hire to Retire — the fourth process (2026-09-14)
+
+`docs/reference/H2R_AUTOMATION_MODEL.md` defines nine L1 steps.
+
+| # | Step | Weight |
+|---|---|---|
+| 1 | Workforce planning, recruiting & offer | 9 |
+| 2 | Onboarding & provisioning | 14 |
+| 3 | Core employee data & organisational records | 13 |
+| 4 | Payroll | 16 |
+| 5 | Time, attendance & absence | 11 |
+| 6 | Performance, compensation review & development | 8 |
+| 7 | Learning & compliance training | 7 |
+| 8 | Offboarding & access revocation | 14 |
+| 9 | HR compliance, reporting & data privacy | 8 |
+
+**It is not a transaction cycle and not a decision cycle. It is an identity and obligation
+lifecycle**, and the model document's §1 argues that rather than borrowing P2P's framing.
+Volume is trivial — tens of joiners and leavers a year — but each event changes four things
+at once: an HR record, a set of entitlements, a payment obligation and a legal position.
+
+**So weights follow what breaks when the step is manual, not volume.** That is the
+substantive departure from P2P and O2C. Offboarding processes almost no events and carries
+14, because the exposure per missed event is unbounded — a leaver whose access persists is
+a live credential, and one is enough. Payroll carries the heaviest weight at 16: it must be
+right every period in every jurisdiction, and **the number of payroll systems is the single
+most useful predictor of separation cost** in this process.
+
+**Three things make it different from anything else in the module:**
+
+1. **It is the only process where the automation gap is also a cyber finding.**
+   Joiner-mover-leaver is the mechanism every other control in the security workstream
+   assumes is working. The questionnaire therefore elicits **revocation timeliness measured
+   in days**, and an orphaned-account reconciliation — not whether a checklist exists.
+   **A documented process with no measured lag scores 2, not 4**, pinned by
+   `test_a_documented_but_unmeasured_revocation_process_scores_as_a_two`. This is the H2R
+   analogue of P2M's MRP-reworked-in-Excel rule: the artefact is not the process.
+2. **Access copied from a colleague cannot score above 2**, whatever tooling raised the
+   request — that is where entitlement creep begins, and it compounds.
+   `test_copying_a_colleagues_access_cannot_score_as_integrated`.
+3. **It carries personal data end to end**, including special categories (health data in
+   absence records, bank details in payroll), so retention, works-council consultation and
+   multi-jurisdiction payroll compliance are scored rather than footnoted. Multi-country
+   payroll is a **carve-out problem as much as an automation one**.
+
+`[EXT]` — `DD_master.md` has no hire-to-retire decomposition. Its only HR material is a
+data-room folder [p. 83–84], "HR separation" in the Day 1 list [p. 253–254] and "IT human
+resources" in the risk areas [p. 285], the last of which is the IT function's own staffing.
+All three are named in §7 and none is cited as a process model.
+
+## Record to Report — the fifth process (2026-09-14)
+
+`docs/reference/R2R_AUTOMATION_MODEL.md` defines eight L1 steps.
+
+| # | Step | Weight |
+|---|---|---|
+| 1 | Sub-ledger close & cut-off | 12 |
+| 2 | Reconciliations | 16 |
+| 3 | Journal entries & close task management | 15 |
+| 4 | Intercompany | 11 |
+| 5 | Consolidation & group close | 14 |
+| 6 | External reporting & disclosure | 10 |
+| 7 | Tax accounting & compliance | 8 |
+| 8 | Management reporting & analytics | 14 |
+
+**It is a periodic close, not a flow**, and it is the first process in the module where
+"volume" barely applies. A close is a bounded, repeating project with a deadline. The
+natural currency is **days to close, manual journal count and reconciliation backlog**, and
+the weights follow **what consumes the close and where misstatement risk sits**.
+Reconciliations carry 16 despite producing no transactions; tax carries 8 not because it is
+unimportant but because it is largely annual and adviser-led, so it sits outside the
+mechanism being graded.
+
+**The boundary with the QoE team is stated explicitly in §1**, the same line
+`O2C_AUTOMATION_MODEL.md` draws about revenue recognition: this grades **the automation of
+the mechanism, not the correctness of the accounting**. What it contributes to a deal team
+is how much of the reported result is assembled by hand, and therefore how much reliance
+the historical numbers can bear.
+
+**The shape note is deliberately narrower than the other four, and that is the judgement,
+not an omission.** The steps of a close are **sequentially dependent within one period** —
+a weak step 1 does not sit beside a weak step 8, it *causes* it — so a gap between the ends
+is a weaker signal than in a transaction cycle. The `shape` block is written and all three
+notes are authored, but the **even note says plainly that an even close is the ordinary
+result** rather than implying a finding, and directs the reader to days-to-close instead.
+The two lopsided cases are **not mirror images**:
+
+- **front-loaded is the good news** — the expensive, risky part is already right and the
+  remediation is a reporting layer, not a finance transformation;
+- **back-loaded is the serious one** — a polished pack on an unreconciled ledger, and the
+  shape most likely to surprise a QoE team late.
+
+`test_an_even_close_is_reported_as_ordinary_rather_than_as_a_finding` pins that honesty,
+because it is exactly the note someone tidying the template would "improve" into a
+confident narrative.
+
+`[EXT]` — `DD_master.md` has no record-to-report decomposition, and §7 flags a **phrase
+collision**: "financial close" in the source means **deal** close, not accounting close
+[p. 5, 253]. Citing it would give the model false provenance.
+
+### Verification of both
+
+- backend `pytest` **475** (35 new) · `ruff` · `mypy` clean · frontend `tsc` · `eslint` clean
+- **live scores on Project Kiln**: H2R **33.5 deterministic → 31.6 refined (Emerging)**,
+  9 of 9 steps assessed; R2R **26.0 deterministic → 23.0 refined (Emerging)**, 8 of 8
+  assessed. The H2R summary led on the security finding and used the analyst's own
+  evidence — an 11-day mean revocation lag, three live mailboxes, a 640/651/694
+  headcount-payroll-directory split; the R2R summary used days to close, the manual journal
+  count and topside entries, and picked up that the target has never reported standalone
+- **the ±1 refinement did what it exists for**: R2R's journals step moved −1.0 because a
+  consultant's remark contradicted the option selected, which the multiple-choice answer
+  alone could not see
+- **drove it in a browser**, 34 checks: five processes with **zero "Not yet defined"
+  badges**, both questionnaires rendering all their steps, 137 and 103 options, 48 and 32
+  remarks boxes, saved answers restored after reload, both authored shape notes with their
+  measured means, both step tables with each refinement's reason, the deterministic figure
+  beside each refined index, and a nudge revealing live on selection with its FOLLOW UP badge
+
 ## Adding the next process — the exact shape to follow
 
-Procure to Pay, Order to Cash and Plan to Make are the worked examples. Defining Hire to
-Retire or Record to Report is the **same six artefacts**, in this order:
+**All five named processes are now defined**, so this section is for a *sixth* — kept
+because the registry, the 409 path and the tests are all built to make adding one safe.
+The five are the worked examples. Defining another is the **same six artefacts**, in this
+order:
 
 1. **`docs/reference/<PROCESS>_AUTOMATION_MODEL.md`** — write this FIRST; scoring reads
    from it. It defines the L1 steps, their weights (summing to 100), and what each rung of
@@ -271,8 +397,13 @@ Retire or Record to Report is the **same six artefacts**, in this order:
    API, the scoring prompt, the frontend and the remarks field are **all process-agnostic**
    and need no change. If you find yourself editing `scoring.py` or a route, stop and
    check why — the design intends the new process to be pure content. Defining O2C found
-   the one place where that was not yet true and fixed it by moving the prose into YAML;
-   there should be no second such place.
+   the one place where that was not yet true and fixed it by moving the prose into YAML.
+   **H2R and R2R found no second such place**, which is the strongest evidence the claim
+   holds. Two things did come up and neither was a content problem: an option list whose
+   scores naturally wanted to *descend* (a count-of-systems question) was **reordered to
+   ascend** rather than exempted from the library-wide ladder-ordering test, and the tests
+   that asserted two processes were undefined were **inverted rather than deleted**, with
+   the 409 path re-covered against a synthetic registry entry so it stays tested.
 6. **Read the generated score**, do not just run the tests. Every real bug in this module
    was found by generating output and reading it.
 
@@ -287,4 +418,5 @@ diagnostic, names weak spots plainly. A PPT/PDF in the KPMG house voice is the o
 step and the payload carries everything it needs, but it was not built rather than guessed
 at. Same treatment as the shared-drive scanner.
 
-**The other two processes.** Hire to Retire and Record to Report are named only.
+**Nothing else.** Every process named in the module is defined. The only deferred item
+in Phase 5 is the client-facing export above.
