@@ -105,7 +105,9 @@ export function ResearchPage({ engagementId }: { engagementId: string }) {
 
   return (
     <main className="mx-auto w-full max-w-[1600px] px-7 pt-12 pb-24">
-      <div className="mb-6 flex items-center justify-between gap-4">
+      {/* flex-wrap: at phone width the version line and the button do not fit on one
+          row, and without it the button is pushed past the viewport edge. */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <span className="font-sans text-[13px] text-muted">
           Version {research.version}
           {" · "}

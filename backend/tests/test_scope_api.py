@@ -250,7 +250,9 @@ def test_workstream_library_is_served(client: TestClient) -> None:
     assert body["library_version"] == "1.0"
     assert body["source_owner"] == "KPMG India Services LLP"
     assert set(body["decks"]) == {"product", "enterprise"}
-    assert len(body["decks"]["product"]) == 10
+    # 12 product rows: the 10 verbatim KPMG objectives plus PD-11 (product financials)
+    # and PD-12 (artificial intelligence readiness), added 2026-09-14.
+    assert len(body["decks"]["product"]) == 12
     assert len(body["decks"]["enterprise"]) == 9
 
 

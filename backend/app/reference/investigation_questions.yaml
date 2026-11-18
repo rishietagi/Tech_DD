@@ -249,7 +249,10 @@ workstreams:
     questions: []
 
   W-SEP:
-    title: Separation / Carve-out Readiness and TSA Scope
+    # Retitled 2026-09-14 (Rishi): we do not scope transitional service agreements. On a
+    # separation we review the contracts themselves - what is committed, when it expires,
+    # whether it transfers - which the Contracts and Licenses scope row carries.
+    title: Separation / Carve-out Readiness and Contract Continuity
     citation: ""
     source: none
     questions: []

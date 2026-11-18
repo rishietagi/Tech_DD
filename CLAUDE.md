@@ -308,6 +308,30 @@ depth calibration, LLM prose tailoring, and Markdown export. Spec at
 `docs/phases/PHASE2_SPEC.md`, though several of Rishi's decisions override it — see
 `docs/PROJECT_LOG.md`.
 
+**Two scope boundaries are enforced, not merely preferred** (2026-09-14, Rishi). A bullet
+that crosses one promises work that is not being sold, so both are in the row content,
+in `tailoring.md` Rule 2a, and swept by tests across every client-facing string in both
+decks:
+
+1. **IT financials means the budgeting process, never a cost model.** How the technology
+   budget is defined, agreed and approved, and reported spend against it. We do not
+   build, rebuild, validate or benchmark a standalone or allocated cost model. The
+   **financial review period is stated** — three financial years is the house default, and
+   a practitioner overrides the row where a deal needs otherwise.
+2. **We do not scope, draft or negotiate transitional service agreements.** On a carve-out
+   we review **contracts and their expiry** — terms, expiry and renewal dates, notice
+   periods, assignment and change-of-control. The two TSA rules (M4, C7) have been dormant
+   since the intake field was removed on 2026-08-30; what changed in 2026-09-14 was the
+   remaining vocabulary and the substance that replaced it.
+
+**The product deck carries twelve rows, not ten.** Rows 1-10 are the verbatim KPMG
+objectives. **PD-11 (product financials)** and **PD-12 (artificial intelligence
+readiness)** were added 2026-09-14 because the source deck has neither. PD-12 opens only
+where AI is material — it carries `W-DATA` and trigger `A11`, deliberately **not**
+`W-PROD`, which M6 forces open on every Product DD and would have opened the row on every
+product deal. Both decks' organisation rows also ask for the **in-house versus outsourced
+mix**, the skill sets held, and the number of third-party vendors.
+
 **One rule-sourcing change worth knowing before you touch scoring** (2026-08-31): the
 Technology Profile's "Is the software the product?" question was removed as redundant
 with `dd_type_preference`, and rules **A1** (mix +35) and **M6** (W-PROD at Tier ≥ 2)
@@ -327,9 +351,17 @@ web search that **refuses rather than fabricating** — no grounding metadata, n
 run — and feeds the IRL so its questions and function names fit the actual business. Plan
 at `docs/phases/PHASE3_PLAN.md`.
 
-**Research produces a business brief** (2026-09-11): seven cited sections — executive
-summary, what they do, how they make money, customers and markets, the sector, competitive
-position, and what it means for the diligence. A section the sources do not support is
+**Research produces a business brief** (2026-09-11, extended 2026-09-14): **eight** cited
+sections — executive summary, what they do, how they make money, customers and markets,
+the sector, competitive position, **the technology they use**, and what it means for the
+diligence. The technology section reads the **publicly visible stack** — job adverts,
+engineering blogs, status pages, partner directories, case studies — because that is a
+diligence input available before the data room opens. It is the **most invention-prone
+section in the brief**, since a plausible stack can be written for any company from no
+evidence, so it carries a harder rule than the rest: name a technology only where a source
+names it for this company, and return nothing otherwise. An empty technology section is
+the expected outcome for many private targets. It **does** feed the IRL, because it is
+observed fact about the target rather than the module's own opinion. A section the sources do not support is
 **omitted, not padded**. The brief feeds the IRL so requests fit the business, but
 `implications_for_diligence` is deliberately withheld from it — that section is the
 module's own analysis, and the request list takes its cues from the scope, not from a

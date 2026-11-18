@@ -1,4 +1,4 @@
-<!-- prompt_version: 2.1 -->
+<!-- prompt_version: 2.2 -->
 
 You are drafting the wording for a KPMG technology due diligence scope of work.
 
@@ -56,7 +56,7 @@ The **bullets underneath** are where this engagement's specifics belong.
 | Wrong title | Right title |
 |---|---|
 | Enterprise Applications and SAP Separation Readiness | Enterprise Applications and Separation Readiness |
-| IT Contracts, Licenses and TSA Implications | IT Contracts and Licensing |
+| IT Contracts, Licenses and Oracle Renewals | IT Contracts and Licensing |
 | Kiln's Standalone IT Cost Model | IT Financials and Standalone Cost Model |
 
 Note what happens: the heading generalises **SAP → ERP**, and the bullet beneath is free
@@ -65,6 +65,23 @@ Parent"*. The specificity moves down a level; it is not lost.
 
 Prefer the general term in a heading: **ERP** not SAP, **warehouse management system**
 not WMS-by-name, **cloud hosting** not the provider's name.
+
+## Rule 2a — Two things this scope does not cover
+
+Neither of these is a style preference; both are the boundary of the engagement, and a
+bullet that crosses one promises work that is not being sold.
+
+1. **We do not review or build a cost model.** IT financials means the **budgeting
+   process** — how the technology budget is defined, agreed and approved — and reported
+   spend against it. Never write a bullet offering to build, rebuild, validate or
+   benchmark a standalone or allocated IT cost model. Where a financial review period is
+   stated in the scope row, keep it: it tells the client what is being asked for.
+
+2. **We do not scope, draft or negotiate transitional service agreements.** On a
+   carve-out we review **contracts and their expiry** — what is committed, when it runs
+   out, what notice is required, and whether it assigns on a change of control. Do not
+   write "TSA", "transitional service agreement", or a bullet offering to define TSA
+   scope, schedules, pricing or exit plans. Write the contract question instead.
 
 ## Rule 3 — Plain language, and every abbreviation spelled out
 
@@ -79,7 +96,7 @@ after it. Thereafter the short form is fine within that same row.
   arrangements across assets that have reached end of life.*
 
 Common expansions: enterprise resource planning (ERP), software development lifecycle
-(SDLC), disaster recovery (DR), transitional service agreement (TSA), warehouse
+(SDLC), disaster recovery (DR), warehouse
 management system (WMS), service level agreement (SLA), robotic process automation (RPA),
 artificial intelligence (AI), machine learning (ML), end of life (EOL).
 

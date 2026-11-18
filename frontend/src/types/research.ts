@@ -49,6 +49,7 @@ export interface BusinessBrief {
   customers_and_markets: BriefSection;
   sector_context: BriefSection;
   competitive_position: BriefSection;
+  technology_profile: BriefSection;
   implications_for_diligence: BriefSection;
 }
 
@@ -63,6 +64,7 @@ export const BRIEF_ORDER: BriefSectionKey[] = [
   "customers_and_markets",
   "sector_context",
   "competitive_position",
+  "technology_profile",
   "implications_for_diligence",
 ];
 
@@ -73,6 +75,7 @@ export const BRIEF_LABELS: Record<BriefSectionKey, string> = {
   customers_and_markets: "Customers and markets",
   sector_context: "The sector",
   competitive_position: "Competitive position",
+  technology_profile: "Technology they use",
   implications_for_diligence: "What this means for the diligence",
 };
 

@@ -57,11 +57,35 @@ def test_g1_digital_native_saas_is_product_heavy() -> None:
     assert scope.classification.computed_dd_mix >= 70
     # The product deck ships; no enterprise rows.
     assert all(r.deck == "product" for r in scope.rows)
-    # Nine of ten rows open. PD-05 (IT Regulatory aspects) correctly stays out: this
-    # target named no compliance regimes, so M3 does not fire and the row is not
-    # always-in-scope. Tailoring means rows can be absent, not that all ten always run.
+    # Ten of twelve rows open. Two correctly stay out, and both absences are the
+    # tailoring working rather than a gap:
+    #   PD-05 (IT Regulatory aspects) - this target named no compliance regimes, so M3
+    #     does not fire and the row is not always-in-scope;
+    #   PD-12 (Artificial intelligence readiness, added 2026-09-14) - G1 declares no
+    #     AI/ML dependence, so A11 does not fire. A product with no AI must not carry a
+    #     section explaining that it has none.
     assert row(scope, "PD-05") is None
-    assert len(scope.rows) == 9
+    assert row(scope, "PD-12") is None
+    # PD-11 (Product financials, added 2026-09-14) is always-in-scope and does open.
+    assert row(scope, "PD-11") is not None
+    assert len(scope.rows) == 10
+
+
+def test_g1_opens_the_ai_row_only_when_ai_is_material() -> None:
+    """The AI row is triggered, not mandatory — pinned in both directions.
+
+    Added 2026-09-14. The first version of PD-12 carried W-PROD, which M6 forces open for
+    every Product DD, so the row opened on every product deal regardless of the trigger.
+    Caught by reading the generated scope rather than by the row count, which looked
+    plausible either way.
+    """
+    without_ai = scope_for(**G1)
+    assert row(without_ai, "PD-12") is None
+
+    with_ai = scope_for(**{**G1, "ai_ml_dependence": "Core to the value proposition"})
+    ai_row = row(with_ai, "PD-12")
+    assert ai_row is not None
+    assert ai_row.tier >= 2
 
 
 def test_g1_opens_the_product_platform_rows_deeply() -> None:

@@ -30,7 +30,9 @@ _SPECIALIST_FOR = {
     "W-VEN": "Contracts and licensing analyst",
     "W-SPEND": "IT financial analyst",
     "W-INT": "Integration planning lead",
-    "W-SEP": "Carve-out and TSA specialist",
+    # Renamed 2026-09-14 (Rishi): we review contracts and their expiry on a separation,
+    # not transitional service agreements. The specialist label is client-facing.
+    "W-SEP": "Carve-out and separation specialist",
 }
 
 

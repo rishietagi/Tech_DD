@@ -134,6 +134,7 @@ BRIEF_SECTIONS = (
     "customers_and_markets",
     "sector_context",
     "competitive_position",
+    "technology_profile",
     "implications_for_diligence",
 )
 

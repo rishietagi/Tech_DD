@@ -112,7 +112,16 @@ rows:
     scope_of_work: >-
       Understand current capacity and capabilities for the Product tech team, and
       identify limiting factors from a growth perspective (ex. key personnel, spread of
-      knowledge)
+      knowledge). Review the skill sets held by the development team, including the
+      languages, frameworks and platforms they work in, seniority mix and role structure,
+      and whether the capability needed for the product roadmap is held in-house. Review
+      the mix of in-house engineers, contractors and outsourced development partners, and
+      the number of third-party vendors involved in building or running the product.
+    # Added 2026-09-14 (Rishi): "skills of development team", and the in-house/outsourced
+    # mix to match the equivalent addition on the Enterprise IT Org row. Capacity alone
+    # does not say whether the team can build what the roadmap requires - a team of ten
+    # strong engineers in the wrong stack is a different risk from a team of ten in the
+    # right one, and neither is visible from an organisation chart.
     workstreams: [W-OPS]
     submodules: [P8]
     always_in_scope: true
@@ -122,6 +131,8 @@ rows:
       - Engineering organisation chart with tenure and seniority
       - Attrition data for the technology function
       - Key-person and bus-factor assessment on critical components
+      - Skills inventory by language, framework and platform, with seniority mix
+      - Split of in-house engineers, contractors and outsourced development partners
     dd_master_ref: "§6.1 [p. 73, 84]; §6.12 P8"
 
   - sn: 7
@@ -188,3 +199,66 @@ rows:
       - Open vulnerability register with severity and age
       - Post-incident reviews for material incidents
     dd_master_ref: "§6.8; §6.7 [p. 76]"
+
+  # --------------------------------------------------------------------------------
+  # Rows 11 and 12 are ADDITIONS (Rishi, 2026-09-14), not KPMG source text. Rows 1-10
+  # above are transcribed verbatim from the source deck; these two are written for this
+  # platform because the source deck has no product financials row and no AI row, and a
+  # product diligence in 2026 that covers neither is incomplete.
+  # --------------------------------------------------------------------------------
+
+  - sn: 11
+    id: PD-11
+    objective: Product financials
+    scope_of_work: >-
+      Review technology operating and capital spend for the last three financial years,
+      and the budgeting process through which it is defined, agreed and approved. Review
+      hosting and infrastructure cost and how it moves with usage or customer numbers.
+      Review the split of engineering effort and spend between maintaining the product
+      and building new capability.
+    # SCOPE BOUNDARY: this reviews the BUDGETING PROCESS and reported spend, on the same
+    # basis as the Enterprise IT Financials row. We do not build or validate a cost model.
+    # Three financial years is the house default; a practitioner edits this bullet where
+    # the deal needs a different period.
+    workstreams: [W-SPEND]
+    always_in_scope: true
+    base_tier: 2
+    triggers: [M1]
+    evidence:
+      - Technology operating and capital spend for the last three financial years
+      - Hosting and infrastructure cost, and how it scales with usage or customers
+      - Split of engineering effort and spend between run and change
+      - Budget-setting and approval process for technology spend
+    dd_master_ref: "§6.5 [p. 74, 81, 84]"
+
+  - sn: 12
+    id: PD-12
+    objective: Artificial intelligence readiness
+    scope_of_work: >-
+      Review how artificial intelligence is used in or alongside the product, and which
+      models are built in-house versus bought in. Review the data the models are trained
+      or grounded on, and the rights held over it. Review dependence on third-party model
+      providers and the concentration it creates. Review the cost of running the models
+      against the revenue they support, and how model output is evaluated and monitored
+      in production.
+    # Opens when AI/ML is material to the product (rule A11), and is not always-in-scope:
+    # a product with no AI should not carry an AI section explaining that there is none.
+    # Where AI is immaterial the C8 injected note already covers it at the right depth.
+    #
+    # NOT W-PROD, deliberately. M6 forces W-PROD open for every Product DD, so carrying it
+    # here would open this row on every product deal regardless of A11 - which is exactly
+    # the behaviour this row is written to avoid. W-DATA is the honest mapping anyway:
+    # what this row actually examines is model and training-data rights, provenance and
+    # vendor dependence. W-DATA is forced open only by M2, when sensitive data is present,
+    # and an AI row on a target handling regulated data is correct rather than spurious.
+    workstreams: [W-DATA]
+    base_tier: 2
+    triggers: [A11]
+    escalate_when: data_sensitivity_present
+    evidence:
+      - Model inventory identifying build-versus-buy for each model in use
+      - Training and grounding data sources, with the rights held over each
+      - Third-party model and platform dependencies, with contract terms and exit position
+      - Inference and model-serving cost, per customer or per unit of revenue
+      - Evaluation, monitoring and human-review practice for model output in production
+    dd_master_ref: "[EXT] - no source decomposition; see scope_rules C8"

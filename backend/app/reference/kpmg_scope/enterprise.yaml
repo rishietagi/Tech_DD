@@ -61,6 +61,15 @@ rows:
       - >-
         Review IT organization including key personnel, responsibilities, skills and areas
         of specialist knowledge, including any keyperson risk
+      - >-
+        Review the mix of in-house and outsourced delivery, including the size and role
+        structure of the in-house team, the skill sets it holds, and the number of
+        third-party vendors the remaining work is outsourced to
+    # Added 2026-09-14 (Rishi). The first bullet is verbatim KPMG source text and is
+    # unchanged. The second is an addition: the in-house/outsourced split is what
+    # determines whether capability transfers with the deal, and it is not derivable from
+    # an organisation chart alone - a 12-person IT function with four managed-service
+    # providers behind it is a different asset from a 40-person one doing the same work.
     workstreams: [W-OPS]
     always_in_scope: true
     base_tier: 2
@@ -69,6 +78,8 @@ rows:
       - IT organisation chart with roles and reporting lines
       - Skills matrix and areas of specialist knowledge
       - Key-person risk and succession position
+      - Split of in-house versus outsourced headcount by function and role structure
+      - Vendor list for outsourced or managed services, with scope and headcount per vendor
     dd_master_ref: "§6.1 [p. 73, 84, 362]"
 
   - sn: 4
@@ -103,15 +114,29 @@ rows:
     id: EN-05
     focus_area: IT Financials
     considerations:
-      - Evaluate IT financials and details of how the technology budget is defined and agreed.
+      - >-
+        Review the technology budgeting process and how the technology budget is defined,
+        agreed and approved, covering the last three financial years
+      - >-
+        Review technology spend against budget over the same period, including the split
+        between run and change and between operating and capital expenditure
+    # SCOPE BOUNDARY (Rishi, 2026-09-14): this area reviews the BUDGETING PROCESS, not
+    # the cost model. We do not build, rebuild or validate a standalone or allocated IT
+    # cost model, and no bullet here should imply that we do. Where a deal genuinely
+    # needs one, it is a separate commercial agreement, not part of this scope.
+    #
+    # REVIEW PERIOD: three financial years is the house default and is stated explicitly
+    # so the client knows what is being asked for. A practitioner overrides the period by
+    # editing these bullets where a deal needs five years, a stub period, or a different
+    # year end.
     workstreams: [W-SPEND]
     always_in_scope: true
     base_tier: 2
     triggers: [M1]
     evidence:
-      - IT budget and actuals for the last three years
+      - IT budget and actuals for the last three financial years
       - Capex and opex split with run-versus-change analysis
-      - Budget-setting and approval process
+      - Budget-setting, approval and re-forecasting process
     dd_master_ref: "§6.5 [p. 74, 81, 84]"
 
   - sn: 6
@@ -178,6 +203,13 @@ rows:
     focus_area: Contracts and Licenses
     considerations:
       - Review and Assess of key IT contracts & licenses
+      - >-
+        Review contract terms, expiry and renewal dates, notice periods and any
+        assignment or change-of-control provisions on key technology agreements
+    # SCOPE BOUNDARY (Rishi, 2026-09-14): on a carve-out we review CONTRACTS AND THEIR
+    # EXPIRY - what is committed, when it ends, whether it transfers. We do NOT scope,
+    # draft, price or negotiate transitional service agreements. See scope_rules.yaml
+    # W-SEP and the tailoring prompt, both of which were changed with this.
     workstreams: [W-VEN]
     always_in_scope: true
     base_tier: 2
@@ -186,4 +218,5 @@ rows:
       - Contract register with counterparty, term, renewal date and annual value
       - Software licence inventory with entitlement counts and true-up position
       - Assignment and change-of-control provisions on critical agreements
+      - Notice periods and termination rights on the agreements that matter most
     dd_master_ref: "§6.2 [p. 73, 199-200, 511]"

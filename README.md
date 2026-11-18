@@ -43,11 +43,19 @@ List**: the document the buyer sends the target, listing every artefact the team
 - **It derives from the scope.** Each KPMG row's evidence list seeds a request, so every
   question traces back to an area the scope opened — and the list generates with the LLM
   switched off.
-- **Company research informs it.** A grounded web search over the target returns a
-  seven-section **business brief** — what they do, how they make money, who they sell to,
-  the sector, the competition — alongside dated findings, every claim carrying real source
-  links. The brief shapes the questions and the function names. If the model returns no
-  sources the run is refused, not stored.
+- **Company research informs it.** A grounded web search over the target returns an
+  eight-section **business brief** — what they do, how they make money, who they sell to,
+  the sector, the competition, and **the technology they use** — alongside dated findings,
+  every claim carrying real source links. The brief shapes the questions and the function
+  names. If the model returns no sources the run is refused, not stored.
+- **The technology section reads the public record**: job adverts, engineering blogs,
+  status pages, partner directories and case studies routinely name a stack, and that is a
+  diligence input available before the data room opens. It is also the easiest section to
+  fabricate, so it is held to a harder rule — name a technology only where a source names
+  it for *this* company — and an empty section is a normal, useful answer.
+- **The research page is built to be scanned**: a run-stats strip (sources, findings,
+  sections found), a jump rail over the brief, the record grouped by category with counts,
+  and anything uncited marked as such.
 - **Excel out.** Three columns — Function, Question, Response — with Response blank for
   the client to fill and return.
 
@@ -65,6 +73,24 @@ is only part of what was asked for — the **follow-up questions** that close th
 never overwrites a status a human has set, records which files it matched so a wrong call
 is visible, and only scans requests that ask for a document: a question is answered in a
 meeting, not by a file appearing on a drive.
+
+**What the generated scope will and will not say.** Two boundaries are enforced in the
+content, in the prompt and by tests, because a bullet that crosses one promises work that
+is not being sold:
+
+- **IT financials reviews the budgeting process, not a cost model** — how the technology
+  budget is defined, agreed and approved, and spend against it, over a **stated review
+  period** (three financial years by default).
+- **We do not scope transitional service agreements.** On a carve-out the scope reviews
+  **contracts and their expiry** — terms, renewal dates, notice periods and
+  change-of-control provisions.
+
+The product deck also carries two rows the KPMG source does not: **product financials**
+and **artificial intelligence readiness**, the latter opening only where AI is material to
+the product. Both decks ask for the **in-house versus outsourced mix** — team size, skill
+sets, role structure and vendor count — because a twelve-person function with four managed
+-service providers behind it is a different asset from a forty-person one doing the
+same work.
 
 **Phase 5 — assessing the processes.** The first question a tech DD asks of an operating
 business is how automated its core processes actually are — because licences reveal what

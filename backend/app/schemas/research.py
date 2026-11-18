@@ -96,6 +96,14 @@ class BusinessBrief(BaseModel):
     sector_context: BriefSection = Field(default_factory=BriefSection)
     # Named competitors and where the target sits against them.
     competitive_position: BriefSection = Field(default_factory=BriefSection)
+    # What technology the company uses, so far as it is publicly visible (2026-09-14,
+    # Rishi). Job adverts, engineering blogs, conference talks, GitHub, status pages,
+    # partner directories and customer case studies routinely name the stack, and that
+    # is a diligence input available before the data room opens: it tells the team what
+    # to ask about and, where it contradicts what management later says, what to probe.
+    # Deliberately the most speculation-prone section in the brief, so the prompt holds
+    # it to a harder sourcing rule than the others.
+    technology_profile: BriefSection = Field(default_factory=BriefSection)
     # The bridge to the rest of the product: what this business model implies for the
     # technology diligence. The only section that is analysis rather than reportage, and
     # it is labelled as such in the UI.
@@ -112,6 +120,7 @@ class BusinessBrief(BaseModel):
                 self.customers_and_markets,
                 self.sector_context,
                 self.competitive_position,
+                self.technology_profile,
                 self.implications_for_diligence,
             )
         )

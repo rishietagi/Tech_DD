@@ -275,6 +275,10 @@ BRIEF_ANSWER = {
         "customers_and_markets": {"text": "Mid-market retailers in the UK.", "source_ids": []},
         "sector_context": {"text": "  ", "source_ids": ["S2"]},  # blank — must be dropped
         "competitive_position": {"text": "N/A", "source_ids": []},  # placeholder — dropped
+        "technology_profile": {
+            "text": "Recent job adverts name Python, PostgreSQL and Amazon Web Services.",
+            "source_ids": ["S2"],
+        },
         "implications_for_diligence": {
             "text": "Usage billing makes metering accuracy a revenue question.",
             "source_ids": [],
@@ -479,3 +483,103 @@ def test_duplicate_citations_are_collapsed() -> None:
     payload = researcher.research(make_intake(company_name="Meridian Analytics"))
 
     assert payload.findings[0].source_ids == ["S1", "S2"]
+
+
+# ------------------------------- publicly-visible technology (Rishi, 2026-09-14)
+#
+# "What kind of technology they use, whatever is publicly available, should also be
+# researched." Job adverts, engineering blogs, status pages and partner directories name
+# a stack directly, and that is a diligence input available before the data room opens.
+#
+# It is also the most invention-prone section in the brief: a plausible stack can be
+# written for any company in any sector with no evidence at all. The prompt holds it to a
+# harder sourcing rule than the other sections, and these tests pin the plumbing that
+# rule depends on.
+
+
+def test_the_technology_profile_is_parsed_and_cited() -> None:
+    """Citations come from the attribution pass, like every other section.
+
+    The first pass cannot cite: source ids are assigned from grounding metadata after the
+    answer is written (2026-09-11). That matters more here than elsewhere - an uncited
+    technology stack is the exact failure the prompt warns about - so the section is
+    wired through the same second pass rather than trusting what the model wrote inline.
+    """
+    researcher = _researcher(
+        _grounded_response(BRIEF_ANSWER),
+        _attribution(brief={"technology_profile": ["S2"]}),
+    )
+    payload = researcher.research(make_intake(company_name="Meridian Analytics"))
+
+    brief = payload.business_brief
+    assert brief is not None
+    assert brief.technology_profile.text.startswith("Recent job adverts name Python")
+    assert brief.technology_profile.source_ids == ["S2"]
+
+
+def test_an_uncited_technology_profile_is_still_stored_but_visibly_uncited() -> None:
+    """The section carries the same citation discipline as every other one.
+
+    A technology stack with no source behind it is exactly the failure mode the prompt
+    warns about, so the UI must be able to show that it has none rather than the
+    parser quietly dropping the citation problem.
+    """
+    answer = {
+        **BRIEF_ANSWER,
+        "business_brief": {
+            **BRIEF_ANSWER["business_brief"],
+            "technology_profile": {
+                "text": "The company runs SAP.",
+                "source_ids": ["S99"],  # does not exist - must be filtered out
+            },
+        },
+    }
+    researcher = _researcher(
+        _grounded_response(answer),
+        _attribution(brief={"technology_profile": ["S99"]}),
+    )
+    payload = researcher.research(make_intake(company_name="Meridian Analytics"))
+
+    brief = payload.business_brief
+    assert brief is not None
+    assert brief.technology_profile.text == "The company runs SAP."
+    assert brief.technology_profile.source_ids == []
+
+
+def test_an_empty_technology_profile_is_a_normal_outcome() -> None:
+    """Most private mid-market targets name no technology publicly.
+
+    An absent section must not make the brief look broken, and must not stop the rest of
+    the run being stored - the same rule every other section follows.
+    """
+    answer = {
+        **BRIEF_ANSWER,
+        "business_brief": {
+            **BRIEF_ANSWER["business_brief"],
+            "technology_profile": {"text": "", "source_ids": []},
+        },
+    }
+    payload = _researcher(_grounded_response(answer)).research(
+        make_intake(company_name="Meridian Analytics")
+    )
+
+    brief = payload.business_brief
+    assert brief is not None
+    assert brief.technology_profile.text == ""
+    assert brief.any_content is True, "the rest of the brief still stands"
+
+
+def test_a_brief_stored_before_the_technology_section_existed_still_loads() -> None:
+    """Runs stored before 2026-09-14 have no technology_profile key at all."""
+    older = {k: v for k, v in BRIEF_ANSWER["business_brief"].items()}
+    older.pop("technology_profile")
+    answer = {**BRIEF_ANSWER, "business_brief": older}
+
+    payload = _researcher(_grounded_response(answer)).research(
+        make_intake(company_name="Meridian Analytics")
+    )
+
+    brief = payload.business_brief
+    assert brief is not None
+    assert brief.technology_profile.text == ""
+    assert brief.what_they_do.text == "A hosted analytics platform."

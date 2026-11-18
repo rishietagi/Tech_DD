@@ -13,11 +13,11 @@ future session would otherwise get wrong.
 | | |
 |---|---|
 | **Phase 1 (intake)** | Done, committed |
-| **Phase 2 (scope engine)** | Done, committed |
-| **Phase 3 (IRL + research)** | Done. Asks **questions as well as documents**; hand-editable; response upload. Research now returns a **7-section business brief**, cited (2026-09-11) |
+| **Phase 2 (scope engine)** | Done. **Scope boundaries tightened 2026-09-14**: budgeting process not cost models, contracts and expiry not TSAs; product deck gained **product financials** and **AI readiness** rows |
+| **Phase 3 (IRL + research)** | Done. Asks **questions as well as documents**; hand-editable; response upload. Research returns an **8-section business brief**, cited — the eighth being the **publicly visible technology stack** (2026-09-14); the research page was rebuilt to be scannable |
 | **Phase 4 (checklist)** | Done. **The checklist page is gone** (2026-09-09) — it is all inside the IRL now; scanner built; email still deferred |
 | **Phase 5 (assess)** | **COMPLETE — five of five processes defined.** P2P, O2C, Plan to Make, and **Hire to Retire and Record to Report** (2026-09-14). No process is named with nothing behind it |
-| **Backend** | pytest 475/475 · ruff clean · mypy clean (85 files) |
+| **Backend** | pytest 487/487 · ruff clean · mypy clean (85 files) |
 | **Frontend** | tsc clean · eslint clean · vitest 19/19 |
 | **API** | 46 routes, OpenAPI clean |
 | **DB** | at `0007_add_scan_findings` |
@@ -169,6 +169,161 @@ The YAML is validated at startup; a malformed file fails loudly.
 ---
 
 ## Decisions that override the specs
+
+### Scope boundaries, two new product rows, and public technology research (2026-09-14)
+
+Seven instructions from Rishi on what the generated scope covers and what the research
+finds. Three of them **narrow** the scope, which matters more than the additions: a bullet
+that promises work we do not do is a commercial problem, not a wording one.
+
+| # | Instruction | Where it lives |
+|---|---|---|
+| 1 | IT financials reviews the **budgeting process, not a cost model** | `enterprise.yaml` EN-05, `product.yaml` PD-11, prompt Rule 2a |
+| 2 | **State the financial review period** — three financial years by default | EN-05 and PD-11 bullets |
+| 3 | **We do not review TSAs.** We look at contracts and their expiry | EN-09, prompt Rule 2a, `composer.py`, `investigation_questions.yaml` |
+| 4 | IT org: the **in-house / outsourced mix**, skills, role structure, vendor count | EN-03 and PD-06 |
+| 5 | Product DD needs **product financials** and **AI readiness** | New rows PD-11 and PD-12 |
+| 6 | Organisation: **skills of the development team** | PD-06 |
+| 7 | Research the **publicly available technology stack**; upgrade the research page | `research.md` v2.1, new `technology_profile` section, `research-summary.tsx` |
+
+**The financial review period is a default, not a new intake field.** Asked where the
+period should come from, Rishi chose three financial years stated in the scope text with
+the practitioner overriding the row where a deal needs five years or a stub period, over
+adding an intake field and a migration. So the bullets say "the last three financial
+years" explicitly — the client then knows what is being asked for — and changing it is a
+YAML edit.
+
+**The two scope boundaries are enforced in the prompt as well as the content**, as
+**Rule 2a**, and `tailoring.md` went **2.1 → 2.2**. The reason is the same one that put
+`enforce_house_rules` behind the anonymisation rules: the row text is the model's input,
+not its output, and a model asked to tailor a budgeting bullet can helpfully offer to
+benchmark a cost model. Two library tests sweep **every client-facing string in both
+decks** for "cost model", "TSA" and "transitional service" rather than checking only the
+rows that were edited — the phrase would come back somewhere else.
+
+**TSA was already dormant, which is why this was cheap.** Rules M4 and C7 both went
+dormant on 2026-08-30 when `carve_out_or_tsa` left the intake, so no generated scope has
+carried TSA language since. What remained was vocabulary: the W-SEP workstream title, the
+`composer.py` specialist label ("Carve-out and TSA specialist"), and a worked example in
+the prompt. All three now say contracts and expiry. **EN-09 gained the substance** — terms,
+expiry, renewal dates, notice periods, change-of-control — so the carve-out question is
+still asked, as a contract question.
+
+### The AI row: found by reading the generated scope, not by the row count
+
+PD-12 opens only where AI is material (rule A11) and is deliberately **not**
+`always_in_scope`: a product with no AI must not carry a section explaining that it has
+none, and the C8 injected note already covers the immaterial case.
+
+**The first version carried `workstreams: [W-PROD, W-DATA]` and was wrong.** M6 forces
+W-PROD open for *every* Product DD, so the mandatory path opened the row on every product
+deal regardless of the trigger — precisely the behaviour it was written to avoid. The row
+count looked plausible either way; it was visible only by generating a scope for a target
+with no AI and seeing the section appear.
+
+It now carries **`W-DATA` alone**, which is also the more honest mapping: what the row
+examines is model and training-data rights, provenance and vendor dependence. W-DATA is
+forced open only by M2 (sensitive data present), and an AI row on a target handling
+regulated data is correct rather than spurious.
+`test_g1_opens_the_ai_row_only_when_ai_is_material` pins both directions.
+
+**PD-11 and PD-12 are additions, not KPMG source text**, and the deck says so in a comment
+block. Rows 1-10 remain transcribed verbatim, and
+`test_the_first_ten_product_objectives_are_still_verbatim_source_text` guards the wording
+directly — a test that only counted rows would not notice an edit to one of them.
+
+**Both new rows were rewritten after reading the deterministic output.** Each was
+originally a single 60-word sentence, which the LLM path renders acceptably but the
+rules-only fallback prints raw. They are now two or three short verb-led sentences. The
+fallback is the audit artefact; it should read like the deck it stands in for.
+
+### Public technology research, and why it is the most invention-prone section yet
+
+`technology_profile` is the **eighth** brief section (`research.md` **2.0 → 2.1**). The
+premise is that job adverts, engineering blogs, conference talks, open-source
+repositories, status pages, partner directories and customer case studies routinely name a
+stack, and that is a diligence input available **before the data room opens** — it tells
+the team what to ask about, and where it later contradicts management, what to probe.
+
+**It is also the section a model can most easily fabricate**, because a plausible stack
+can be written for any company in any sector from no evidence at all. It therefore carries
+a harder rule than the other seven, stated in the prompt: **name a technology only where a
+source names it for this company** — not from the sector, not from the company's size, not
+from what a competitor runs. An empty section is called out as the expected outcome for
+many private mid-market targets.
+
+**It goes to the IRL; `implications_for_diligence` still does not.** The distinction is
+authorship: the technology profile is observed public fact about the target, which is what
+makes a request specific. The implications section is the research module's own analysis,
+and the request list takes its cues from the scope.
+
+**Verified in both directions on live grounded runs:**
+
+- **Project Kiln returned an empty technology section**, correctly — the target is
+  fictional, so nothing public names its technology. Every other section populated.
+- **Monzo Bank returned a cited one** (38 sources): *"cloud-native, API-driven platform...
+  wide usage of open-source software"*, cited to four sources — and notably **did not**
+  name Go, Kubernetes or Cassandra, which a model could trivially have guessed for Monzo.
+  The restraint under exactly the conditions that invite invention is the evidence the
+  rule works.
+
+### The research page was rebuilt to be scannable
+
+Rishi: *"upgrade the front end of the company research page, it's text and content heavy,
+pointers and visualising things will be nice."* It was seven prose cards, an
+undifferentiated findings list and a source list. Five changes, all presentation:
+
+1. **A run-stats strip** — sources, findings, and brief sections present out of eight.
+   Answers "how much did this run actually find?" before the reader commits; a four-source
+   run and a thirty-eight-source run deserve different trust, and that was previously
+   discoverable only by scrolling to the foot of the page.
+2. **A jump rail** across the brief, listing the sections that exist. Which sections are
+   **absent** is itself information.
+3. **Section icons** — inline SVG, no icon dependency (five shapes do not justify a
+   package, and the CDN allowlist would not cover one).
+4. **The record is grouped by category with counts** — "Overview 5", "Market 3" — instead
+   of one flat list with a pill on each row. A reader scanning for technology facts no
+   longer reads every funding fact on the way, and `CATEGORY_ORDER` is typed
+   `ResearchCategory[]`, so adding a category to the union is a compile error here rather
+   than a group that silently fails to render.
+5. **Uncited sections and findings are marked as such.** On the Kiln run this immediately
+   exposed that five of eight findings and four of seven brief sections carried no
+   citation — previously invisible, and on the technology section it is the whole point.
+
+**Two responsive bugs fixed, both pre-existing on that page:** grounding-metadata source
+"titles" are bare domains — single unbreakable tokens — which pushed the page sideways
+(`break-all` + `min-w-0`); and the header's version line and "Run again" button sat in a
+non-wrapping flex row. Phone-width overflow on the research route went **454px → 418px**.
+
+**Phone width is not a design target for this app and was not made one.** Measured at
+400px on 2026-09-14: scope 571, assess 481, IRL 478, research 418 — research is now the
+best of the four. Making the whole app phone-ready is a separate piece of work and was not
+started uninvited; the verification asserts research is no worse than the app's baseline
+rather than pretending it is perfect.
+
+### Verified by reading the output, not only the tests
+
+- backend **pytest 487** (9 new) · ruff · mypy clean · frontend tsc · eslint · vitest clean
+- **generated a live Enterprise scope on Kiln** (prompt 2.2) and read it: IT Financials
+  says *"the technology budgeting process... over the last three financial years"*;
+  IT Organisation says *"the mix of in-house and outsourced IT delivery, including team
+  structure and vendor relationships"*; Contracts says *"expiry and renewal dates, notice
+  periods, and change-of-control provisions"*. Swept the whole deck: **no "cost model", no
+  "TSA", no "transitional service"**
+- **generated a live Product scope** with AI material and read PD-06, PD-11 and PD-12. All
+  three render with generic anonymised headings and expanded abbreviations — "Technology
+  Organisation and Capabilities", "Technology Financials", "Artificial Intelligence
+  Capabilities" — with the house rules holding
+- **drove the research page in a browser**, 10 checks: the stats strip, the disclaimer
+  still leading, 3 category groups, 5 section icons, 6 jump links each with a matching
+  anchor, no desktop overflow, and phone overflow contained
+
+**A trap worth recording, and it is the one the log keeps recording.** The scope YAML and
+the prompts are `lru_cache`d, so **a running backend serves the old deck**. The first live
+generation after editing `product.yaml` returned nine rows from the previous library and
+looked like the edit had failed. Restart before reading the output — the row count and the
+`prompt_version` in the payload tell you which library actually ran.
+
 
 ### Hire to Retire and Record to Report defined — the Assess module is complete (2026-09-14)
 

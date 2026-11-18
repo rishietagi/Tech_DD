@@ -113,6 +113,7 @@ def _research_context(research: ResearchPayload | None) -> dict[str, Any] | None
                 "customers_and_markets",
                 "sector_context",
                 "competitive_position",
+                "technology_profile",
             )
             if getattr(brief, name).text.strip()
         }
