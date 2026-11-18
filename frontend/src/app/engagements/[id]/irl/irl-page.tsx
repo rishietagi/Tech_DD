@@ -5,8 +5,15 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 
 import { IrlAddQuestion } from "@/components/engagement/irl-add-question";
+import {
+  ImportSummary,
+  InventorySection,
+} from "@/components/estate/inventory-section";
 import { IrlRequestList } from "@/components/engagement/irl-request-list";
-import { IrlSummaryRail, summarise } from "@/components/engagement/irl-summary-rail";
+import {
+  IrlSummaryRail,
+  summarise,
+} from "@/components/engagement/irl-summary-rail";
 import { ReminderPanel } from "@/components/engagement/reminder-panel";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -33,9 +40,19 @@ import type { ImportResponsesResult, IrlRead, IrlTracking } from "@/types/irl";
 const ACTION =
   "rounded-full border border-line-strong px-3.5 py-2 font-sans text-[12.5px] font-medium transition-colors hover:bg-paper-2 disabled:opacity-50";
 
+type Section = "requests" | "applications" | "data_tech" | "people";
+
+const SECTIONS: { key: Section; label: string }[] = [
+  { key: "requests", label: "Requests" },
+  { key: "applications", label: "Application inventory" },
+  { key: "data_tech", label: "Data & technology inventory" },
+  { key: "people", label: "IT team & contracts" },
+];
+
 export function IrlPage({ engagementId }: { engagementId: string }) {
   const queryClient = useQueryClient();
   const { show } = useToast();
+  const [section, setSection] = useState<Section>("requests");
 
   const { data: engagement, isLoading: isLoadingEngagement } = useQuery({
     queryKey: ["engagement", engagementId],
@@ -60,13 +77,19 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
       show("Request list generated");
     },
     onError: (err: unknown) => {
-      show(err instanceof ApiError ? err.message : "Could not generate a request list", "error");
+      show(
+        err instanceof ApiError
+          ? err.message
+          : "Could not generate a request list",
+        "error",
+      );
     },
   });
 
   // The edit endpoints all return the whole list, so the cache is replaced wholesale and
   // the counts stay consistent with the row that just changed.
-  const replace = (fresh: IrlRead) => queryClient.setQueryData(["irl", engagementId], fresh);
+  const replace = (fresh: IrlRead) =>
+    queryClient.setQueryData(["irl", engagementId], fresh);
 
   const updateQuestion = async (
     questionId: string,
@@ -81,7 +104,11 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
 
   const saveTracking = async (
     questionId: string,
-    patch: { status?: IrlTracking["status"]; document_type?: string; remarks?: string },
+    patch: {
+      status?: IrlTracking["status"];
+      document_type?: string;
+      remarks?: string;
+    },
   ) => {
     try {
       replace(await irlApi.saveTracking(engagementId, questionId, patch));
@@ -108,7 +135,8 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
     show("Request added");
   };
 
-  const [importResult, setImportResult] = useState<ImportResponsesResult | null>(null);
+  const [importResult, setImportResult] =
+    useState<ImportResponsesResult | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
   const importMutation = useMutation({
@@ -117,8 +145,29 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
       setImportResult(result);
       // Responses live in their own table, so the list has to be refetched to show them.
       replace(await irlApi.getLatest(engagementId));
-      if (result.updated > 0) {
-        show(`${result.updated} response${result.updated === 1 ? "" : "s"} imported`);
+      const inventoryChanged = (result.inventory?.summaries ?? []).reduce(
+        (n, sheet) => n + sheet.created + sheet.updated,
+        0,
+      );
+      if (inventoryChanged > 0) {
+        await queryClient.invalidateQueries({
+          queryKey: ["inventory", engagementId],
+        });
+        await queryClient.invalidateQueries({ queryKey: ["estate"] });
+      }
+      if (result.updated > 0 || inventoryChanged > 0) {
+        const parts = [];
+        if (result.updated > 0) {
+          parts.push(
+            `${result.updated} response${result.updated === 1 ? "" : "s"}`,
+          );
+        }
+        if (inventoryChanged > 0) {
+          parts.push(
+            `${inventoryChanged} inventory row${inventoryChanged === 1 ? "" : "s"}`,
+          );
+        }
+        show(`${parts.join(" and ")} imported`);
       } else {
         // Not a thrown error — the file was readable, it just changed nothing. The
         // summary panel below explains why, so the toast only has to flag it.
@@ -127,7 +176,10 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
     },
     onError: (err: unknown) => {
       setImportResult(null);
-      show(err instanceof ApiError ? err.message : "Could not read that workbook", "error");
+      show(
+        err instanceof ApiError ? err.message : "Could not read that workbook",
+        "error",
+      );
     },
   });
 
@@ -152,9 +204,12 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
         `${scan.updated} request${scan.updated === 1 ? "" : "s"} updated`,
       ];
       if (scan.follow_ups > 0) {
-        parts.push(`${scan.follow_ups} follow-up${scan.follow_ups === 1 ? "" : "s"} raised`);
+        parts.push(
+          `${scan.follow_ups} follow-up${scan.follow_ups === 1 ? "" : "s"} raised`,
+        );
       }
-      if (scan.skipped_human > 0) parts.push(`${scan.skipped_human} left as set by hand`);
+      if (scan.skipped_human > 0)
+        parts.push(`${scan.skipped_human} left as set by hand`);
       if (scan.unmatched_files.length > 0) {
         parts.push(`${scan.unmatched_files.length} file(s) nothing asked for`);
       }
@@ -174,7 +229,12 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
       show(parts.join(" · "));
     },
     onError: (err: unknown) => {
-      show(err instanceof ApiError ? err.message : "Could not scan the shared drive", "error");
+      show(
+        err instanceof ApiError
+          ? err.message
+          : "Could not scan the shared drive",
+        "error",
+      );
     },
   });
 
@@ -207,7 +267,8 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
     );
   }
 
-  const notGeneratedYet = isError && error instanceof ApiError && error.code === "no_irl";
+  const notGeneratedYet =
+    isError && error instanceof ApiError && error.code === "no_irl";
 
   if (notGeneratedYet) {
     return (
@@ -222,7 +283,9 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
               disabled={generateMutation.isPending}
               className="rounded-full border border-ink bg-ink px-5 py-3 font-sans text-[13px] font-medium text-paper-on-ink disabled:opacity-50"
             >
-              {generateMutation.isPending ? "Generating…" : "Generate request list"}
+              {generateMutation.isPending
+                ? "Generating…"
+                : "Generate request list"}
             </button>
           }
         />
@@ -239,7 +302,9 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
   }
 
   const { payload } = irl;
-  const kinds = Object.fromEntries(payload.questions.map((q) => [q.id, q.kind]));
+  const kinds = Object.fromEntries(
+    payload.questions.map((q) => [q.id, q.kind]),
+  );
   const progress = summarise(irl.tracking, irl.responses, kinds);
   const lastScannedAt =
     Object.values(irl.tracking)
@@ -266,7 +331,9 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
               title="Reads every file on the shared drive, matches it to a request, and writes the status, document type and any follow-up questions"
               className="rounded-full bg-ink px-3.5 py-2 font-sans text-[12.5px] font-medium text-paper-on-ink transition-colors hover:bg-ink-2 disabled:opacity-50"
             >
-              {scanMutation.isPending ? "Reading the drive…" : "Scan shared drive"}
+              {scanMutation.isPending
+                ? "Reading the drive…"
+                : "Scan shared drive"}
             </button>
             <a
               href={`${API_BASE_URL}/engagements/${engagementId}/irl/export.xlsx`}
@@ -320,83 +387,152 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
             className="mt-1 h-2 w-2 flex-none animate-pulse rounded-full bg-steel"
           />
           <p className="font-sans text-[13.5px] leading-[1.55] text-text">
-            Reading each document on the shared drive and matching it to a request. This
-            usually takes under a minute — statuses, document types and follow-up
-            questions land on the rows below when it finishes.
+            Reading each document on the shared drive and matching it to a
+            request. This usually takes under a minute — statuses, document
+            types and follow-up questions land on the rows below when it
+            finishes.
           </p>
         </div>
       )}
 
-      {payload.intro && (
-        <p className="mb-6 max-w-[78ch] font-sans text-[14.5px] leading-[1.65] text-muted">
-          {payload.intro}
-        </p>
+      {/* Requests, and the two structured intakes the target completes in the same
+          workbook (PHASE6_PLAN D2). One page, because they go out and come back as one file. */}
+      <div
+        role="tablist"
+        aria-label="Request list sections"
+        className="mb-7 flex flex-wrap gap-1 rounded-full border border-line-strong bg-paper-2 p-1"
+      >
+        {SECTIONS.map((s) => (
+          <button
+            key={s.key}
+            type="button"
+            role="tab"
+            aria-selected={section === s.key}
+            onClick={() => setSection(s.key)}
+            className={`rounded-full px-4 py-2 font-sans text-[13px] font-medium transition-colors ${
+              section === s.key
+                ? "bg-ink text-paper-on-ink"
+                : "text-muted hover:text-text"
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {importResult?.inventory &&
+        importResult.inventory.summaries.length > 0 && (
+          <ImportSummary
+            result={importResult.inventory}
+            onDismiss={() =>
+              setImportResult((r) => (r ? { ...r, inventory: null } : r))
+            }
+          />
+        )}
+
+      {section === "applications" && (
+        <InventorySection
+          engagementId={engagementId}
+          kinds={["application"]}
+          intro="Every system the business runs on: functionality, version and licences, customisation, platform, scalability and redundancy, hosting and support. Facts only; the fit, automation and AI judgement is made in Assess."
+        />
       )}
 
-      {!payload.used_research && (
-        <Link
-          href={`/engagements/${engagementId}/research`}
-          className="mb-6 inline-block font-sans text-[13px] text-steel underline underline-offset-2"
-        >
-          Run company research to tailor these questions
-        </Link>
+      {section === "data_tech" && (
+        <InventorySection
+          engagementId={engagementId}
+          kinds={["data_domain", "platform"]}
+          intro="What data the business holds and where it is mastered, and the platforms underneath the applications. Governance quality, support status and recoverability are judged in Assess."
+        />
       )}
 
-      {/* What the upload actually changed. Reported rather than assumed: an import that
-          matched nothing looks identical to one that worked. */}
-      {importResult && (
-        <div className="mb-5 rounded-xl border border-line-strong bg-paper-2 px-5 py-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="font-sans text-[14px] text-text">
-                {importResult.updated} response
-                {importResult.updated === 1 ? "" : "s"} imported from {importResult.matched}{" "}
-                matched row
-                {importResult.matched === 1 ? "" : "s"}
-                {importResult.skipped_blank > 0 &&
-                  ` · ${importResult.skipped_blank} left blank`}
-              </p>
-              {importResult.note && (
-                <p className="mt-1 max-w-[80ch] font-sans text-[12.5px] text-muted">
-                  {importResult.note}
-                </p>
-              )}
-              {importResult.unmatched_rows.length > 0 && (
-                <ul className="mt-2 max-w-[80ch] list-disc space-y-0.5 pl-5 font-sans text-[12px] text-muted-2">
-                  {importResult.unmatched_rows.map((row) => (
-                    <li key={row}>{row}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => setImportResult(null)}
-              className="flex-none font-sans text-[12px] text-muted hover:text-text"
+      {section === "people" && (
+        <InventorySection
+          engagementId={engagementId}
+          kinds={["it_role", "it_contract"]}
+          intro="Who runs the technology and on what terms it is bought. The team shows key-person risk and the in-house versus outsourced mix; contracts are reviewed for their terms and expiry — renewal dates, notice periods, change of control and anything held by the parent."
+        />
+      )}
+
+      {section === "requests" && (
+        <>
+          {payload.intro && (
+            <p className="mb-6 max-w-[78ch] font-sans text-[14.5px] leading-[1.65] text-muted">
+              {payload.intro}
+            </p>
+          )}
+
+          {!payload.used_research && (
+            <Link
+              href={`/engagements/${engagementId}/research`}
+              className="mb-6 inline-block font-sans text-[13px] text-steel underline underline-offset-2"
             >
-              Dismiss
-            </button>
-          </div>
-        </div>
+              Run company research to tailor these questions
+            </Link>
+          )}
+
+          {/* What the upload actually changed. Reported rather than assumed: an import that
+          matched nothing looks identical to one that worked. */}
+          {importResult && (
+            <div className="mb-5 rounded-xl border border-line-strong bg-paper-2 px-5 py-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-sans text-[14px] text-text">
+                    {importResult.updated} response
+                    {importResult.updated === 1 ? "" : "s"} imported from{" "}
+                    {importResult.matched} matched row
+                    {importResult.matched === 1 ? "" : "s"}
+                    {importResult.skipped_blank > 0 &&
+                      ` · ${importResult.skipped_blank} left blank`}
+                  </p>
+                  {importResult.note && (
+                    <p className="mt-1 max-w-[80ch] font-sans text-[12.5px] text-muted">
+                      {importResult.note}
+                    </p>
+                  )}
+                  {importResult.unmatched_rows.length > 0 && (
+                    <ul className="mt-2 max-w-[80ch] list-disc space-y-0.5 pl-5 font-sans text-[12px] text-muted-2">
+                      {importResult.unmatched_rows.map((row) => (
+                        <li key={row}>{row}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setImportResult(null)}
+                  className="flex-none font-sans text-[12px] text-muted hover:text-text"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          )}
+
+          <IrlRequestList
+            engagementId={engagementId}
+            payload={payload}
+            responses={irl.responses}
+            tracking={irl.tracking}
+            onUpdate={updateQuestion}
+            onDelete={deleteQuestion}
+            onTrack={saveTracking}
+          />
+
+          <IrlAddQuestion
+            scopeAreas={payload.functions.map((f) => f.name)}
+            functions={Array.from(
+              new Set(payload.questions.map((q) => q.function)),
+            ).sort()}
+            onAdd={addQuestion}
+          />
+
+          <ReminderPanel
+            progress={progress}
+            companyName={payload.company_name ?? null}
+          />
+        </>
       )}
-
-      <IrlRequestList
-        engagementId={engagementId}
-        payload={payload}
-        responses={irl.responses}
-        tracking={irl.tracking}
-        onUpdate={updateQuestion}
-        onDelete={deleteQuestion}
-        onTrack={saveTracking}
-      />
-
-      <IrlAddQuestion
-        scopeAreas={payload.functions.map((f) => f.name)}
-        functions={Array.from(new Set(payload.questions.map((q) => q.function))).sort()}
-        onAdd={addQuestion}
-      />
-
-      <ReminderPanel progress={progress} companyName={payload.company_name ?? null} />
     </main>
   );
 }

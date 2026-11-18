@@ -11,7 +11,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.core.config import get_settings
 from app.core.errors import AppError
 from app.models.irl import InformationRequestList, IrlDocumentStatus, IrlResponse
 from app.schemas.irl import ImportResponsesResult, IrlPayload, IrlQuestion, IrlTracking
@@ -19,17 +18,17 @@ from app.schemas.research import ResearchPayload
 from app.schemas.scope import ScopeOfWorkPayloadV2
 from app.services.checklist.ranking import rank_questions
 from app.services.engagements import assemble_intake_full, get_engagement
+from app.services.intelligence.mode import use_llm
 from app.services.irl.composer import group_functions
-from app.services.irl.import_xlsx import import_responses
+from app.services.irl.import_xlsx import ResponseImportError, import_responses
 from app.services.irl.llm import LlmIrlGenerator, RulesIrlGenerator
 from app.services.research.service import find_latest_research
 from app.services.scope import service as scope_service
 
 
 def _generator_for(name: str | None) -> LlmIrlGenerator | RulesIrlGenerator:
-    """Explicit request wins; otherwise follow the same setting the scope engine uses."""
-    resolved = name or get_settings().scope_generator
-    return LlmIrlGenerator() if resolved == "llm" else RulesIrlGenerator()
+    """Explicit request wins; otherwise AI_MODE decides (Phase 7)."""
+    return LlmIrlGenerator() if use_llm("irl-generation", name) else RulesIrlGenerator()
 
 
 def generate_irl(
@@ -446,7 +445,28 @@ def import_responses_from_workbook(
     irl = get_latest_irl(db, engagement_id)
     payload = _payload_of(irl)
 
-    responses, result = import_responses(content, payload, responses_for(irl))
+    # The workbook may carry the inventory sheets as well (PHASE6_PLAN D2). They are read
+    # independently: a returned file with a filled inventory and an untouched request
+    # sheet is a perfectly good upload, and must not fail on the missing responses.
+    from app.services.estate.inventory import import_workbook
+    from app.services.estate.inventory_xlsx import read_inventory_sheets
+
+    has_inventory = bool(read_inventory_sheets(content))
+    try:
+        responses, result = import_responses(content, payload, responses_for(irl))
+    except ResponseImportError:
+        if not has_inventory:
+            raise
+        responses = {}
+        result = ImportResponsesResult(
+            matched=0,
+            updated=0,
+            skipped_blank=0,
+            total_rows=0,
+            note="No request-list responses were found; the inventory sheets were read.",
+        )
+    if has_inventory:
+        result.inventory = import_workbook(db, engagement_id, content)
 
     for question_id, text in responses.items():
         existing = db.execute(

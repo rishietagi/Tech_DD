@@ -24,7 +24,15 @@ function NavSectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function NavLink({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+function NavLink({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <Link
       href={href}
@@ -108,7 +116,9 @@ export function SidebarNav() {
               </NavLink>
               <NavLink
                 href={`/engagements/${activeEngagementId}/research`}
-                active={pathname === `/engagements/${activeEngagementId}/research`}
+                active={
+                  pathname === `/engagements/${activeEngagementId}/research`
+                }
               >
                 Company research
               </NavLink>
@@ -123,10 +133,28 @@ export function SidebarNav() {
               <NavLink
                 href={`/engagements/${activeEngagementId}/assess`}
                 active={
-                  pathname?.startsWith(`/engagements/${activeEngagementId}/assess`) ?? false
+                  pathname?.startsWith(
+                    `/engagements/${activeEngagementId}/assess`,
+                  ) ?? false
                 }
               >
                 Assess
+              </NavLink>
+              <NavLink
+                href={`/engagements/${activeEngagementId}/it-budget`}
+                active={
+                  pathname === `/engagements/${activeEngagementId}/it-budget`
+                }
+              >
+                IT budget
+              </NavLink>
+              <NavLink
+                href={`/engagements/${activeEngagementId}/report`}
+                active={
+                  pathname === `/engagements/${activeEngagementId}/report`
+                }
+              >
+                Report
               </NavLink>
             </div>
           </>
@@ -139,8 +167,14 @@ export function SidebarNav() {
           <NavLink href="/engagements" active={pathname === "/engagements"}>
             Engagements
           </NavLink>
-          <NavLink href="/about/methodology" active={pathname?.startsWith("/about") ?? false}>
+          <NavLink
+            href="/about/methodology"
+            active={pathname?.startsWith("/about") ?? false}
+          >
             Methodology
+          </NavLink>
+          <NavLink href="/about/ai" active={pathname === "/about/ai"}>
+            AI &amp; skills
           </NavLink>
         </div>
       </nav>

@@ -1,5 +1,9 @@
 import { ClassificationHeader } from "@/components/engagement/classification-header";
-import { ScopeRowCard } from "@/components/engagement/scope-row-card";
+import {
+  type RowEdit,
+  ScopeRowCard,
+} from "@/components/engagement/scope-row-card";
+import { EditableList, EditableText } from "@/components/ui/editable";
 import type { ScopeOfWorkPayloadV2 } from "@/types/engagement";
 
 function Section({
@@ -13,14 +17,42 @@ function Section({
 }) {
   return (
     <section className="mt-10">
-      <h2 className="mb-1 font-display text-lg font-semibold text-text">{title}</h2>
-      {subtitle && <p className="mb-3 font-sans text-[13px] text-muted">{subtitle}</p>}
+      <h2 className="mb-1 font-display text-lg font-semibold text-text">
+        {title}
+      </h2>
+      {subtitle && (
+        <p className="mb-3 font-sans text-[13px] text-muted">{subtitle}</p>
+      )}
       <div className={subtitle ? "" : "mt-3"}>{children}</div>
     </section>
   );
 }
 
-export function ScopeDocumentV2({ scope }: { scope: ScopeOfWorkPayloadV2 }) {
+export type DocumentEdit = {
+  engagement_summary?: string;
+  objectives?: string[];
+  diligence_risks?: string[];
+  delivery?: Record<string, string>;
+};
+
+const DELIVERY: { key: string; label: string }[] = [
+  { key: "sequencing", label: "Sequencing" },
+  { key: "timeline", label: "Timeline" },
+  { key: "cost", label: "Cost estimation" },
+  { key: "team", label: "Team" },
+];
+
+export function ScopeDocumentV2({
+  scope,
+  onEditRow,
+  onEditDocument,
+}: {
+  scope: ScopeOfWorkPayloadV2;
+  onEditRow?: (rowId: string, patch: RowEdit) => Promise<void>;
+  onEditDocument?: (patch: DocumentEdit) => Promise<void>;
+}) {
+  const edits = scope.human_edits ?? {};
+  const delivery = scope.delivery ?? {};
   const { classification } = scope;
   const productRows = scope.rows.filter((row) => row.deck === "product");
   const enterpriseRows = scope.rows.filter((row) => row.deck === "enterprise");
@@ -32,26 +64,57 @@ export function ScopeDocumentV2({ scope }: { scope: ScopeOfWorkPayloadV2 }) {
         <div className="mb-1 font-sans text-xs font-semibold tracking-[0.08em] text-kpmg-blue uppercase">
           {scope.deck_subtitle}
         </div>
-        <h1 className="font-display text-3xl font-semibold text-text">{scope.deck_title}</h1>
+        <h1 className="font-display text-3xl font-semibold text-text">
+          {scope.deck_title}
+        </h1>
       </header>
 
-      <ClassificationHeader classification={classification} generator={scope.generator} />
+      <ClassificationHeader
+        classification={classification}
+        generator={scope.generator}
+      />
 
       <Section title="Engagement">
-        <p className="max-w-[72ch] font-sans text-[15px] leading-[1.65] text-text">
-          {scope.engagement_summary}
-        </p>
+        {onEditDocument ? (
+          <EditableText
+            value={scope.engagement_summary}
+            label="engagement summary"
+            rows={5}
+            edited={"engagement_summary" in edits}
+            onSave={(engagement_summary) =>
+              onEditDocument({ engagement_summary })
+            }
+          >
+            <p className="max-w-[72ch] font-sans text-[15px] leading-[1.65] text-text">
+              {scope.engagement_summary}
+            </p>
+          </EditableText>
+        ) : (
+          <p className="max-w-[72ch] font-sans text-[15px] leading-[1.65] text-text">
+            {scope.engagement_summary}
+          </p>
+        )}
       </Section>
 
       <Section title="Objectives">
-        <ul className="max-w-[72ch] list-disc space-y-1.5 pl-5 font-sans text-[14.5px] leading-[1.6] text-text">
-          {scope.objectives.map((objective) => (
-            <li key={objective}>{objective}</li>
-          ))}
-        </ul>
+        <EditableList
+          items={scope.objectives}
+          label="objectives"
+          edited={"objectives" in edits}
+          onSave={async (objectives) => onEditDocument?.({ objectives })}
+        >
+          <ul className="max-w-[72ch] list-disc space-y-1.5 pl-5 font-sans text-[14.5px] leading-[1.6] text-text">
+            {scope.objectives.map((objective) => (
+              <li key={objective}>{objective}</li>
+            ))}
+          </ul>
+        </EditableList>
       </Section>
 
-      <Section title="Scope of work" subtitle={`${scope.rows.length} areas in scope for this engagement.`}>
+      <Section
+        title="Scope of work"
+        subtitle={`${scope.rows.length} areas in scope for this engagement.`}
+      >
         {isBlended ? (
           <>
             <h3 className="mt-2 mb-1 font-sans text-[11px] font-semibold tracking-[0.06em] text-muted-2 uppercase">
@@ -59,7 +122,7 @@ export function ScopeDocumentV2({ scope }: { scope: ScopeOfWorkPayloadV2 }) {
             </h3>
             <div className="mb-6">
               {productRows.map((row) => (
-                <ScopeRowCard key={row.id} row={row} />
+                <ScopeRowCard key={row.id} row={row} onEdit={onEditRow} />
               ))}
             </div>
             <h3 className="mt-2 mb-1 font-sans text-[11px] font-semibold tracking-[0.06em] text-muted-2 uppercase">
@@ -67,12 +130,14 @@ export function ScopeDocumentV2({ scope }: { scope: ScopeOfWorkPayloadV2 }) {
             </h3>
             <div>
               {enterpriseRows.map((row) => (
-                <ScopeRowCard key={row.id} row={row} />
+                <ScopeRowCard key={row.id} row={row} onEdit={onEditRow} />
               ))}
             </div>
           </>
         ) : (
-          scope.rows.map((row) => <ScopeRowCard key={row.id} row={row} />)
+          scope.rows.map((row) => (
+            <ScopeRowCard key={row.id} row={row} onEdit={onEditRow} />
+          ))
         )}
       </Section>
 
@@ -86,27 +151,63 @@ export function ScopeDocumentV2({ scope }: { scope: ScopeOfWorkPayloadV2 }) {
         title="Delivery approach"
         subtitle="To be confirmed by the engagement team."
       >
-        <dl className="max-w-[52ch] divide-y divide-line rounded-xl border border-line-strong">
-          {["Sequencing", "Timeline", "Cost estimation", "Team"].map((item) => (
-            <div key={item} className="flex items-baseline justify-between px-4 py-3">
-              <dt className="font-sans text-[14px] text-text">{item}</dt>
-              <dd className="font-mono text-[13px] tracking-wide text-muted-2">XXX</dd>
+        {/* XXX until the engagement team completes it; what is typed here is what the
+            deck exports (editable before export since 2026-11-18). */}
+        <dl className="max-w-[72ch] divide-y divide-line rounded-xl border border-line-strong">
+          {DELIVERY.map(({ key, label }) => (
+            <div
+              key={key}
+              className="grid grid-cols-[160px_minmax(0,1fr)] items-baseline gap-4 px-4 py-3"
+            >
+              <dt className="font-sans text-[14px] text-text">{label}</dt>
+              <dd>
+                <EditableText
+                  value={delivery[key] ?? ""}
+                  label={label}
+                  rows={2}
+                  onSave={async (value) =>
+                    onEditDocument?.({ delivery: { [key]: value } })
+                  }
+                >
+                  <span
+                    className={
+                      delivery[key]
+                        ? "font-sans text-[14px] text-text"
+                        : "font-mono text-[13px] tracking-wide text-muted-2"
+                    }
+                  >
+                    {delivery[key] || "XXX"}
+                  </span>
+                </EditableText>
+              </dd>
             </div>
           ))}
         </dl>
       </Section>
 
       {scope.notes.length > 0 && (
-        <Section title="Notes" subtitle="Points the reference methodology attaches to engagements like this one.">
+        <Section
+          title="Notes"
+          subtitle="Points the reference methodology attaches to engagements like this one."
+        >
           <ul className="space-y-3">
             {scope.notes
               .filter((note) => note.text)
               .map((note) => (
-                <li key={note.code} className="rounded-xl border border-line bg-paper-2 px-4 py-3">
-                  <p className="mb-1 font-sans text-[13px] font-semibold text-text">{note.label}</p>
-                  <p className="font-sans text-[13.5px] leading-[1.55] text-muted">{note.text}</p>
+                <li
+                  key={note.code}
+                  className="rounded-xl border border-line bg-paper-2 px-4 py-3"
+                >
+                  <p className="mb-1 font-sans text-[13px] font-semibold text-text">
+                    {note.label}
+                  </p>
+                  <p className="font-sans text-[13.5px] leading-[1.55] text-muted">
+                    {note.text}
+                  </p>
                   {note.citation && (
-                    <p className="mt-1 font-sans text-[12px] text-muted-2 italic">{note.citation}</p>
+                    <p className="mt-1 font-sans text-[12px] text-muted-2 italic">
+                      {note.citation}
+                    </p>
                   )}
                 </li>
               ))}
@@ -116,22 +217,39 @@ export function ScopeDocumentV2({ scope }: { scope: ScopeOfWorkPayloadV2 }) {
 
       {scope.diligence_risks.length > 0 && (
         <Section title="Risks to the diligence itself">
-          <ul className="max-w-[72ch] list-disc space-y-1.5 pl-5 font-sans text-[14px] leading-[1.6] text-text">
-            {scope.diligence_risks.map((risk) => (
-              <li key={risk}>{risk}</li>
-            ))}
-          </ul>
+          <EditableList
+            items={scope.diligence_risks}
+            label="diligence risks"
+            edited={"diligence_risks" in edits}
+            onSave={async (diligence_risks) =>
+              onEditDocument?.({ diligence_risks })
+            }
+          >
+            <ul className="max-w-[72ch] list-disc space-y-1.5 pl-5 font-sans text-[14px] leading-[1.6] text-text">
+              {scope.diligence_risks.map((risk) => (
+                <li key={risk}>{risk}</li>
+              ))}
+            </ul>
+          </EditableList>
         </Section>
       )}
 
-      <Section title="Exclusions" subtitle="A scope that does not say what it excludes is not a scope.">
+      <Section
+        title="Exclusions"
+        subtitle="A scope that does not say what it excludes is not a scope."
+      >
         <ul className="space-y-2.5">
           {scope.exclusions.map((exclusion) => (
-            <li key={exclusion.subject} className="max-w-[72ch] font-sans text-[14px] leading-[1.6]">
+            <li
+              key={exclusion.subject}
+              className="max-w-[72ch] font-sans text-[14px] leading-[1.6]"
+            >
               <span className="font-medium text-text">{exclusion.subject}</span>
               <span className="text-muted"> — {exclusion.reason}</span>
               {exclusion.rule_code && (
-                <span className="ml-1 font-sans text-[12px] text-muted-2">({exclusion.rule_code})</span>
+                <span className="ml-1 font-sans text-[12px] text-muted-2">
+                  ({exclusion.rule_code})
+                </span>
               )}
             </li>
           ))}
@@ -145,12 +263,20 @@ export function ScopeDocumentV2({ scope }: { scope: ScopeOfWorkPayloadV2 }) {
         <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
           {scope.provenance.map((rule) => (
             <li key={rule.code} className="font-sans text-[12.5px] text-muted">
-              <span className="mr-1.5 font-medium text-kpmg-blue">{rule.code}</span>
+              <span className="mr-1.5 font-medium text-kpmg-blue">
+                {rule.code}
+              </span>
               {rule.label}
               {rule.provenance === "extended" && (
-                <span className="ml-1.5 text-muted-2 italic">extended practice</span>
+                <span className="ml-1.5 text-muted-2 italic">
+                  extended practice
+                </span>
               )}
-              {rule.citation && <span className="ml-1.5 text-muted-2 italic">· {rule.citation}</span>}
+              {rule.citation && (
+                <span className="ml-1.5 text-muted-2 italic">
+                  · {rule.citation}
+                </span>
+              )}
             </li>
           ))}
         </ul>
@@ -158,7 +284,8 @@ export function ScopeDocumentV2({ scope }: { scope: ScopeOfWorkPayloadV2 }) {
 
       <footer className="mt-10 border-t border-line pt-4 font-sans text-[12px] text-muted-2">
         Library v{scope.library_version} · rules v{scope.rules_version}
-        {scope.prompt_version && <> · prompt v{scope.prompt_version}</>} · generated by {scope.generator}
+        {scope.prompt_version && <> · prompt v{scope.prompt_version}</>} ·
+        generated by {scope.generator}
       </footer>
     </article>
   );

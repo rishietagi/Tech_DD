@@ -10,4 +10,15 @@ export const researchApi = {
 
   getLatest: (engagementId: string) =>
     apiClient.get<ResearchRead>(`/engagements/${engagementId}/research`),
+
+  /** Write the research by hand (AI off), or correct the latest run. Omitted fields stay. */
+  edit: (
+    engagementId: string,
+    body: {
+      summary?: string;
+      business_brief?: Record<string, string>;
+      findings?: { topic: string; detail: string; category: string }[];
+    },
+  ) =>
+    apiClient.put<ResearchRead>(`/engagements/${engagementId}/research`, body),
 };

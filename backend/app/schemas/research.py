@@ -144,6 +144,10 @@ class ResearchPayload(BaseModel):
     # Stored, not rendered from a constant at display time — see the module docstring.
     disclaimer: str = RESEARCH_DISCLAIMER
     researched_at: datetime
+    # The model's (or the previous) text of anything edited by hand, keyed by field —
+    # `summary`, `brief.<section>`, `findings`. An edited section keeps its citations,
+    # flagged, because the reader should know a human changed cited text.
+    human_edits: dict[str, Any] = Field(default_factory=dict)
 
 
 class ResearchRead(BaseModel):
@@ -164,3 +168,26 @@ class ResearchVersionSummary(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ResearchFindingEdit(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    topic: str = Field(min_length=1, max_length=200)
+    detail: str = Field(min_length=1, max_length=4000)
+    category: str = "other"
+
+
+class ResearchEdit(BaseModel):
+    """PUT /engagements/{id}/research — write or correct the research by hand.
+
+    With AI off there is no other way to have research at all (it has no rules version),
+    and with AI on the analyst must be able to correct what the model wrote before it
+    feeds the IRL and the report. Omitted fields are left alone.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    summary: str | None = None
+    business_brief: dict[str, str] | None = None
+    findings: list[ResearchFindingEdit] | None = None

@@ -11,39 +11,64 @@ import type {
 import type { IntakeSectionPayload, IntakeStep } from "@/types/intake";
 
 export const engagementsApi = {
-  create: (dealName: string) => apiClient.post<EngagementRead>("/engagements", { deal_name: dealName }),
+  create: (dealName: string) =>
+    apiClient.post<EngagementRead>("/engagements", { deal_name: dealName }),
 
   get: (id: string) => apiClient.get<EngagementRead>(`/engagements/${id}`),
 
-  list: (params?: { q?: string; status_filter?: string; dd_type?: string; limit?: number; offset?: number }) =>
-    apiClient.get<EngagementListResponse>("/engagements", params),
+  list: (params?: {
+    q?: string;
+    status_filter?: string;
+    dd_type?: string;
+    limit?: number;
+    offset?: number;
+  }) => apiClient.get<EngagementListResponse>("/engagements", params),
 
-  update: (id: string, payload: { deal_name?: string; current_step?: string }) =>
-    apiClient.patch<EngagementRead>(`/engagements/${id}`, payload),
+  update: (
+    id: string,
+    payload: { deal_name?: string; current_step?: string },
+  ) => apiClient.patch<EngagementRead>(`/engagements/${id}`, payload),
 
   archive: (id: string) => apiClient.delete<void>(`/engagements/${id}`),
 
   /** Irreversible: removes the engagement, its intake and every scope version.
    *  Refused with a 409 on a filed or scoped engagement — archive it first. */
-  remove: (id: string) => apiClient.delete<void>(`/engagements/${id}?permanent=true`),
+  remove: (id: string) =>
+    apiClient.delete<void>(`/engagements/${id}?permanent=true`),
 
-  patchSection: (id: string, section: IntakeStep, payload: IntakeSectionPayload) =>
-    apiClient.patch<EngagementRead>(`/engagements/${id}/intake/${section}`, payload),
+  patchSection: (
+    id: string,
+    section: IntakeStep,
+    payload: IntakeSectionPayload,
+  ) =>
+    apiClient.patch<EngagementRead>(
+      `/engagements/${id}/intake/${section}`,
+      payload,
+    ),
 
-  submit: (id: string) => apiClient.post<EngagementRead>(`/engagements/${id}/submit`),
+  submit: (id: string) =>
+    apiClient.post<EngagementRead>(`/engagements/${id}/submit`),
 };
 
 export const scopeApi = {
   generate: (engagementId: string, generator?: "rules" | "llm") =>
-    apiClient.post<ScopeOfWorkRead>(`/engagements/${engagementId}/scope`, generator ? { generator } : {}),
+    apiClient.post<ScopeOfWorkRead>(
+      `/engagements/${engagementId}/scope`,
+      generator ? { generator } : {},
+    ),
 
-  getLatest: (engagementId: string) => apiClient.get<ScopeOfWorkRead>(`/engagements/${engagementId}/scope`),
+  getLatest: (engagementId: string) =>
+    apiClient.get<ScopeOfWorkRead>(`/engagements/${engagementId}/scope`),
 
   getVersion: (engagementId: string, version: number) =>
-    apiClient.get<ScopeOfWorkRead>(`/engagements/${engagementId}/scope/${version}`),
+    apiClient.get<ScopeOfWorkRead>(
+      `/engagements/${engagementId}/scope/${version}`,
+    ),
 
   listVersions: (engagementId: string) =>
-    apiClient.get<ScopeOfWorkVersionSummary[]>(`/engagements/${engagementId}/scope/versions`),
+    apiClient.get<ScopeOfWorkVersionSummary[]>(
+      `/engagements/${engagementId}/scope/versions`,
+    ),
 
   /** Classification from a draft intake. Safe to call while the user is still typing. */
   preview: (engagementId: string) =>
@@ -53,8 +78,33 @@ export const scopeApi = {
     engagementId: string,
     version: number,
     rowId: string,
-    payload: { tier?: number; title?: string; reason?: string },
-  ) => apiClient.patch<ScopeOfWorkRead>(`/engagements/${engagementId}/scope/${version}/rows/${rowId}`, payload),
+    payload: {
+      tier?: number;
+      title?: string;
+      reason?: string;
+      lines?: string[];
+    },
+  ) =>
+    apiClient.patch<ScopeOfWorkRead>(
+      `/engagements/${engagementId}/scope/${version}/rows/${rowId}`,
+      payload,
+    ),
+
+  /** Edit the summary, objectives, risks or delivery approach before export. */
+  editDocument: (
+    engagementId: string,
+    version: number,
+    payload: {
+      engagement_summary?: string;
+      objectives?: string[];
+      diligence_risks?: string[];
+      delivery?: Record<string, string>;
+    },
+  ) =>
+    apiClient.patch<ScopeOfWorkRead>(
+      `/engagements/${engagementId}/scope/${version}`,
+      payload,
+    ),
 };
 
 export const metaApi = {

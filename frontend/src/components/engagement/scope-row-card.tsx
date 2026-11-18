@@ -2,9 +2,18 @@
 
 import { useState } from "react";
 
+import { EditableList, EditableText } from "@/components/ui/editable";
 import type { ScopedRow } from "@/types/engagement";
 
-export function ScopeRowCard({ row }: { row: ScopedRow }) {
+export type RowEdit = { title?: string; lines?: string[] };
+
+export function ScopeRowCard({
+  row,
+  onEdit,
+}: {
+  row: ScopedRow;
+  onEdit?: (rowId: string, patch: RowEdit) => Promise<void>;
+}) {
   const [open, setOpen] = useState(false);
   const isOutOfScope = row.tier === 0;
 
@@ -16,25 +25,62 @@ export function ScopeRowCard({ row }: { row: ScopedRow }) {
           shown as a label on the row. It still governs which rows open and how deep, and
           the reasoning stays available under "Why this depth" below. */}
       <div className="mb-2">
-        <h3 className="font-display text-[17px] font-semibold text-text">
-          <span className="mr-2.5 font-sans text-[13px] font-medium text-muted-2">
-            {String(row.sn).padStart(2, "0")}
-          </span>
-          {row.title}
-        </h3>
+        {onEdit ? (
+          <EditableText
+            value={row.title}
+            rows={1}
+            label={`title of area ${row.sn}`}
+            edited={
+              row.original_title !== null && row.original_title !== row.title
+            }
+            onSave={(title) => onEdit(row.id, { title })}
+          >
+            <h3 className="inline font-display text-[17px] font-semibold text-text">
+              <span className="mr-2.5 font-sans text-[13px] font-medium text-muted-2">
+                {String(row.sn).padStart(2, "0")}
+              </span>
+              {row.title}
+            </h3>
+          </EditableText>
+        ) : (
+          <h3 className="font-display text-[17px] font-semibold text-text">
+            <span className="mr-2.5 font-sans text-[13px] font-medium text-muted-2">
+              {String(row.sn).padStart(2, "0")}
+            </span>
+            {row.title}
+          </h3>
+        )}
       </div>
 
       {/* Bulleted, not paragraphs (Rishi, 2026-09-02): each line is one discrete piece
           of scope, and a run of plain paragraphs reads as prose rather than as the list
           it is. Matches the deck. */}
-      <ul className="max-w-[70ch] list-disc space-y-1.5 pl-5 font-sans text-[14.5px] leading-[1.6] text-text marker:text-muted-2">
-        {row.lines.map((line, index) => (
-          <li key={index}>{line.text}</li>
-        ))}
-      </ul>
+      {(() => {
+        const bullets = (
+          <ul className="max-w-[70ch] list-disc space-y-1.5 pl-5 font-sans text-[14.5px] leading-[1.6] text-text marker:text-muted-2">
+            {row.lines.map((line, index) => (
+              <li key={index}>{line.text}</li>
+            ))}
+          </ul>
+        );
+        return onEdit ? (
+          <EditableList
+            items={row.lines.map((line) => line.text)}
+            label={`bullets of ${row.title}`}
+            edited={Boolean(row.original_lines)}
+            onSave={(lines) => onEdit(row.id, { lines })}
+          >
+            {bullets}
+          </EditableList>
+        ) : (
+          bullets
+        );
+      })()}
 
       {row.out_of_scope_note && (
-        <p className="mt-2 font-sans text-[13px] text-muted italic">{row.out_of_scope_note}</p>
+        <p className="mt-2 font-sans text-[13px] text-muted italic">
+          {row.out_of_scope_note}
+        </p>
       )}
 
       {row.edited_by_human && (
@@ -74,11 +120,16 @@ export function ScopeRowCard({ row }: { row: ScopedRow }) {
               <h4 className="mb-1 font-sans text-[11px] font-semibold text-muted-2 uppercase">
                 Why this depth
               </h4>
-              <p className="font-sans text-[13px] text-text">{row.tier_reason}</p>
+              <p className="font-sans text-[13px] text-text">
+                {row.tier_reason}
+              </p>
               {row.adjustments.length > 0 && (
                 <ul className="mt-1 space-y-0.5">
                   {row.adjustments.map((adjustment) => (
-                    <li key={adjustment} className="font-sans text-[12.5px] text-muted">
+                    <li
+                      key={adjustment}
+                      className="font-sans text-[12.5px] text-muted"
+                    >
                       · {adjustment}
                     </li>
                   ))}
@@ -93,7 +144,9 @@ export function ScopeRowCard({ row }: { row: ScopedRow }) {
                 </h4>
                 <p className="font-sans text-[12.5px] text-muted">
                   {row.triggered_by.join(", ")}
-                  {row.dd_master_ref && <span className="ml-2 italic">· {row.dd_master_ref}</span>}
+                  {row.dd_master_ref && (
+                    <span className="ml-2 italic">· {row.dd_master_ref}</span>
+                  )}
                 </p>
               </div>
             )}

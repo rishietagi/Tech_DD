@@ -8,7 +8,7 @@ future session would otherwise get wrong.
 
 ---
 
-## Current state — 2026-09-14
+## Current state — 2026-11-18
 
 | | |
 |---|---|
@@ -17,15 +17,17 @@ future session would otherwise get wrong.
 | **Phase 3 (IRL + research)** | Done. Asks **questions as well as documents**; hand-editable; response upload. Research returns an **8-section business brief**, cited — the eighth being the **publicly visible technology stack** (2026-09-14); the research page was rebuilt to be scannable |
 | **Phase 4 (checklist)** | Done. **The checklist page is gone** (2026-09-09) — it is all inside the IRL now; scanner built; email still deferred |
 | **Phase 5 (assess)** | **COMPLETE — five of five processes defined.** P2P, O2C, Plan to Make, and **Hire to Retire and Record to Report** (2026-09-14). No process is named with nothing behind it |
-| **Backend** | pytest 487/487 · ruff clean · mypy clean (85 files) |
+| **Phase 6 (estate)** | **Built 2026-11-18.** Application and data & technology inventories on the IRL (screen + workbook sheets); Assess gains **Applications** and **Data & technology** tabs with scores and gap registers; new **IT budget** page (budgeting process, never a cost model). See the entry below and `docs/phases/PHASE6_PLAN.md` |
+| **Phase 7 (report + AI pipeline)** | **Built 2026-11-18.** Final report (Report tab, PPTX export, fully editable); one `AI_MODE` switch over every generator with a `SKILL.md` each; edit-before-export for scope and research; IT team and contracts inventories. See the entry below and `docs/phases/PHASE7_PLAN.md` |
+| **Backend** | pytest 557/557 · ruff clean · mypy clean (116 files) |
 | **Frontend** | tsc clean · eslint clean · vitest 19/19 |
-| **API** | 46 routes, OpenAPI clean |
-| **DB** | at `0007_add_scan_findings` |
-| **Git** | `master`, at `c227afd` **plus uncommitted H2R/R2R work**. Rishi does all committing and pushing — never run `git push` |
+| **API** | 69 routes, OpenAPI clean |
+| **DB** | at `0009_add_report` |
+| **Git** | `master`, at `198cdae` **plus uncommitted Phase 6 and Phase 7 work**. Rishi does all committing and pushing — never run `git push` |
 
-**Uncommitted:** the two model documents, the two questionnaires, the registry flip, the
-test extension and these doc updates. Everything before it is committed through the
-2026-09-11 research brief and Plan to Make work.
+**Uncommitted:** all of Phase 6 and Phase 7 — see the two 2026-11-18 entries below.
+
+**Your `.env` now runs deterministic.** It sets `SCOPE_GENERATOR=llm` and a key; under Phase 7 that no longer turns the model on. Add `AI_MODE=auto` to restore the LLM path.
 
 **The Assess module's content is finished.** There is no next process to define, and the
 `process_not_defined` 409 is no longer reachable through the API — see the entry below for
@@ -169,6 +171,156 @@ The YAML is validated at startup; a malformed file fails loudly.
 ---
 
 ## Decisions that override the specs
+
+### Phase 7 — the final report, one AI switch, edit-before-export (2026-11-18)
+
+**What Rishi asked for.** The final deliverable — an IT due diligence report in the shape of
+a real KPMG report he shared — generated from everything earlier modules
+produce; every generator deterministic now but ready for an LLM pipeline switched on by a
+key, each with a SKILL.md of instructions; product and enterprise reports to differ; and
+"everything editable before exportable". Plan: `docs/phases/PHASE7_PLAN.md`.
+
+**Confidentiality.** The sample is client material. `docs/reference/REPORT_STRUCTURE.md`
+records its structure and conventions only — no client, target or employee names, no
+figures. Keep it that way.
+
+**Decisions Rishi took:** investment impact is **XXX** for the team, editable; **the report
+names the investor and the target**; **IT team and IT contracts** become inventories;
+**`AI_MODE` defaults to off**.
+
+**My follow-through on naming:** the scope deck stays anonymised — it is a proposal artefact
+that circulates before engagement. The IRL already named the target. No other feature changed.
+
+**The pipeline.** `backend/app/skills/<name>/SKILL.md` × 10 — the seven existing prompts moved
+there verbatim (git mv, versions kept) plus `report-executive-summary`, `report-narrative`,
+`budget-commentary`. Frontmatter states mode, deterministic floor, may/must-not change, house
+rules. Every call site resolves through `intelligence.mode.use_llm(skill, requested)`;
+an explicit `{"generator": "llm"}` still wins (tests, dev). `GET /meta/intelligence` and the
+Workspace › AI & skills page show status and the exact instructions. Research has no rules
+version, so with AI off it is written by hand (`PUT /research`, generator `manual`).
+
+**The report.** Deterministic builder (`services/report/`): findings from every gap register,
+the budget, contracts, the team and weak processes, **routed by workstream** to the scope's
+areas (`reference/report/report.yaml`); a finding with no area gets a fallback area (an
+enterprise deck has no cyber or data row) — **never dropped**, pinned by a test. Risk = the
+area's worst severity, editable. Supporting analysis differs by DD type (enterprise:
+applications, landscape, infrastructure, cyber, data, people, budget, processes; product:
+architecture, engineering, product security, people, data & AI, budget, business systems;
+blended ordered by mix). The landscape diagram is drawn from the inventories (HTML on screen,
+native shapes in the PPTX); network diagrams are the target's own, uploaded. Edits are an
+overlay keyed on element keys and survive regeneration. The LLM skills are prose only and a
+rewrite that **introduces any number** not already in the text is discarded.
+
+**Found by reading the output (tests were green each time):**
+1. **The scope deck named the target whenever the LLM was off** — `enforce_house_rules` ran
+   only after tailoring. Invisible while `.env` had the LLM on; would have shipped on every
+   deck once `AI_MODE=off` became the default. Now enforced after every generator.
+2. Finding bullets read "SAP ECC 6.0: modernise: The business…" — rebuilt from each gap's
+   findings, lower-cased only where the clause is rule wording (a regex that lower-cased after
+   every colon turned "Depot WMS" into "depot WMS" and "Windows" into "windows" — reverted;
+   remarks now keep the analyst's case).
+3. "No material gaps" was claimed for an area with 4 of 5 requests outstanding — an area is
+   assessed only when at least half its requests arrived.
+4. Actions named portfolio labels ("migrate … Hosting and 2 others") — subjects now come only
+   from item gaps at the category's worst severity.
+5. Outcome listed every area including those with no findings; with no findings at all it
+   now says what the report covers instead of claiming gaps.
+6. PPTX: one executive area per slide (pagination estimate measured against the rendered
+   deck and corrected — two per slide, as in the sample); whole findings cell italic; short
+   table columns wrapping one character per line (widths now floored at the longest word);
+   side panels centred. Found by rendering every slide to PNG through PowerPoint.
+7. "5 business processs"; "and 1 others"; double full stops; five identical process bullets
+   merged into one finding.
+
+**Environment note.** `npx vitest` run from a lower-case `c:\` working directory fails every
+file with "failed to find the current suite" (Windows drive-letter casing loads vitest twice).
+Run it from `C:\…` — 19/19 pass. Not a code problem.
+
+**Left as is.** Email reminders; client-facing export of assessment scores; the scanner does
+not fill inventories; Kiln carries illustrative Phase 6 data and several report versions.
+
+### Phase 6 — estate assessment and IT budget (2026-11-18)
+
+**What Rishi asked for.** Take the application, data and technology pieces of his CIL EA
+tool (`Desktop/cil`) into this product, "not very detailed", but fully functional: an
+application intake and a data & technology intake inside the IRL, with a template to send
+and an upload that auto-fills; two new Assess tabs beside the business processes, each
+listing the inventoried items, asking questions, and producing a score and gap register on
+a click; and an IT budget page after Assess. Plan: `docs/phases/PHASE6_PLAN.md`. Reference:
+`docs/reference/ESTATE_ASSESSMENT_MODEL.md`.
+
+**CIL was not front-end only** — it has a FastAPI backend with rules — but its data is
+seeded JSON for one client. Its *logic* was carried over (fit quadrant to disposition,
+technical health, item + portfolio gap registers, the automation/AI ladder); none of its
+client content was (agri seasons, INR, Azure landing zones), and its TOGAF citations were
+not re-verified here and are not cited.
+
+**Four decisions Rishi took (all the recommended option):**
+1. **IT budget = budgeting-process review**, inside the 2026-09-14 boundary. CIL's version
+   benchmarks spend as % of revenue against an industry band; that was offered and declined.
+   A test sweeps the page and the YAML for "benchmark", "% of revenue", "cost model".
+2. **Inventory sheets ride in the IRL workbook**, plus a standalone template each.
+3. **Applications: fit + disposition + ladder.** Business fit x technical fit (1-5) gives
+   Invest / Retain / Modernise / Replace (+ Consolidate on duplication); automation and AI
+   sit on 0-5 ladders, automation on the *same* ladder as the processes.
+4. **LLM is prose only.** The ±1 refinement stays unique to business processes.
+
+**Decisions taken in design, noted not asked:**
+- **Intake = facts, Assess = judgement.** CIL put the seven fit scores in the intake
+  template; a target asked to score its own estate scores it well. Pinned by a test that
+  bans fit/score/criticality words from the inventory definition.
+- **The inventory hangs off the engagement, not an IRL version** — regenerating the IRL
+  never wipes it.
+- **Applications map to the five Assess processes**, not a capability model (Tech DD has
+  none). That produced the most useful finding the module makes: **a process scored Manual
+  or Emerging while systems claim to support it** — what was bought is not what is used.
+  "No application supports X" fires only for a process the analyst has scored, so a
+  software vendor is never told it lacks a Plan to Make system.
+- **Duplication is by application category, not by process** — an ERP and an AP tool both
+  serve P2P and are complementary.
+- **The IRL importer now finds its sheet by name.** Excel saves the last-viewed sheet as
+  active, so a target finishing on an inventory tab would have got "no Response column".
+  Pinned by a test that saves the workbook with that tab active.
+- **The estate YAML is validated at app startup** (`main.py`), unlike the older libraries
+  which load lazily — a bad edit fails the boot, not the first request.
+
+**Found by reading Kiln's output, not by the tests** (31 tests were green at the time):
+1. "The technology is sound, keep investing" on a WMS that is a single point of failure and
+   fails at peak. The statement now carries the health caveat — and only on a positive
+   reading: the first fix put a non-sequitur "but" on negative ones, caught on screen.
+2. The licence-versus-use gap named a **spreadsheet** as "capability already licensed".
+   Spreadsheets are excluded; a process carried only by them has "no supporting system".
+3. Hypotheses stacked moot remediations ("replace it" + "upgrade it"). A disposition now
+   subsumes the remediations it makes moot.
+4. Licence-versus-use was High for every Emerging process; now High only for Manual.
+5. **A wrong fact:** a domain's blank intake owner outranked the analyst's "named owner and
+   steward" answer, and flowed into a portfolio gap and the model's summary. The analyst's
+   verified answer now wins.
+6. Check gaps said "Not in place." while the analyst's remark said ransomware had encrypted
+   the backups — the remark is now part of the finding.
+7. A data centre was told to be "on a current, supported, patched release" — facilities get
+   their own hypothesis (`facility_categories` in YAML).
+8. The register put a High portfolio gap below Low item gaps — now severity-first.
+9. The model emitted markdown bold and US spelling — prompt 1.1 forbids both, and `_plain()`
+   strips markdown regardless.
+10. The IT budget total variance counted an **unbudgeted** recharge as an overrun (+13.7%
+    that was really -4.1% like-for-like). Now like-for-like; unbudgeted spend is its own
+    finding.
+
+Every one of these is now pinned by a test.
+
+**Calibrations to tune (all [EXT]):** 3.0 fit threshold; domain weights 25/20/30/10/15;
+section weights 30/20/20/10/20; variance ±10%, movement 20%; contract window 12 months.
+
+**Kiln now carries illustrative Phase 6 data** — 5 applications, 3 domains and 5 platforms
+grounded in its intake (SAP ECC shared with the parent, a WMS per depot, Excel pricing, the
+2024 ransomware), answers with remarks, and an IT budget. Entered to verify; replace or
+delete freely.
+
+**Known gaps:** the shared-drive scanner does not populate the inventories; there is no
+client-facing export of the two new scores (same decision as the process score). On Kiln,
+"No application supports Plan to Make" is correct by the rule, but only because P2M was
+scored on Kiln during earlier testing — Kiln is a distributor.
 
 ### Scope boundaries, two new product rows, and public technology research (2026-09-14)
 

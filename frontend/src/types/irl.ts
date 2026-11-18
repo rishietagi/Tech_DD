@@ -1,3 +1,4 @@
+import type { InventoryImportResult } from "@/types/estate";
 // Mirrors backend/app/schemas/irl.py. If they drift, that is a bug (CLAUDE.md §7).
 
 /** Where a question came from. "scope" questions trace to a KPMG scope row's evidence
@@ -39,6 +40,8 @@ export interface ImportResponsesResult {
   unmatched_rows: string[];
   total_rows: number;
   note: string;
+  /** What the same upload did to the inventory sheets, when it carried any. */
+  inventory?: InventoryImportResult | null;
 }
 
 export interface IrlFunctionGroup {

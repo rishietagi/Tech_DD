@@ -43,8 +43,29 @@ class WorkstreamOverrideRequest(BaseModel):
 
     tier: int | None = Field(default=None, ge=0, le=3)
     title: str | None = None
-    reason: str | None = Field(
-        default=None, description="Why the override was made. Recorded alongside the change."
+    reason: str | None = Field(default=None, description="Why the override was made. Recorded alongside the change.")
+    lines: list[str] | None = Field(
+        default=None, description="Replacement bullets, in order. Empty strings are dropped."
+    )
+
+
+DELIVERY_KEYS = ("sequencing", "timeline", "cost", "team")
+
+
+class ScopeDocumentEdit(BaseModel):
+    """PATCH /engagements/{id}/scope/{version} — hand edits to document-level text.
+
+    Everything the deck exports is editable before export (Rishi, 2026-11-18). The engine's
+    text is kept in `human_edits` the first time a field changes.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    engagement_summary: str | None = None
+    objectives: list[str] | None = None
+    diligence_risks: list[str] | None = None
+    delivery: dict[str, str] | None = Field(
+        default=None, description="Any of sequencing, timeline, cost, team. Empty restores XXX."
     )
 
 

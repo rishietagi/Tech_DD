@@ -29,7 +29,6 @@ import logging
 import re
 from datetime import UTC, datetime
 from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
 from app.core.config import Settings, get_settings
@@ -42,11 +41,10 @@ from app.schemas.research import (
     ResearchPayload,
     ResearchSource,
 )
+from app.services.intelligence.skills import skill_text
 
 logger = logging.getLogger(__name__)
 
-PROMPT_FILE = Path(__file__).resolve().parent / "prompts" / "research.md"
-ATTRIBUTE_PROMPT_FILE = Path(__file__).resolve().parent / "prompts" / "attribute.md"
 _VERSION_PATTERN = re.compile(r"prompt_version:\s*([0-9.]+)")
 
 
@@ -60,14 +58,14 @@ class ResearchRejected(RuntimeError):
 
 @lru_cache(maxsize=1)
 def _load_prompt() -> tuple[str, str]:
-    text = PROMPT_FILE.read_text(encoding="utf-8")
+    text = skill_text("company-research")
     match = _VERSION_PATTERN.search(text)
     return text, (match.group(1) if match else "unknown")
 
 
 @lru_cache(maxsize=1)
 def _load_attribute_prompt() -> str:
-    return ATTRIBUTE_PROMPT_FILE.read_text(encoding="utf-8")
+    return skill_text("research-attribution")
 
 
 def _target_brief(intake: IntakeFull) -> dict[str, Any]:

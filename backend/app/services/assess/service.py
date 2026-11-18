@@ -20,7 +20,6 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
 from app.core.errors import AppError
 from app.models.assess import ProcessAnswer, ProcessAssessmentScore, ProcessCustomQuestion
 from app.schemas.assess import (
@@ -40,14 +39,14 @@ from app.services.assess.library import (
 )
 from app.services.assess.llm import LlmScoreGenerator, RulesScoreGenerator
 from app.services.engagements import assemble_intake_full, get_engagement
+from app.services.intelligence.mode import use_llm
 
 logger = logging.getLogger(__name__)
 
 
 def _generator_for(name: str | None) -> LlmScoreGenerator | RulesScoreGenerator:
-    """Explicit request wins; otherwise follow the same setting the scope engine uses."""
-    resolved = name or get_settings().scope_generator
-    return LlmScoreGenerator() if resolved == "llm" else RulesScoreGenerator()
+    """Explicit request wins; otherwise AI_MODE decides (Phase 7)."""
+    return LlmScoreGenerator() if use_llm("process-scoring", name) else RulesScoreGenerator()
 
 
 # --------------------------------------------------------------------------- reads

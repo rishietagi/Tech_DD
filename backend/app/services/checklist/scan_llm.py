@@ -22,20 +22,19 @@ import json
 import logging
 import re
 from functools import lru_cache
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field, ValidationError
 
 from app.core.config import Settings
 from app.schemas.irl import IrlQuestion
+from app.services.intelligence.skills import skill_text
 
 if TYPE_CHECKING:  # pragma: no cover - import cycle, types only
     from app.services.checklist.scanner import Candidate, _Judgement
 
 logger = logging.getLogger(__name__)
 
-PROMPT_FILE = Path(__file__).resolve().parent / "prompts" / "scan.md"
 _VERSION_PATTERN = re.compile(r"prompt_version:\s*([0-9.]+)")
 
 VALID_STATUSES = {"not_received", "received_partially", "received_completely"}
@@ -46,7 +45,7 @@ MAX_REQUESTS_PER_CALL = 60
 
 @lru_cache(maxsize=1)
 def _load_prompt() -> tuple[str, str]:
-    text = PROMPT_FILE.read_text(encoding="utf-8")
+    text = skill_text("drive-scan")
     match = _VERSION_PATTERN.search(text)
     return text, (match.group(1) if match else "unknown")
 

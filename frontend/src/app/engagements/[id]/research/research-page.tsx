@@ -2,8 +2,10 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useState } from "react";
 
 import { ResearchSummary } from "@/components/engagement/research-summary";
+import { ResearchEditor } from "@/components/engagement/research-editor";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,6 +17,12 @@ import { researchApi } from "@/lib/api/research";
 export function ResearchPage({ engagementId }: { engagementId: string }) {
   const queryClient = useQueryClient();
   const { show } = useToast();
+  const [editing, setEditing] = useState(false);
+  const saved = (fresh: Parameters<typeof queryClient.setQueryData>[1]) => {
+    queryClient.setQueryData(["research", engagementId], fresh);
+    setEditing(false);
+    show("Research brief saved");
+  };
 
   const { data: engagement, isLoading: isLoadingEngagement } = useQuery({
     queryKey: ["engagement", engagementId],
@@ -40,7 +48,12 @@ export function ResearchPage({ engagementId }: { engagementId: string }) {
       show("Research complete");
     },
     onError: (err: unknown) => {
-      show(err instanceof ApiError ? err.message : "Could not research this target", "error");
+      show(
+        err instanceof ApiError
+          ? err.message
+          : "Could not research this target",
+        "error",
+      );
     },
   });
 
@@ -72,23 +85,48 @@ export function ResearchPage({ engagementId }: { engagementId: string }) {
     );
   }
 
-  const notRunYet = isError && error instanceof ApiError && error.code === "no_research";
+  const notRunYet =
+    isError && error instanceof ApiError && error.code === "no_research";
+
+  if (notRunYet && editing) {
+    return (
+      <main className="mx-auto w-full max-w-[1200px] px-7 pt-12 pb-24">
+        <ResearchEditor
+          engagementId={engagementId}
+          research={null}
+          onSaved={saved}
+          onCancel={() => setEditing(false)}
+        />
+      </main>
+    );
+  }
 
   if (notRunYet) {
     return (
       <main className="mx-auto w-full max-w-[720px] px-7 py-20">
         <EmptyState
           title="No research yet"
-          description="Search public sources for what is known about this target — funding, incidents, technology and regulatory history — with every point linked to where it came from."
+          description="Search public sources for what is known about this target — funding, incidents, technology and regulatory history — with every point linked to where it came from. With the AI off, write the brief by hand from what you know."
           action={
-            <button
-              type="button"
-              onClick={() => runMutation.mutate()}
-              disabled={runMutation.isPending}
-              className="rounded-full border border-ink bg-ink px-5 py-3 font-sans text-[13px] font-medium text-paper-on-ink disabled:opacity-50"
-            >
-              {runMutation.isPending ? "Researching…" : "Research this target"}
-            </button>
+            <div className="flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => runMutation.mutate()}
+                disabled={runMutation.isPending}
+                className="rounded-full border border-ink bg-ink px-5 py-3 font-sans text-[13px] font-medium text-paper-on-ink disabled:opacity-50"
+              >
+                {runMutation.isPending
+                  ? "Researching…"
+                  : "Research this target"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="rounded-full border border-line-strong px-5 py-3 font-sans text-[13px] font-medium text-text hover:bg-paper-2"
+              >
+                Write it by hand
+              </button>
+            </div>
           }
         />
       </main>
@@ -113,15 +151,32 @@ export function ResearchPage({ engagementId }: { engagementId: string }) {
           {" · "}
           {new Date(research.created_at).toLocaleDateString()}
         </span>
-        <button
-          type="button"
-          onClick={() => runMutation.mutate()}
-          disabled={runMutation.isPending}
-          className="rounded-full border border-line-strong px-4 py-2 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2 disabled:opacity-50"
-        >
-          {runMutation.isPending ? "Researching…" : "Run again"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setEditing((e) => !e)}
+            className="rounded-full border border-line-strong px-4 py-2 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2"
+          >
+            {editing ? "Close editor" : "Edit brief"}
+          </button>
+          <button
+            type="button"
+            onClick={() => runMutation.mutate()}
+            disabled={runMutation.isPending}
+            className="rounded-full border border-line-strong px-4 py-2 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2 disabled:opacity-50"
+          >
+            {runMutation.isPending ? "Researching…" : "Run again"}
+          </button>
+        </div>
       </div>
+      {editing && (
+        <ResearchEditor
+          engagementId={engagementId}
+          research={research.payload}
+          onSaved={saved}
+          onCancel={() => setEditing(false)}
+        />
+      )}
 
       <div className="mb-8">
         <p className="mb-1 font-sans text-xs font-semibold tracking-[0.08em] text-kpmg-blue uppercase">

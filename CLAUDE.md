@@ -27,9 +27,13 @@ The flow the product owns:
    importance. Built in Phase 4 — see §9.
 6. **Assess** — perform the diligence: work through a business process step by step,
    recording what management said, and score its level of automation. Built in Phase 5,
-   **complete for all five processes** — see §9.
-7. **Execution & reporting** — run the remaining workstreams, collect findings, produce
-   the report. *(Phase 6+, not planned yet.)*
+   **complete for all five processes** — see §9. Phase 6 added **application** and **data &
+   technology** assessment beside the processes, fed by inventories the target completes
+   through the IRL, each with a score and a gap register.
+7. **IT budget** — review how the technology budget is built, approved and controlled,
+   and reported spend against it. Built in Phase 6 — see §9.
+8. **Report** — the final IT due diligence report, built from every module above, fully
+   editable, exported to PowerPoint. Built in Phase 7 — see §9.
 
 The central intellectual claim of the product: **the scope of a tech DD is not
 generic.** It is a function of (a) the target's line of business and how central
@@ -108,7 +112,7 @@ Glossary the code should use consistently: `engagement`, `intake`, `workstream`,
 | Forms | react-hook-form + zod (`@hookform/resolvers`) |
 | Client state | Zustand for the intake draft; TanStack Query for server state |
 | Backend | Python 3.11 + FastAPI + Pydantic v2 |
-| LLM (Phase 2) | **Google Gemini** (`google-genai`), model `gemini-2.5-flash` — see note below |
+| LLM | **Google Gemini** (`google-genai`), model `gemini-2.5-flash` — see note below. **Off by default** (`AI_MODE=off`); every generator has a deterministic floor and a `SKILL.md` |
 | ORM / DB | SQLAlchemy 2.0 (declarative, typed) + Alembic; SQLite in dev, Postgres in prod via `DATABASE_URL` |
 | PPT export | **python-pptx** — pure Python. **The** client-facing artefact: a SOW is circulated as a deck. PDF export was removed 2026-09-02 |
 | XLSX export | **xlsxwriter** — the IRL workbook (Function / Question / Response) |
@@ -152,7 +156,9 @@ Tech_DD/
 │   │   ├── PHASE2_PROMPT.md   # the Phase 2 handoff prompt
 │   │   ├── PHASE3_PLAN.md     # Phase 3 build plan (IRL + research)
 │   │   ├── PHASE4_PLAN.md     # Phase 4 build plan (checklist + shared-drive scan)
-│   │   └── PHASE5_PLAN.md     # Phase 5 build plan (assess)
+│   │   ├── PHASE5_PLAN.md     # Phase 5 build plan (assess)
+│   │   ├── PHASE6_PLAN.md     # Phase 6 build plan (estate assessment + IT budget)
+│   │   └── PHASE7_PLAN.md     # Phase 7 build plan (report, AI pipeline, edit-before-export)
 │   └── reference/
 │       ├── DD_master.md       # the domain authority (Roehl-Anderson 2013)
 │       ├── KPMG_SOW_LANGUAGE.md  # house scope-of-work voice, from the source deck
@@ -162,6 +168,8 @@ Tech_DD/
 │       ├── P2M_AUTOMATION_MODEL.md   # Assess: Plan to Make, 8 steps    [EXT]
 │       ├── H2R_AUTOMATION_MODEL.md   # Assess: Hire to Retire, 9 steps  [EXT]
 │       ├── R2R_AUTOMATION_MODEL.md   # Assess: Record to Report, 8 steps [EXT]
+│       ├── ESTATE_ASSESSMENT_MODEL.md  # applications, data & technology, IT budget
+│       ├── REPORT_STRUCTURE.md  # the final report's structure (from a sample; no client content)
 │       └── mockup_v0.html     # v0 visual reference (architecture superseded)
 ├── assets/                    # brand assets (logos)
 ├── .env.example               # every env var, no real values
@@ -185,6 +193,12 @@ Tech_DD/
 │   │   ├── assess/            # process questionnaires, scoring, llm + prompts/
 │   │   ├── research/          # grounded web search + prompts/
 │   │   └── checklist/         # ranking, service, scanner + extract + scan_llm
+│   │   └── report/            # inputs, findings (routing), sections, diagram, builder,
+│   │   │                      #   edits (overlay), llm (prose only), export_pptx
+│   │   └── intelligence/      # skills registry + use_llm (the AI_MODE switch)
+│   │   └── estate/            # inventory (+ xlsx), applications, data_tech, gaps,
+│   │                          #   budget, llm (prose only) + prompts/
+│   │                          #   content: reference/estate/*.yaml
 │   │   └── reference/         # enums + kpmg_scope/*.yaml + scope_rules.yaml
 │   │                          #   + investigation_questions.yaml (the IRL's questions)
 │   │                          #   + processes/*.yaml (the Assess questionnaires)
@@ -444,8 +458,59 @@ to complete. `services/scope/llm.py::enforce_house_rules` backs the prompt up �
 remove it on the grounds that the prompt already says so. The deal codename ("Project
 Kiln") is deliberately kept; only the company name is scrubbed.
 
-**Phase 6+ — not planned.** Remaining execution, evidence collection, findings, reporting,
-multi-user auth.
+**Phase 6 — BUILT** (2026-11-18): the estate. Adapted from Rishi's CIL EA tool; its logic
+was carried over, none of its client data. Plan at `docs/phases/PHASE6_PLAN.md`, reference
+at `docs/reference/ESTATE_ASSESSMENT_MODEL.md`.
+
+- **Inventories on the IRL** — applications, data domains, technology platforms. They
+  travel as extra sheets in the IRL workbook (and as standalone templates), round-trip by a
+  visible ID, and an upload never clears a value. They hang off the engagement, not an IRL
+  version, so regenerating the request list never wipes them.
+- **The target supplies facts; the analyst supplies judgement.** The inventory carries no
+  fit, criticality or maturity field — a test bans them. Those questions are asked in Assess.
+- **Assess has three tabs**: business processes (unchanged), **applications** (fit gives
+  Invest / Retain / Modernise / Replace / Consolidate; automation on the same 0-5 ladder as
+  the processes; AI on its own ladder; technical health from intake facts) and **data &
+  technology** (per domain, per platform, and estate checks for resilience, engineering and
+  cyber). Each scores on a click into a versioned result with an editable gap register;
+  edits are an overlay that survives re-scoring.
+- **Applications map to the five business processes.** The headline finding this enables:
+  a process scored Manual or Emerging while systems claim to support it — what was bought is
+  not what is used. Spreadsheets do not count as supporting systems.
+- **The LLM is prose only here** — the ±1 refinement stays unique to business processes.
+- **IT budget is a budgeting-process review**, never a cost model: budget against actual
+  over the review period, variance like-for-like, the run/change mix as reported, and how
+  the budget is built and approved. No share of revenue, no benchmark band — swept by a test.
+
+**Phase 7 — BUILT** (2026-11-18): the final report, the intelligence pipeline and
+edit-before-export. Plan at `docs/phases/PHASE7_PLAN.md`; structure at
+`docs/reference/REPORT_STRUCTURE.md` (taken from a real KPMG report Rishi shared — **structure
+only; never add the sample's client, target or people to the repo**).
+
+- **One AI switch.** `AI_MODE=off` (default) runs every generator deterministically even with
+  a key; `auto` turns the model on per skill. Every generation task has a
+  `backend/app/skills/<name>/SKILL.md` — frontmatter stating what the model may and must not
+  change and its deterministic floor, then the prompt itself. **The SKILL.md is the single
+  source of the prompt**; no `prompts/` folders remain, and a test fails if one reappears.
+  Decide rules vs LLM only through `intelligence.mode.use_llm`.
+- **The report** (Report tab, after IT budget) follows the sample: cover, context, glossary,
+  in-scope areas, data limitations, executive summary (findings + implication, RAG risk,
+  actions, **investment = XXX** for the team), supporting analysis, appendix. Findings are
+  routed to areas by workstream (`reference/report/report.yaml`); **no finding is ever
+  dropped** — one with no area gets a fallback area. Supporting analysis differs by DD type.
+  The landscape diagram is drawn from the inventories; network diagrams are the target's own,
+  uploaded. The LLM may rewrite prose only and **may not introduce a number** (checked).
+- **Everything exportable is editable before export** (Rishi): scope bullets, summary,
+  objectives, risks and delivery approach; research brief (and hand-written when AI is off);
+  every report element, via an overlay keyed on stable element keys that survives
+  regeneration.
+- **Naming.** The report names the investor and the target. The scope deck stays anonymised
+  — and now really is: the house rules ran only after LLM tailoring, so the rules deck named
+  the target until 2026-11-18.
+- **Two more inventories**: IT team and IT contracts, feeding people and contract findings.
+
+**Phase 8+ — not planned.** Evidence collection beyond the drive scan, multi-user auth,
+email reminders.
 
 **Reference documents:**
 - `docs/PROJECT_LOG.md` — decisions, deviations, known gaps, bugs worth remembering.

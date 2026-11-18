@@ -24,11 +24,15 @@ explicitly in requirements.txt.
 
 import io
 import re
+from dataclasses import dataclass
 from typing import Any
 
 import xlsxwriter
 
+from app.models.estate import InventoryItem
+from app.schemas.estate import ProcessRef
 from app.schemas.irl import IrlPayload
+from app.services.estate.inventory_xlsx import write_inventory_sheets
 
 SHEET_NAME = "Initial Request List"
 
@@ -48,8 +52,17 @@ ID_HEADER = "Request ID"
 _ROW_HEIGHT = 34
 
 
-def render_xlsx(payload: IrlPayload, responses: dict[str, str] | None = None) -> bytes:
-    """The IRL as a .xlsx workbook, returned as bytes."""
+def render_xlsx(
+    payload: IrlPayload,
+    responses: dict[str, str] | None = None,
+    inventory: "InventorySheets | None" = None,
+) -> bytes:
+    """The IRL as a .xlsx workbook, returned as bytes.
+
+    With `inventory`, the workbook also carries the Application Inventory, Data Domains
+    and Technology Platforms sheets (PHASE6_PLAN D2), pre-filled with whatever is already
+    recorded, so the target completes one file and returns one file.
+    """
     answers = responses or {}
     buf = io.BytesIO()
 
@@ -133,6 +146,11 @@ def render_xlsx(payload: IrlPayload, responses: dict[str, str] | None = None) ->
     last_row = max(1, len(ordered))
     sheet.autofilter(0, 0, last_row, 5)
 
+    if inventory is not None:
+        write_inventory_sheets(workbook, inventory.items, inventory.processes)
+    # The request list stays the sheet the workbook opens on.
+    sheet.activate()
+
     workbook.close()
     return buf.getvalue()
 
@@ -163,13 +181,23 @@ def _ordered_questions(payload: IrlPayload) -> list[Any]:
     return ordered
 
 
+@dataclass
+class InventorySheets:
+    """What the IRL workbook needs to write the inventory sheets."""
+
+    items: list[InventoryItem]
+    processes: list[ProcessRef]
+
+
 def render_xlsx_from_payload(
-    payload: dict[str, Any], responses: dict[str, str] | None = None
+    payload: dict[str, Any],
+    responses: dict[str, str] | None = None,
+    inventory: InventorySheets | None = None,
 ) -> bytes:
     """Render a stored payload. Only schema v1 exists so far."""
     if payload.get("schema_version") != 1:
         raise ValueError("Only schema v1 request lists can be exported to Excel")
-    return render_xlsx(IrlPayload.model_validate(payload), responses)
+    return render_xlsx(IrlPayload.model_validate(payload), responses, inventory)
 
 
 def xlsx_filename(deal_name: str, version: int) -> str:

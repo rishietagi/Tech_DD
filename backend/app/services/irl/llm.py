@@ -20,7 +20,6 @@ import logging
 import re
 from datetime import UTC, datetime
 from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
 from app.core.config import Settings, get_settings
@@ -33,13 +32,13 @@ from app.schemas.irl import (
 )
 from app.schemas.research import ResearchPayload
 from app.schemas.scope import ScopeOfWorkPayloadV2
+from app.services.intelligence.skills import skill_text
 from app.services.irl.composer import compose_irl, group_functions
 from app.services.irl.investigation import unsourced_workstreams
 from app.services.irl.seeds import SeedRequest, build_seeds
 
 logger = logging.getLogger(__name__)
 
-PROMPT_FILE = Path(__file__).resolve().parent / "prompts" / "irl.md"
 _VERSION_PATTERN = re.compile(r"prompt_version:\s*([0-9.]+)")
 
 # Guard rails on the model's own additions. Too few and the non-tech functions go
@@ -50,7 +49,7 @@ _MAX_FUNCTIONS = 16
 
 @lru_cache(maxsize=1)
 def _load_prompt() -> tuple[str, str]:
-    text = PROMPT_FILE.read_text(encoding="utf-8")
+    text = skill_text("irl-generation")
     match = _VERSION_PATTERN.search(text)
     return text, (match.group(1) if match else "unknown")
 

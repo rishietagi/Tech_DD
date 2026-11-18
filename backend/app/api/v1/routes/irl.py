@@ -16,8 +16,13 @@ from app.schemas.irl import (
     IrlVersionSummary,
 )
 from app.services.engagements import get_engagement
+from app.services.estate import inventory as inventory_service
 from app.services.irl import service as irl_service
-from app.services.irl.export_xlsx import render_xlsx_from_payload, xlsx_filename
+from app.services.irl.export_xlsx import (
+    InventorySheets,
+    render_xlsx_from_payload,
+    xlsx_filename,
+)
 
 router = APIRouter(prefix="/engagements/{engagement_id}/irl", tags=["irl"])
 
@@ -84,7 +89,14 @@ def export_irl_xlsx(engagement_id: str, db: Session = Depends(get_db)) -> Respon
     engagement = get_engagement(db, engagement_id)
     irl = irl_service.get_latest_irl(db, engagement_id)
 
-    workbook = render_xlsx_from_payload(irl.payload_json, irl_service.responses_for(irl))
+    workbook = render_xlsx_from_payload(
+        irl.payload_json,
+        irl_service.responses_for(irl),
+        InventorySheets(
+            items=inventory_service.items_of(db, engagement_id),
+            processes=inventory_service.process_refs(),
+        ),
+    )
     filename = xlsx_filename(engagement.deal_name, irl.version)
 
     return Response(

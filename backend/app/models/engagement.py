@@ -13,7 +13,15 @@ if TYPE_CHECKING:
         ProcessAssessmentScore,
         ProcessCustomQuestion,
     )
+    from app.models.estate import (
+        EstateAnswer,
+        EstateAssessment,
+        EstateGapNote,
+        InventoryItem,
+        ItBudget,
+    )
     from app.models.irl import InformationRequestList
+    from app.models.report import Report, ReportAsset, ReportEdit
     from app.models.research import CompanyResearch
     from app.models.scope_of_work import ScopeOfWork
 
@@ -62,6 +70,35 @@ class Engagement(TimestampMixin, Base):
         back_populates="engagement",
         cascade="all, delete-orphan",
         order_by="ProcessAssessmentScore.version",
+    )
+    # Phase 6 — the estate: inventories the target supplies through the IRL, the
+    # analyst's answers about them, versioned scores, gap edits and the IT budget.
+    inventory_items: Mapped[list["InventoryItem"]] = relationship(
+        back_populates="engagement", cascade="all, delete-orphan"
+    )
+    estate_answers: Mapped[list["EstateAnswer"]] = relationship(
+        back_populates="engagement", cascade="all, delete-orphan"
+    )
+    estate_assessments: Mapped[list["EstateAssessment"]] = relationship(
+        back_populates="engagement",
+        cascade="all, delete-orphan",
+        order_by="EstateAssessment.version",
+    )
+    estate_gap_notes: Mapped[list["EstateGapNote"]] = relationship(
+        back_populates="engagement", cascade="all, delete-orphan"
+    )
+    it_budget: Mapped["ItBudget | None"] = relationship(
+        back_populates="engagement", uselist=False, cascade="all, delete-orphan"
+    )
+    # Phase 7 — the final report, its edit overlay and the target's own diagrams.
+    reports: Mapped[list["Report"]] = relationship(
+        back_populates="engagement", cascade="all, delete-orphan", order_by="Report.version"
+    )
+    report_edits: Mapped[list["ReportEdit"]] = relationship(
+        back_populates="engagement", cascade="all, delete-orphan"
+    )
+    report_assets: Mapped[list["ReportAsset"]] = relationship(
+        back_populates="engagement", cascade="all, delete-orphan"
     )
 
 

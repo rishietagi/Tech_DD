@@ -14,25 +14,24 @@ import json
 import logging
 import re
 from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
 from app.core.config import Settings, get_settings
 from app.schemas.intake import IntakeFull
 from app.schemas.scope import ScopeOfWorkPayloadV2
 from app.schemas.tailoring import LlmTailoring, TailoringRejected
+from app.services.intelligence.skills import skill_text
 from app.services.scope.rules_generator import RulesScopeGenerator
 
 logger = logging.getLogger(__name__)
 
-PROMPT_FILE = Path(__file__).resolve().parent / "prompts" / "tailoring.md"
 _VERSION_PATTERN = re.compile(r"prompt_version:\s*([0-9.]+)")
 
 
 @lru_cache(maxsize=1)
 def _load_prompt() -> tuple[str, str]:
     """Returns (prompt_text, version)."""
-    text = PROMPT_FILE.read_text(encoding="utf-8")
+    text = skill_text("scope-tailoring")
     match = _VERSION_PATTERN.search(text)
     return text, (match.group(1) if match else "unknown")
 

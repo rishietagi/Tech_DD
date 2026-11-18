@@ -100,7 +100,7 @@ function TextAnswer({
  * Appears only once an option is selected — a remark has no meaning before there is an
  * answer to qualify, and showing 20 empty boxes would bury the questionnaire.
  */
-function RemarksBox({
+export function RemarksBox({
   questionId,
   value,
   onSave,

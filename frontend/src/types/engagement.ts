@@ -104,6 +104,7 @@ export interface ScopedRow {
   edited_by_human: boolean;
   original_tier: number | null;
   original_title: string | null;
+  original_lines?: string[] | null;
   override_reason: string | null;
 }
 
@@ -178,11 +179,16 @@ export interface ScopeOfWorkPayloadV2 {
   exclusions: Exclusion[];
   provenance: FiredRule[];
   notes: ScopeNote[];
+  /** Sequencing, timeline, cost, team — empty means XXX on every client surface. */
+  delivery?: Record<string, string>;
+  human_edits?: Record<string, unknown>;
 }
 
 export type ScopeOfWorkPayload = ScopeOfWorkPayloadV1 | ScopeOfWorkPayloadV2;
 
-export function isV2Payload(payload: ScopeOfWorkPayload): payload is ScopeOfWorkPayloadV2 {
+export function isV2Payload(
+  payload: ScopeOfWorkPayload,
+): payload is ScopeOfWorkPayloadV2 {
   return payload.schema_version === 2;
 }
 

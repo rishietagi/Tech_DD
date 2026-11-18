@@ -24,14 +24,31 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 16000
     llm_temperature: float = 0.2
 
+    # The intelligence pipeline (Phase 7, Rishi 2026-11-18). One switch for every
+    # generator: "off" runs the deterministic rules everywhere even when a key is present;
+    # "auto" turns the LLM on for every skill whose key is configured. Ships "off".
+    # SCOPE_GENERATOR no longer selects rules vs LLM — it only still honours "placeholder".
+    ai_mode: Literal["off", "auto"] = "off"
+    # Comma-separated skill names to keep deterministic even under "auto".
+    ai_disabled_skills: str = ""
+
     # Where the client drops documents. A relative path resolves against the repo root
     # (the backend runs from `backend/`), which is what makes the local fixture work
     # unchanged; at deployment this is an absolute path to the real share.
     shared_drive_root: str = "../shared-drive/project-kiln"
 
     @property
-    def llm_enabled(self) -> bool:
+    def llm_key_present(self) -> bool:
         return bool(self.gemini_api_key)
+
+    @property
+    def llm_enabled(self) -> bool:
+        """True only when the mode allows it AND a key is configured."""
+        return self.ai_mode == "auto" and self.llm_key_present
+
+    @property
+    def disabled_skills(self) -> set[str]:
+        return {s.strip() for s in self.ai_disabled_skills.split(",") if s.strip()}
 
     @property
     def cors_origin_list(self) -> list[str]:

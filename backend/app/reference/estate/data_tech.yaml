@@ -1,0 +1,167 @@
+# Data & technology assessment — the analyst's judgement on each data domain and platform,
+# plus estate-level checks. docs/reference/ESTATE_ASSESSMENT_MODEL.md §4.
+#
+# Option questions carry a `value` between 0 and 1 — the share of the question's weight
+# the option earns. `value: null` grants the question in full where it does not apply
+# (a domain with no personal data has nothing to classify). Weights and thresholds are
+# [EXT]: calibrations to tune, not authorities.
+
+version: "1.0"
+
+domain_questions:
+  - id: dq_ownership
+    text: Ownership and stewardship
+    help: An executive owner and a data steward per domain [DD_master p. 167–168].
+    weight: 25
+    options:
+      - {label: "Named owner and steward, both active", value: 1.0}
+      - {label: "Named owner, no steward", value: 0.6}
+      - {label: Owner named on paper only, value: 0.3}
+      - {label: No owner, value: 0.0}
+  - id: dq_mdm
+    text: Master data management
+    help: Is there one governed version of each record?
+    weight: 20
+    options:
+      - {label: Mastered in one governed system, value: 1.0}
+      - {label: Partly mastered — duplicates reconciled by hand, value: 0.5}
+      - {label: Not mastered — held in several places, value: 0.0}
+      - {label: Not applicable — no master data in this domain, value: null}
+  - id: dq_quality
+    text: Data quality
+    help: >-
+      Completeness, consistency, duplicates, currency and corruption [DD_master p. 170],
+      judged together.
+    weight: 30
+    options:
+      - {label: "5 — Trusted; quality measured and reported", value: 1.0}
+      - {label: "4 — Good; occasional issues", value: 0.75}
+      - {label: "3 — Usable with known issues", value: 0.5}
+      - {label: "2 — Frequent errors and duplicates", value: 0.25}
+      - {label: "1 — Not trusted; reports are reconciled by hand", value: 0.0}
+  - id: dq_lineage
+    text: Lineage
+    help: Can the team say where a figure came from?
+    weight: 10
+    options:
+      - {label: Documented and maintained, value: 1.0}
+      - {label: Partly documented, value: 0.5}
+      - {label: Not documented, value: 0.0}
+  - id: dq_privacy
+    text: Privacy classification and retention
+    help: Is personal or sensitive data classified, with retention rules applied?
+    weight: 15
+    options:
+      - {label: "Classified, with retention rules enforced", value: 1.0}
+      - {label: "Classified, retention not enforced", value: 0.5}
+      - {label: Not classified, value: 0.0}
+      - {label: No personal or sensitive data held, value: null}
+
+platform_questions:
+  - id: pq_support
+    text: Vendor support
+    options:
+      - {label: In mainstream support, value: 1.0}
+      - {label: Extended or paid support only, value: 0.5}
+      - {label: Out of support, value: 0.0}
+  - id: pq_patching
+    text: Patch currency
+    options:
+      - {label: Patched within policy, value: 1.0}
+      - {label: Lagging — months behind, value: 0.5}
+      - {label: "Unpatched, or patch state unknown", value: 0.0}
+  - id: pq_recovery
+    text: Recoverability
+    options:
+      - {label: Recovery tested in the last 12 months, value: 1.0}
+      - {label: Recovery documented but untested, value: 0.5}
+      - {label: No recovery arrangement, value: 0.0}
+  - id: pq_capacity
+    text: Capacity headroom
+    options:
+      - {label: Ample headroom, value: 1.0}
+      - {label: Tight at peak, value: 0.5}
+      - {label: Constrained — capacity incidents, value: 0.0}
+
+# Estate-level checks. One answer each for the whole estate.
+check_statuses:
+  pass: 100
+  partial: 50
+  fail: 0
+  unknown: null # excluded from the score; becomes a validate-in-diligence gap
+
+check_sections:
+  - key: resilience
+    label: Resilience
+    checks:
+      - id: RS1
+        text: Disaster recovery capability exists for tier-1 workloads
+        source: "\"Limited or no disaster recovery capability\" is a common finding [DD_master p. 76]."
+      - id: RS2
+        text: Recovery point and time objectives are defined per tier and tested in the last 12 months
+      - id: RS3
+        text: Backups are application-consistent, protected from tampering, and restore-tested
+      - id: RS4
+        text: Availability and performance are monitored centrally, with alerting
+        source: "\"How does the company support system availability and performance monitoring?\" [DD_master p. 76]"
+  - key: engineering
+    label: Engineering practice
+    checks:
+      - id: EN1
+        text: All custom code is in source control with peer review
+      - id: EN2
+        text: Build and deployment are automated through pipelines
+      - id: EN3
+        text: Security testing (static analysis, dependency scanning) runs in the delivery pipeline
+      - id: EN4
+        text: Environments are segregated and production changes go through change control
+  - key: cyber
+    label: Cyber security
+    checks:
+      - id: CY1
+        text: A security policy, risk register and board-level security reporting exist
+      - id: CY2
+        text: Multi-factor authentication covers all remote, privileged and cloud access
+      - id: CY3
+        text: Privileged access is managed through a vault and reviewed
+      - id: CY4
+        text: Vulnerabilities are patched within defined timelines, and the timelines are met
+      - id: CY5
+        text: Security events are monitored around the clock
+      - id: CY6
+        text: The incident response plan was exercised in the last 12 months
+      - id: CY7
+        text: Leaver access is revoked within one working day, and that is measured
+        source: The mechanism the Hire to Retire assessment grades (H2R step 9).
+      - id: CY8
+        text: Third-party and vendor security is assessed before onboarding and periodically
+
+# Section weights in the overall index. A section with no evidence drops out and its
+# weight is redistributed across the others.
+# Platform categories that are facilities rather than software, so their target state
+# is about capacity and recovery rather than a supported release.
+facility_categories: [Data centre and hosting]
+
+section_weights:
+  data: 30
+  platforms: 20
+  resilience: 20
+  engineering: 10
+  cyber: 20
+
+gaps:
+  domain_score_below: 60
+  no_owner_portfolio_min: 2
+  unknown_lifecycle_share: 0.34
+  # Engineering failures are Medium unless listed here — a missing pipeline is a
+  # constraint, missing security testing is a risk.
+  engineering_high_on_fail: [EN3]
+
+hypotheses:
+  domain: >-
+    has a named owner and steward, one mastered version of each record, documented lineage
+    and a privacy classification with retention applied
+  platform: is on a current, supported, patched release with tested recovery
+  # A data centre or hosting facility has no release to patch.
+  facility: is fit for the hold, with capacity, power, cooling and recovery confirmed
+  check: in place and evidenced

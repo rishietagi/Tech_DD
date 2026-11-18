@@ -10,6 +10,7 @@ from app.models.scope_of_work import ScopeOfWork
 from app.schemas.scope import ScopeOfWorkRead, ScopeOfWorkVersionSummary
 from app.schemas.scope_api import (
     GenerateScopeRequest,
+    ScopeDocumentEdit,
     ScopePreviewResponse,
     WorkstreamOverrideRequest,
 )
@@ -128,3 +129,14 @@ def override_scope_row(
 ) -> ScopeOfWorkRead:
     """Human tier or title override on one row. The engine's original is preserved."""
     return _to_read(scope_service.override_scope_row(db, engagement_id, version, row_id, payload))
+
+
+@router.patch("/{version}", response_model=ScopeOfWorkRead)
+def edit_scope_document(
+    engagement_id: str,
+    version: int,
+    payload: ScopeDocumentEdit,
+    db: Session = Depends(get_db),
+) -> ScopeOfWorkRead:
+    """Edit the summary, objectives, risks or delivery approach before export."""
+    return _to_read(scope_service.edit_scope_document(db, engagement_id, version, payload))

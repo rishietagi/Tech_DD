@@ -28,6 +28,7 @@ from openpyxl import load_workbook
 
 from app.core.errors import AppError
 from app.schemas.irl import ImportResponsesResult, IrlPayload
+from app.services.irl.export_xlsx import SHEET_NAME
 
 # Header labels the importer will accept, lower-cased. A client may well rename a column
 # heading; these are the variants worth tolerating without guessing.
@@ -118,7 +119,12 @@ def import_responses(
         ) from exc
 
     try:
-        sheet = workbook.active
+        # By name first. The workbook now carries inventory sheets too, and Excel saves
+        # whichever sheet was last open as the active one — a target who finishes on the
+        # Application Inventory tab would otherwise get "no Response column" back.
+        by_name = {name.strip().lower(): name for name in workbook.sheetnames}
+        named = by_name.get(SHEET_NAME.lower())
+        sheet = workbook[named] if named is not None else workbook.active
         if sheet is None:
             raise ResponseImportError("The workbook has no readable sheet.")
 

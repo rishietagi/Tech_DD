@@ -43,7 +43,8 @@ export function ScopePage({ engagementId }: { engagementId: string }) {
     onError: () => show("Could not generate a scope", "error"),
   });
 
-  const noScopeYet = isError && error instanceof ApiError && error.code === "no_scope";
+  const noScopeYet =
+    isError && error instanceof ApiError && error.code === "no_scope";
 
   if (isLoadingEngagement || isLoadingScope) {
     return (
@@ -139,7 +140,48 @@ export function ScopePage({ engagementId }: { engagementId: string }) {
         </div>
       </div>
       {isV2Payload(scope.payload) ? (
-        <ScopeDocumentV2 scope={scope.payload} />
+        <ScopeDocumentV2
+          scope={scope.payload}
+          onEditRow={async (rowId, patch) => {
+            try {
+              const fresh = await scopeApi.overrideRow(
+                engagementId,
+                scope.version,
+                rowId,
+                patch,
+              );
+              queryClient.setQueryData(["scope", engagementId], fresh);
+              show("Saved — the deck will export this text");
+            } catch (err) {
+              show(
+                err instanceof ApiError
+                  ? err.message
+                  : "Could not save that edit",
+                "error",
+              );
+              throw err;
+            }
+          }}
+          onEditDocument={async (patch) => {
+            try {
+              const fresh = await scopeApi.editDocument(
+                engagementId,
+                scope.version,
+                patch,
+              );
+              queryClient.setQueryData(["scope", engagementId], fresh);
+              show("Saved — the deck will export this text");
+            } catch (err) {
+              show(
+                err instanceof ApiError
+                  ? err.message
+                  : "Could not save that edit",
+                "error",
+              );
+              throw err;
+            }
+          }}
+        />
       ) : (
         <ScopeDocument payload={scope.payload} version={scope.version} />
       )}

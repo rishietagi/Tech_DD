@@ -16,6 +16,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from app.schemas.checklist import DocumentStatus, Priority
+from app.schemas.estate import InventoryImportResult
 
 QuestionSource = Literal["scope", "llm", "manual"]
 
@@ -222,6 +223,9 @@ class ImportResponsesResult(BaseModel):
     unmatched_rows: list[str] = Field(default_factory=list)
     total_rows: int
     note: str = ""
+    # What the same upload did to the inventory sheets, when the workbook carried any
+    # (PHASE6_PLAN D2). None when it carried none.
+    inventory: InventoryImportResult | None = None
 
 
 # ---------------------------------------------------------------- LLM contract

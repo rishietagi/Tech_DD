@@ -21,7 +21,7 @@ Objectives & Logistics. Autosaves as you type; resumable by URL.
 - **Rules decide coverage.** 37 encoded rules from `docs/reference/DD_master.md` §15 (26 active, 10
   dormant, 1 disabled) pick which KPMG scope areas open and at what depth. Every
   decision carries the rule id and page citation that produced it.
-- **The model writes the prose.** With `SCOPE_GENERATOR=llm`, Gemini rewrites the
+- **The model writes the prose.** With `AI_MODE=auto` and a key, Gemini rewrites the
   wording so it names the target's actual stack, systems and thesis — inside a
   document the rules already fixed. It cannot add, remove or re-tier an area; any
   deviation is rejected and the deterministic scope ships instead.
@@ -162,17 +162,26 @@ copy .env.example frontend\.env.local
 `.env` (repo root) is read by the backend; only `NEXT_PUBLIC_API_BASE_URL` in
 `frontend\.env.local` matters to the frontend. The defaults work out of the box.
 
-### Optional: enable LLM prose tailoring
+### Optional: turn the AI on (every generator)
 
-The engine runs without an API key. To have the model tailor the wording:
+Every generator — scope, request list, research, assessments, drive scan, report — runs
+deterministically by default, **even when a key is present**. One switch turns the model on
+for all of them (Phase 7):
 
 1. Get a free key at <https://aistudio.google.com/apikey> (no card required).
 2. In `.env`, set:
 
    ```
    GEMINI_API_KEY=your-key-here
-   SCOPE_GENERATOR=llm
+   AI_MODE=auto                      # off (default) | auto
+   AI_DISABLED_SKILLS=               # optional: skills to keep deterministic, comma-separated
    ```
+3. Restart the backend. **Workspace › AI & skills** shows each skill's status and the exact
+   instructions the model is given (`backend/app/skills/<name>/SKILL.md`).
+
+`SCOPE_GENERATOR` no longer chooses rules versus LLM; it only still honours `placeholder`.
+Company research has no rules version — with the AI off, write the brief by hand on the
+research page.
 
 An absent or invalid key is not an error: the generator falls back to the
 deterministic scope with a logged warning, and the payload records which happened
@@ -251,7 +260,7 @@ npm run test:e2e       # Playwright — needs both dev servers running
 ```
 
 The test suite never calls the live LLM API. `tests/conftest.py` pins
-`SCOPE_GENERATOR=rules` before config import and fails any test that constructs a real
+`SCOPE_GENERATOR=rules` before config import (and `AI_MODE` defaults to `off`) and fails any test that constructs a real
 client; the LLM layer is covered by mocked tests in `tests/test_llm.py`.
 
 ## How the scope engine is put together

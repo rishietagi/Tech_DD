@@ -56,6 +56,7 @@ from app.core.errors import AppError
 from app.models.irl import InformationRequestList, IrlDocumentStatus
 from app.schemas.irl import IrlPayload, IrlQuestion
 from app.services.checklist.extract import ExtractedFile, extract_excerpt
+from app.services.intelligence.mode import use_llm
 
 logger = logging.getLogger(__name__)
 
@@ -284,7 +285,7 @@ def scan_shared_drive(
     generator = "rules"
     scannable_with_candidates = [q for q in requests if q.id in candidates and q.id not in protected]
 
-    if settings.llm_enabled and scannable_with_candidates:
+    if use_llm("drive-scan", settings=settings) and scannable_with_candidates:
         from app.services.checklist.scan_llm import judge_documents
 
         try:

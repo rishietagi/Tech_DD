@@ -25,7 +25,6 @@ import logging
 import re
 from datetime import UTC, datetime
 from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -41,10 +40,10 @@ from app.schemas.assess import (
     level_label_for,
 )
 from app.services.assess.scoring import compute_index, score_assessment
+from app.services.intelligence.skills import skill_text
 
 logger = logging.getLogger(__name__)
 
-PROMPT_FILE = Path(__file__).resolve().parent / "prompts" / "scoring.md"
 _VERSION_PATTERN = re.compile(r"prompt_version:\s*([0-9.]+)")
 
 # The model may move a step by at most this much. Larger disagreement means the answers
@@ -87,7 +86,7 @@ class LlmScoring(BaseModel):
 
 @lru_cache(maxsize=1)
 def _load_prompt() -> tuple[str, str]:
-    text = PROMPT_FILE.read_text(encoding="utf-8")
+    text = skill_text("process-scoring")
     match = _VERSION_PATTERN.search(text)
     return text, (match.group(1) if match else "unknown")
 

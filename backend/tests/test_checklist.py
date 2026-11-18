@@ -722,7 +722,7 @@ def test_a_model_failure_falls_back_rather_than_losing_the_walk(
     document = _first_document(client, engagement_id)
     root = _drive(tmp_path, {f"01-IT/{_filename_matching(document)}.xlsx": "content"})
 
-    settings = Settings(shared_drive_root=str(root), gemini_api_key="test-key")
+    settings = Settings(shared_drive_root=str(root), gemini_api_key="test-key", ai_mode="auto")
     with (
         patch.object(checklist_service, "get_settings", return_value=settings),
         patch("app.services.checklist.scan_llm.judge_documents", side_effect=RuntimeError("boom")),

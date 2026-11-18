@@ -1,0 +1,119 @@
+# IT budget review — the budgeting process, never a cost model (2026-09-14 boundary).
+# docs/reference/ESTATE_ASSESSMENT_MODEL.md §5.
+#
+# Nothing here benchmarks spend, expresses it as a share of revenue, or builds a model of
+# what technology should cost. "The team should utilize benchmarks with care, as factors
+# unique to each organization's specific situation can significantly impact a company's
+# actual spending needs" [DD_master p. 81].
+
+version: "1.0"
+
+# Three financial years is the house default for the review period. A practitioner
+# overrides it per engagement on the page.
+default_period_years: 3
+
+default_lines:
+  - {name: Technology operating spend, kind: run}
+  - {name: Technology personnel, kind: run}
+  - {name: Technology capital spend, kind: change}
+
+# Actual against budget, either way, beyond this share raises a variance finding.
+variance_tolerance_pct: 10
+# "Have there been any significant variances in the operating budget year-over-year?"
+# [DD_master p. 74]. Actual spend on one line moving more than this between consecutive
+# years raises a movement finding — something to explain, not necessarily a problem.
+yoy_movement_pct: 20
+
+# Each weak answer raises a finding with its severity. `finding: null` is a sound answer.
+process_questions:
+  - id: BP1
+    text: How is the technology budget built?
+    options:
+      - label: Bottom-up by cost line, agreed with the business
+        finding: null
+      - label: Prior year plus an uplift
+        severity: Medium
+        finding: >-
+          The budget is rolled forward from the prior year rather than built from planned
+          demand, so it carries no view of what the plan needs.
+      - label: Top-down allocation without IT input
+        severity: Medium
+        finding: >-
+          The budget is allocated top-down without technology input, so commitments and
+          planned work may not be funded.
+      - label: No formal technology budget
+        severity: High
+        finding: There is no formal technology budget against which spend is controlled.
+
+  - id: BP2
+    text: Who approves it?
+    options:
+      - label: Board or executive committee, as part of the business plan
+        finding: null
+      - label: The chief financial officer alone
+        severity: Low
+        finding: Approval rests with one executive rather than a formal plan review.
+      - label: Technology leadership only
+        severity: Medium
+        finding: >-
+          The budget is approved within the technology function and is not reviewed as
+          part of the business plan.
+      - label: Not formally approved
+        severity: High
+        finding: The technology budget is not formally approved.
+
+  - id: BP3
+    text: How often is spend reported against the budget?
+    options:
+      - label: Monthly
+        finding: null
+      - label: Quarterly
+        severity: Low
+        finding: Spend is reported against budget quarterly, so an overrun can run for a quarter unseen.
+      - label: Annually
+        severity: Medium
+        finding: Spend is compared with budget only at year end.
+      - label: Not reported
+        severity: High
+        finding: Technology spend is not reported against the budget.
+
+  - id: BP4
+    text: Does capital spend need an approved business case?
+    options:
+      - label: Yes, with a post-investment review
+        finding: null
+      - label: Yes, without a post-investment review
+        severity: Low
+        finding: Business cases are approved but benefits are not reviewed after the investment.
+      - label: Only above a threshold
+        severity: Low
+        finding: Capital spend below the approval threshold proceeds without a business case.
+      - label: "No"
+        severity: Medium
+        finding: Technology capital spend proceeds without an approved business case.
+
+  - id: BP5
+    text: Is technology spend outside the IT function captured?
+    options:
+      - label: Yes, consolidated into the technology budget
+        finding: null
+      - label: Partly
+        severity: Low
+        finding: Some technology spend in the business units sits outside the technology budget.
+      - label: "No"
+        severity: Medium
+        finding: >-
+          Technology spend in the business units is not captured, so reported technology
+          spend understates what the business actually spends on technology.
+
+  - id: BP6
+    text: Is the budget tied to the technology plan?
+    options:
+      - label: Yes — each major line traces to a planned initiative
+        finding: null
+      - label: Partly
+        severity: Low
+        finding: Only part of the budget traces to the technology plan.
+      - label: "No"
+        severity: Medium
+        finding: The budget is not tied to a technology plan, so funding and priorities can diverge.

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.research import CompanyResearch
-from app.schemas.research import ResearchRead, ResearchVersionSummary
+from app.schemas.research import ResearchEdit, ResearchRead, ResearchVersionSummary
 from app.services.research import service as research_service
 
 router = APIRouter(prefix="/engagements/{engagement_id}/research", tags=["research"])
@@ -44,3 +44,14 @@ def list_research_versions(
 ) -> list[ResearchVersionSummary]:
     versions = research_service.list_research_versions(db, engagement_id)
     return [ResearchVersionSummary.model_validate(v) for v in versions]
+
+
+@router.put("", response_model=ResearchRead)
+def edit_research(
+    engagement_id: str, payload: ResearchEdit, db: Session = Depends(get_db)
+) -> ResearchRead:
+    """Write the research by hand (AI off), or correct the latest run before it is used.
+
+    The text a hand edit replaced is kept in `human_edits`.
+    """
+    return _to_read(research_service.save_research_edit(db, engagement_id, payload))

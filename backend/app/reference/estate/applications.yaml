@@ -1,0 +1,205 @@
+# Application assessment — the analyst's judgement on each inventoried application.
+# docs/reference/ESTATE_ASSESSMENT_MODEL.md §3. Thresholds and weights are [EXT]:
+# calibrations to tune, not authorities.
+#
+# Every question is asked per application. Answers are stored as the level number
+# ("3"). An unanswered question is excluded from the mean, never scored as zero.
+
+version: "1.0"
+
+questions:
+  - id: criticality
+    group: criticality
+    text: Business criticality
+    help: What stops if this application is unavailable for a day?
+    scale: [1, 5]
+    levels:
+      1: Peripheral — an outage is an inconvenience.
+      2: Supporting — a workaround covers a day without it.
+      3: Important — an outage disrupts a function within the day.
+      4: Critical — an outage stops a core process.
+      5: Mission-critical — an outage stops revenue or breaches an obligation.
+
+  - id: bf_functional
+    group: business_fit
+    text: Functional fit
+    help: Does it do what the business needs, without work done around it?
+    scale: [1, 5]
+    levels:
+      1: Major gaps — core work is done outside the system.
+      2: Significant gaps, routinely worked around.
+      3: Adequate, with known gaps.
+      4: Good fit, minor gaps.
+      5: Full fit, no workarounds.
+
+  - id: bf_plan
+    group: business_fit
+    text: Fit with the investment plan
+    help: Will it carry the value-creation plan through the hold period?
+    scale: [1, 5]
+    levels:
+      1: Blocks the plan.
+      2: Must be replaced to deliver the plan.
+      3: Carries today; becomes a constraint during the hold.
+      4: Carries the plan with investment.
+      5: Carries the plan as it is.
+
+  - id: bf_users
+    group: business_fit
+    text: User satisfaction
+    help: What management and users say about it.
+    scale: [1, 5]
+    levels:
+      1: Widely complained about.
+      2: Tolerated, with frequent complaints.
+      3: Mixed.
+      4: Generally well regarded.
+      5: Strongly valued by its users.
+
+  - id: tf_currency
+    group: technical_fit
+    text: Technology currency
+    help: How current is the release and the stack underneath it?
+    scale: [1, 5]
+    levels:
+      1: Obsolete or unsupported stack.
+      2: Out of date; upgrade overdue.
+      3: One major version behind.
+      4: Current, with minor lag.
+      5: On the current release.
+
+  - id: tf_integration
+    group: technical_fit
+    text: Integration readiness
+    help: How does data get in and out of it?
+    scale: [1, 5]
+    levels:
+      1: No interfaces — data is re-keyed by hand.
+      2: File-based batch transfers.
+      3: Point-to-point interfaces.
+      4: APIs, partly governed.
+      5: Documented APIs or events through a governed layer.
+
+  - id: tf_security
+    group: technical_fit
+    text: Security and compliance
+    help: Access control, patching, known vulnerabilities, compliance obligations.
+    scale: [1, 5]
+    levels:
+      1: Known unremediated vulnerabilities or a compliance breach.
+      2: Significant control gaps.
+      3: Baseline controls, with gaps.
+      4: Good — single sign-on, multi-factor, patched.
+      5: Strong, tested and evidenced.
+
+  - id: tf_support
+    group: technical_fit
+    text: Supportability
+    help: Who can keep it running, and how well documented is it?
+    scale: [1, 5]
+    levels:
+      1: No one can support it, or the vendor has gone.
+      2: Fragile — depends on one person or a weak vendor.
+      3: Supported, with constraints.
+      4: Well supported.
+      5: Strongly supported and documented.
+
+  - id: automation
+    group: automation
+    text: Automation of the work it supports
+    help: >-
+      The same ladder as the business processes, so an application's level and a
+      process's level mean the same thing.
+    scale: [0, 5]
+    levels:
+      0: Manual — the work happens outside the system; it records nothing.
+      1: Recorded — the outcome is keyed in after the fact.
+      2: Standardised — the work is done in the system; people move it between steps.
+      3: Integrated — data flows in and out without re-keying; people still handle steps.
+      4: Automated — the system executes routine cases; people handle exceptions.
+      5: Optimised — touchless for the routine, with exceptions measured and falling.
+
+  - id: ai
+    group: ai
+    text: AI level
+    help: How far AI is actually used in the work, not what the licence includes.
+    scale: [0, 5]
+    levels:
+      0: None.
+      1: Available, unused — AI features are licensed or offered but switched off.
+      2: Piloted — trials or isolated use, outside the daily workflow.
+      3: In production — predictions, classifications or recommendations used daily.
+      4: AI-led with oversight — routine decisions taken by AI, exceptions reviewed, models monitored.
+      5: Agentic — AI agents act across steps within defined guardrails, with an audit trail.
+
+disposition:
+  threshold: 3.0
+  # (business fit high?, technical fit high?)
+  matrix:
+    high_high: Invest
+    high_low: Modernise
+    low_high: Retain
+    low_low: Replace
+  meanings:
+    Invest: Keep investing and extend its use.
+    Modernise: Keep the functionality; move it onto a current, supportable platform.
+    Retain: Run it as it is, with minimal spend, until it is reviewed.
+    Replace: Plan its replacement and retirement.
+    Consolidate: Fold it into the surviving application of its category.
+    Not assessed: Needs at least one business-fit and one technical-fit answer.
+  # End of life inside the roadmap horizon overrides a keep decision.
+  eol_lifecycle: End of life within 24 months
+  eol_overrides: [Invest, Retain]
+  eol_becomes: Modernise
+  # Categories too broad to mean "two of the same thing".
+  duplication_exempt_categories:
+    - Other
+    - Industry-specific
+    - Custom line-of-business
+    - Integration and middleware
+
+technical_health:
+  # Technical debt 0-100: weighted mean of the mapped values (0-3 scale) × 100 / 3.
+  debt_weights:
+    customisation: 2
+    lifecycle: 2
+    currency: 2
+  debt_maps:
+    customisation: {None: 0, Low: 1, Medium: 2, High: 3}
+    lifecycle:
+      Current: 0
+      Ageing: 2
+      End of life within 24 months: 3
+      Unknown: 1
+  # currency is derived from the tf_currency answer: (5 - answer) × 0.75
+  debt_bands:
+    - [60, High]
+    - [35, Medium]
+    - [0, Low]
+  critical_min: 4
+  weak_dr: [None, Backup only]
+
+gaps:
+  contract_months: 12
+  manual_automation_max: 1
+  # A business process whose latest score falls in one of these bands, while in-scope
+  # applications claim to support it, is the licence-versus-use gap.
+  weak_process_bands: [manual, emerging]
+  # An inventory with vendor or lifecycle unknown on this share of applications or more
+  # raises an incompleteness gap.
+  incomplete_share: 0.34
+  key_person_min: 2
+  # The inventory type that is not licensed capability. A process carried only by this is
+  # treated as having no supporting system.
+  ad_hoc_type: Spreadsheet or ad hoc tool
+
+hypotheses:
+  Modernise: moved onto a current, supportable platform with its functionality kept
+  Replace: replaced by a standard product and retired
+  Consolidate: consolidated onto the surviving application of its category
+  debt: brought onto a supported, standard version with custom code reduced
+  spof: resilient, with tested recovery and no single-person dependency
+  scalability: able to carry peak volumes without manual workarounds
+  eol: moved to a supported release before vendor support ends
+  contract: renewed or re-tendered on terms reviewed before signing
+  manual: running its routine work in the system rather than around it

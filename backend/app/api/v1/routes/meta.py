@@ -1,9 +1,12 @@
+from typing import Any
+
 from fastapi import APIRouter
 
 from app.core.config import get_settings
 from app.reference.seed_enums import build_enums_payload
 from app.schemas.meta import EnumsResponse
 from app.schemas.scope_api import LibraryRowSummary, WorkstreamLibraryResponse
+from app.services.intelligence.mode import ai_status
 from app.services.scope.library import get_scope_library
 
 router = APIRouter(tags=["meta"])
@@ -49,3 +52,12 @@ def get_workstream_library() -> WorkstreamLibraryResponse:
             for deck_id in sorted(library.decks)
         },
     )
+
+
+@router.get("/meta/intelligence")
+def get_intelligence() -> dict[str, Any]:
+    """The AI switch and every skill: whether it runs the model or its rules, and why.
+
+    The key itself is never returned — only whether one is present.
+    """
+    return ai_status()

@@ -1,0 +1,215 @@
+# The final report — structure, routing and wording. docs/reference/REPORT_STRUCTURE.md.
+#
+# Practitioner-editable, validated at startup. The builder (services/report/builder.py)
+# decides nothing about wording that is not here: it routes findings to areas, picks the
+# highest severity, and fills these templates. Investment impact is always "XXX" for the
+# engagement team (Rishi, 2026-11-18).
+
+version: "1.0"
+
+cover:
+  title: IT Due Diligence
+  subtitle: Draft Report
+
+dd_labels:
+  enterprise: Enterprise IT Due Diligence
+  product: Product Technology Due Diligence
+  blended: Technology Due Diligence (product and enterprise)
+
+# Executive summary title by DD type, as the sample titles its table.
+executive_titles:
+  enterprise: Technology & Cyber Due Diligence
+  product: Product Technology Due Diligence
+  blended: Technology Due Diligence
+
+context:
+  objective: >-
+    {investor} has requested KPMG to perform {dd_label} on the target ({target}).
+  objective_no_investor: >-
+    KPMG has been engaged to perform {dd_label} on the target ({target}).
+  approach: >-
+    As part of the IT due diligence, KPMG has relied on the information provided by the
+    target's management{sessions}. Relevant limitations with respect to data availability
+    are highlighted in the respective sections of the report.
+  sessions:
+    "Full (data room and management sessions)": " and sessions with key management personnel"
+    "Management sessions only": " and sessions with key management personnel"
+  outcome: >-
+    This report highlights the key gaps in the target's {areas}.
+  outcome_no_findings: >-
+    This report sets out the scope of the review across the target's {areas}, and the
+    information still outstanding; no findings have yet been recorded.
+  cutoff: >-
+    The technology assessment is based on the information received from the target up to
+    {date}.
+
+# Where each kind of finding belongs. `prefer` lists workstreams in order; the finding goes
+# to the first in-scope area whose PRIMARY workstream matches, then to any area carrying
+# it. `fallback` names the area created when no in-scope area carries any of them — a
+# finding is never dropped (enterprise decks have no cyber or data row of their own).
+routing:
+  Application: {prefer: [W-APP], fallback: IT Core Applications}
+  Duplication: {prefer: [W-APP], fallback: IT Core Applications}
+  Inventory: {prefer: [W-APP], fallback: IT Core Applications}
+  Process support: {prefer: [W-APP], fallback: IT Core Applications}
+  People dependency: {prefer: [W-OPS], fallback: IT People and Skills}
+  Data: {prefer: [W-DATA], fallback: Data Governance and Privacy}
+  Platform: {prefer: [W-INFRA], fallback: IT Infrastructure}
+  Resilience: {prefer: [W-INFRA], fallback: IT Infrastructure}
+  Cyber security: {prefer: [W-SEC], fallback: Cyber Security}
+  Engineering practice: {prefer: [W-PROC, W-PROD], fallback: Software Development Practice}
+  Budget: {prefer: [W-SPEND], fallback: IT Governance and Budgeting}
+  Contracts: {prefer: [W-VEN], fallback: IT Contracts and Licences}
+  IT team: {prefer: [W-OPS], fallback: IT People and Skills}
+  # Business-process automation always gets its own area: no deck row is about it.
+  Process automation: {prefer: [], fallback: Business Process Automation}
+
+max_findings_per_area: 5
+max_actions_per_area: 4
+
+# One implication per area: the template for the category of its most severe finding.
+implications:
+  Application: Core business systems carry risk the plan will have to fund — modernisation, replacement or resilience work that is not yet budgeted.
+  Duplication: Overlapping systems split data and effort; consolidation is a cost and a dependency for any integration or separation plan.
+  Inventory: Without a complete inventory, licence, support and end-of-life exposure cannot be sized.
+  Process support: Processes are run around the systems rather than in them, so efficiency gains assumed in the plan depend on adoption work first.
+  People dependency: Knowledge concentrated in individuals makes continuity of key systems a people risk.
+  Data: Ungoverned data undermines reporting, integration and privacy compliance.
+  Platform: Platforms out of support carry security and stability risk and an upgrade cost inside the hold.
+  Resilience: Limited recovery capability may increase recovery effort and downtime during a critical system outage.
+  Cyber security: Control gaps expose the business to incidents that are costly to recover from and may breach regulatory obligations.
+  Engineering practice: Delivery without automated, tested pipelines slows change and raises the defect and security risk of every release.
+  Budget: Technology spend is not planned or controlled tightly enough to rely on the reported run-rate.
+  Contracts: Contract expiry and change-of-control terms may force renegotiation or re-procurement during the hold.
+  IT team: The technology function depends on a small or outsourced team, which limits its capacity to deliver the plan.
+  Process automation: Core processes depend on manual effort, so headcount scales with volume until they are automated.
+
+# Recommended actions, per category. {subjects} lists the items the area's findings name.
+actions:
+  Application: Agree a modernisation or replacement plan, with budget and timeline, for {subjects}.
+  Duplication: Consolidate overlapping applications onto a single platform per function.
+  Inventory: Complete the application inventory with vendor, version, hosting and support status.
+  Process support: Assess as-is process adoption and close the gap between licensed capability and use in {subjects}.
+  People dependency: Document support for the systems that depend on one person, and build cover so none does.
+  Data: Name an owner and steward for {subjects}, and classify personal data with retention rules.
+  Platform: Upgrade or migrate {subjects} to supported releases before the end of vendor support.
+  Resilience: Implement documented disaster recovery procedures, periodic recovery testing and defined recovery objectives.
+  Cyber security: Remediate the {count} cyber security control gaps and evidence the fixes through periodic testing.
+  Engineering practice: Introduce automated build, test and security scanning into the delivery pipeline.
+  Budget: Formalise the technology budget process — build, approval and monthly reporting against budget.
+  Contracts: Review renewal, notice and change-of-control terms for {subjects} before signing.
+  IT team: Establish a clear IT leadership structure and reduce single-person dependencies in {subjects}.
+  Process automation: Prioritise automation of {subjects}, starting with the highest-volume manual steps.
+
+no_findings: No material gaps were identified on the information received.
+not_assessed: Not assessed — the information needed was not received (see Data limitations).
+
+limitations:
+  requests: "{missing} of {total} requests in this area have not been received{examples}."
+  partial: "Provided in part: {request}."
+  follow_up: "Open follow-up: {question}"
+  inventory_application: Details of {count} application(s) were not provided ({fields}).
+  inventory_platform: Lifecycle and support status of {count} platform(s) were not provided.
+  no_applications: An application inventory has not been provided.
+  no_platforms: An infrastructure inventory has not been provided.
+  no_team: Details of the IT organisation — roles, reporting lines and the in-house versus outsourced mix — were not provided.
+  no_contracts: A list of IT contracts and licences, with terms and expiry, was not provided.
+  no_budget: IT budget and actual spend for the review period were not provided.
+  unknown_checks: "The status of {count} control(s) could not be established: {checks}."
+  no_network_diagram: A network or infrastructure architecture diagram was not provided.
+
+# Which inventory and assessment gaps are data limitations of which workstream.
+limitation_routing:
+  inventory_application: W-APP
+  no_applications: W-APP
+  inventory_platform: W-INFRA
+  no_platforms: W-INFRA
+  no_network_diagram: W-INFRA
+  no_team: W-OPS
+  no_contracts: W-VEN
+  no_budget: W-SPEND
+  unknown_checks: W-INFRA
+
+# Supporting analysis: which sections, in which order, per DD type. Each id is a section
+# builder in services/report/sections.py; the title and side-panel lead-in live here.
+supporting:
+  enterprise: [applications, landscape, infrastructure, cyber, data, people, budget, processes]
+  product: [architecture, engineering, product_security, people, data_ai, budget, business_systems]
+  # blended: product sections first when the mix is product-weighted (>= 50), else enterprise.
+
+sections:
+  applications: {title: IT Applications}
+  landscape: {title: Overview of Current IT Landscape}
+  infrastructure: {title: IT Infrastructure}
+  cyber: {title: Cyber Security}
+  data: {title: Data Governance and Privacy}
+  people: {title: IT People and Skills}
+  budget: {title: IT Governance and Budgeting}
+  processes: {title: Business Process Automation}
+  architecture: {title: Architecture and Platforms}
+  engineering: {title: Engineering Practice}
+  product_security: {title: Product Security}
+  data_ai: {title: Data and AI Capability}
+  business_systems: {title: Business Systems}
+
+appendix: [applications, team, contracts, platforms, data_domains, diagrams]
+
+appendix_titles:
+  applications: IT Applications
+  team: IT Team
+  contracts: IT Contracts
+  platforms: Technology Platforms
+  data_domains: Data Domains
+  diagrams: Network and Infrastructure Diagrams
+
+source_line: As per information provided by target
+
+# Abbreviations the glossary may define. Only terms that appear in the report are listed.
+glossary:
+  AI: Artificial Intelligence
+  AMC: Annual Maintenance Contract
+  API: Application Programming Interface
+  BCP: Business Continuity Plan
+  BI: Business Intelligence
+  CRM: Customer Relationship Management
+  COTS: Commercial Off-The-Shelf
+  DC: Data Centre
+  DD: Due Diligence
+  DPIA: Data Protection Impact Assessment
+  DR: Disaster Recovery
+  EOL: End of Life
+  ERP: Enterprise Resource Planning
+  FY: Financial Year
+  GDPR: General Data Protection Regulation
+  HRMS: Human Resource Management System
+  IaaS: Infrastructure as a Service
+  IT: Information Technology
+  KPI: Key Performance Indicator
+  LAN: Local Area Network
+  MDM: Master Data Management
+  MES: Manufacturing Execution System
+  MFA: Multi-Factor Authentication
+  ML: Machine Learning
+  NAS: Network Attached Storage
+  OS: Operating System
+  OT: Operational Technology
+  PaaS: Platform as a Service
+  PAM: Privileged Access Management
+  PII: Personally Identifiable Information
+  PLM: Product Lifecycle Management
+  RPO: Recovery Point Objective
+  RTO: Recovery Time Objective
+  SaaS: Software as a Service
+  SAN: Storage Area Network
+  SIEM: Security Information and Event Management
+  SLA: Service Level Agreement
+  SOC: Security Operations Centre
+  SPOF: Single Point of Failure
+  SQL: Structured Query Language
+  TSA: Transitional Services Agreement
+  VAPT: Vulnerability Assessment and Penetration Testing
+  VLAN: Virtual Local Area Network
+  VM: Virtual Machine
+  VPN: Virtual Private Network
+  WAN: Wide Area Network
+  WMS: Warehouse Management System

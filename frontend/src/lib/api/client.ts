@@ -1,4 +1,5 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/v1";
 
 export interface FieldError {
   field: string;
@@ -26,12 +27,15 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   searchParams?: Record<string, string | number | undefined>;
 }
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+async function request<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
   const url = new URL(`${API_BASE_URL}${path}`);
   if (options.searchParams) {
     for (const [key, value] of Object.entries(options.searchParams)) {
@@ -66,7 +70,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 export const apiClient = {
   get: <T>(path: string, searchParams?: RequestOptions["searchParams"]) =>
     request<T>(path, { method: "GET", searchParams }),
-  post: <T>(path: string, body?: unknown) => request<T>(path, { method: "POST", body }),
-  patch: <T>(path: string, body?: unknown) => request<T>(path, { method: "PATCH", body }),
+  post: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: "POST", body }),
+  put: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: "PUT", body }),
+  patch: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: "PATCH", body }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };

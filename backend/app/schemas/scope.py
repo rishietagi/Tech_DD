@@ -75,6 +75,8 @@ class ScopedRow(BaseModel):
     edited_by_human: bool = False
     original_tier: int | None = None
     original_title: str | None = None
+    # The engine's bullets, kept on the first hand edit so the change stays visible.
+    original_lines: list[str] | None = None
     override_reason: str | None = None
 
 
@@ -144,6 +146,11 @@ class ScopeOfWorkPayloadV2(BaseModel):
 
     # Content blocks injected by the C-rules (ERP cost note, data-room map, etc.).
     notes: list[dict[str, Any]] = Field(default_factory=list)
+    # The delivery approach the engagement team completes (sequencing, timeline, cost,
+    # team). Empty means XXX on every client surface — the 2026-09-02 house rule.
+    delivery: dict[str, str] = Field(default_factory=dict)
+    # The engine's text for any document-level field edited by hand, keyed by field.
+    human_edits: dict[str, Any] = Field(default_factory=dict)
 
     @property
     def dd_type(self) -> DdType:

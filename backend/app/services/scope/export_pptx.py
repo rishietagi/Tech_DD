@@ -334,6 +334,7 @@ def _row_slides(
 def _placeholders_slide(
     prs: Presentation, deal_name: str | None,
     footer: str, page: int, theme: Theme = THEME,
+    delivery: dict[str, str] | None = None,
 ) -> None:
     """Sequencing, cost and team — deliberately left as XXX.
 
@@ -352,12 +353,13 @@ def _placeholders_slide(
     _write(sub, "To be confirmed by the engagement team.",
            size=10.5, color=theme.muted, italic=True, first=True, theme=theme)
 
+    filled = delivery or {}
     rows: list[list[str]] = [
         ["Item", "Detail"],
-        ["Sequencing", "XXX"],
-        ["Timeline", "XXX"],
-        ["Cost estimation", "XXX"],
-        ["Team", "XXX"],
+        ["Sequencing", filled.get("sequencing") or "XXX"],
+        ["Timeline", filled.get("timeline") or "XXX"],
+        ["Cost estimation", filled.get("cost") or "XXX"],
+        ["Team", filled.get("team") or "XXX"],
     ]
     _table(slide, rows, [4.0, 8.1], top + 0.34, theme)
 
@@ -411,11 +413,10 @@ def build_deck(
     _engagement_slide(prs, scope, deal_name, footer, page, theme)
     page += 1
     page = _row_slides(prs, scope, deal_name, footer, page, theme)
-
     # Sequencing, cost and team are judgement calls the engagement team makes, so the
-    # deck presents them as XXX rather than asserting them (Rishi, 2026-09-02). The
-    # underlying data is still computed and still in the payload.
-    _placeholders_slide(prs, deal_name, footer, page, theme)
+    # deck shows XXX until the team completes them on the scope page (Rishi, 2026-09-02;
+    # editable before export since 2026-11-18).
+    _placeholders_slide(prs, deal_name, footer, page, theme, scope.delivery)
     page += 1
     _exclusions_slide(prs, scope, deal_name, footer, page, theme)
 

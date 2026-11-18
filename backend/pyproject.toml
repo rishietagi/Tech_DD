@@ -29,7 +29,7 @@ module = "pptx.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = "app.services.scope.export_pptx"
+module = ["app.services.scope.export_pptx", "app.services.report.export_pptx"]
 disallow_untyped_calls = false
 
 # xlsxwriter is likewise stub-less under `strict`.

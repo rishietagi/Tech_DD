@@ -1,0 +1,394 @@
+# The three inventories the target completes through the IRL: applications, data domains
+# and technology platforms. docs/reference/ESTATE_ASSESSMENT_MODEL.md §2–§4.
+#
+# These are FACTS the target knows. Judgement — fit, automation, AI level, criticality,
+# governance quality — is the analyst's and lives in applications.yaml / data_tech.yaml,
+# never here: a target asked to score its own estate scores it well.
+#
+# Field types:
+#   text        one line
+#   long_text   a paragraph
+#   select      one of `options`
+#   multi_select  any of `options`, stored as a list
+#   date        free text, ISO date preferred (YYYY-MM-DD or YYYY-MM)
+#   process_list  any of the Assess business processes, stored as process keys
+#   app_refs    any of the inventoried applications, stored as refs (A01, A02)
+#
+# `template_note` is written into the downloaded template's guidance row, so the target
+# knows what is wanted without a call. Editable by a practitioner without a developer;
+# validated at startup.
+
+kinds:
+  application:
+    label: Application inventory
+    sheet: Application Inventory
+    ref_prefix: A
+    source: >-
+      "An inventory of software applications, including primary business functionality,
+      version and licenses, customization, platform/architecture, level of scalability and
+      redundancy, and hosting and support arrangements" [DD_master p. 83].
+    fields:
+      - key: name
+        label: Application
+        type: text
+        required: true
+        template_note: The product or system name as the business knows it.
+      - key: description
+        label: Primary business functionality
+        type: long_text
+        template_note: What the business uses it for, in a sentence.
+      - key: vendor
+        label: Vendor
+        type: text
+        template_note: Write TBD if unknown.
+      - key: version
+        label: Version
+        type: text
+      - key: category
+        label: Category
+        type: select
+        options:
+          - ERP
+          - Finance and accounting
+          - CRM and sales
+          - Procurement
+          - HR and payroll
+          - Supply chain and logistics
+          - Manufacturing and plant
+          - Product lifecycle (PLM)
+          - E-commerce and customer portal
+          - Business intelligence and analytics
+          - Content and collaboration
+          - Integration and middleware
+          - Industry-specific
+          - Custom line-of-business
+          - Other
+      - key: type
+        label: Type
+        type: select
+        options:
+          - Commercial, on-premise
+          - SaaS
+          - Custom-built
+          - Platform or low-code
+          - Spreadsheet or ad hoc tool
+      - key: processes
+        label: Business processes supported
+        type: process_list
+        template_note: Any of the processes listed, separated by commas.
+      - key: business_owner
+        label: Business owner
+        type: text
+        template_note: A role is enough.
+      - key: it_owner
+        label: IT owner
+        type: text
+      - key: users
+        label: Number of users
+        type: text
+      - key: hosting
+        label: Hosting
+        type: select
+        options:
+          - On-premise data centre
+          - Private cloud or colocation
+          - Public cloud (IaaS or PaaS)
+          - SaaS (vendor-hosted)
+          - Partner-hosted
+          - Unknown
+      - key: platform
+        label: Platform or technology stack
+        type: text
+        template_note: Language, framework, database or underlying product.
+      - key: customisation
+        label: Level of customisation
+        type: select
+        options: [None, Low, Medium, High, TBD]
+      - key: licence_model
+        label: Licence model
+        type: select
+        options: [Perpetual, Subscription, Open source, Owned (custom-built), TBD]
+      - key: support_model
+        label: Support arrangement
+        type: select
+        options: [In-house, Vendor support, Managed service, Partner, TBD]
+      - key: contract_end
+        label: Contract or licence end date
+        type: date
+      - key: lifecycle
+        label: Lifecycle status
+        type: select
+        options: [Current, Ageing, End of life within 24 months, Unknown]
+      - key: retire_date
+        label: Planned retirement date
+        type: date
+      - key: dr
+        label: Redundancy or disaster recovery
+        type: select
+        options: [None, Backup only, Warm standby, Active-active, TBD]
+      - key: failover_tested
+        label: Failover tested in the last 12 months
+        type: select
+        options: ["Yes", "No", TBD]
+      - key: peak_load
+        label: Peak-load handling
+        type: select
+        options:
+          - Handles peak comfortably
+          - Slows at peak
+          - Fails or needs workarounds at peak
+          - TBD
+      - key: key_person
+        label: Depends on one key person or vendor resource
+        type: select
+        options: ["Yes", "No", TBD]
+      - key: personal_data
+        label: Holds personal data
+        type: select
+        options: ["Yes", "No", TBD]
+      - key: known_issues
+        label: Known issues
+        type: long_text
+        template_note: Outages, user complaints, limitations, planned changes.
+
+  data_domain:
+    label: Data domains
+    sheet: Data Domains
+    ref_prefix: D
+    source: >-
+      Identification of data assets and assignment of data owners are the first two steps
+      of the data road map [DD_master p. 169–172].
+    fields:
+      - key: name
+        label: Data domain
+        type: text
+        required: true
+        template_note: "e.g. Customer, Product, Supplier, Employee, Financial ledger."
+      - key: description
+        label: What it holds
+        type: long_text
+      - key: data_types
+        label: Data types
+        type: multi_select
+        options:
+          - Master
+          - Reference
+          - Transactional
+          - Analytical
+          - Unstructured
+          - Time-series or IoT
+          - Geospatial
+      - key: sensitivity
+        label: Sensitivity
+        type: select
+        options:
+          - Special category personal data
+          - Personal data
+          - Payment card data
+          - Financial (non-public)
+          - Confidential business
+          - Internal
+          - Public
+      - key: system_of_record
+        label: System of record
+        type: app_refs
+        template_note: Application ID(s) from the Application Inventory sheet.
+      - key: business_owner
+        label: Named business owner
+        type: text
+        template_note: Leave blank if no owner is named.
+      - key: regimes
+        label: Regulatory regimes
+        type: multi_select
+        options:
+          - GDPR or UK GDPR
+          - DPDP Act (India)
+          - CCPA or CPRA
+          - HIPAA
+          - PCI DSS
+          - SOX
+          - Sector-specific
+          - None
+      - key: volume
+        label: Volume
+        type: text
+        template_note: Records or size, roughly.
+      - key: retention
+        label: Retention
+        type: text
+
+  platform:
+    label: Technology platforms
+    sheet: Technology Platforms
+    ref_prefix: T
+    source: >-
+      The summary-level infrastructure inventory "showing location, age, current
+      utilization, and expected replacement dates" [DD_master p. 83]; categories follow
+      the full infrastructure inventory list [p. 92].
+    fields:
+      - key: name
+        label: Platform
+        type: text
+        required: true
+      - key: vendor
+        label: Vendor
+        type: text
+        template_note: Write TBD if unknown.
+      - key: version
+        label: Version
+        type: text
+      - key: category
+        label: Category
+        type: select
+        options:
+          - Data centre and hosting
+          - Servers and compute
+          - Storage and backup
+          - Database
+          - Network
+          - Identity and directory
+          - End-user computing
+          - Integration and middleware
+          - Cloud platform
+          - Security tooling
+          - Telephony and contact centre
+          - Other
+      - key: location
+        label: Location
+        type: select
+        options:
+          - On-premise data centre
+          - Disaster recovery site
+          - Colocation
+          - Public cloud
+          - SaaS or vendor-hosted
+          - Site or edge
+          - Unknown
+      - key: lifecycle
+        label: Lifecycle status
+        type: select
+        options: [Current, Ageing, End of life within 24 months, Out of support, Unknown]
+      - key: end_of_support
+        label: Vendor end of support
+        type: date
+      - key: apps_hosted
+        label: Applications hosted
+        type: app_refs
+        template_note: Application ID(s) from the Application Inventory sheet.
+
+  # Phase 7 (Rishi, 2026-11-18): the two intakes the report's people-and-skills and
+  # contracts sections need. Facts only, like the others.
+  it_role:
+    label: IT team
+    sheet: IT Team
+    ref_prefix: R
+    source: >-
+      "Provide information on the IT organization, including outsourced vendor
+      relationships" [DD_master p. 83]; key-person concentration is a named risk [§6.1].
+    fields:
+      - key: name
+        label: Role or person
+        type: text
+        required: true
+        template_note: A job title is enough; a name if the target is content to share it.
+      - key: designation
+        label: Designation
+        type: text
+      - key: function
+        label: Function within IT
+        type: select
+        options:
+          - IT leadership
+          - Infrastructure and operations
+          - Applications and ERP
+          - Software development
+          - Data and analytics
+          - Security
+          - Service desk and support
+          - Project and change
+          - Other
+      - key: engagement
+        label: Engagement
+        type: select
+        options: [In-house, Outsourced, Contractor, Parent-group shared, TBD]
+      - key: key_skills
+        label: Key skills
+        type: text
+      - key: responsibilities
+        label: Role and responsibilities
+        type: long_text
+      - key: experience_years
+        label: Experience (years)
+        type: text
+      - key: qualifications
+        label: Qualifications
+        type: text
+      - key: length_of_service
+        label: Length of service
+        type: text
+        template_note: "e.g. 2 years, 6 months."
+      - key: apps_supported
+        label: Applications supported
+        type: app_refs
+        template_note: Application ID(s) from the Application Inventory sheet.
+      - key: sole_holder
+        label: Only person who can do this role
+        type: select
+        options: ["Yes", "No", TBD]
+
+  it_contract:
+    label: IT contracts
+    sheet: IT Contracts
+    ref_prefix: C
+    source: >-
+      Contracts are reviewed for their terms and their expiry — renewal dates, notice
+      periods, assignment and change-of-control (2026-09-14 boundary; DD_master §6.2).
+    fields:
+      - key: name
+        label: Contract or licence
+        type: text
+        required: true
+      - key: counterparty
+        label: Counterparty
+        type: text
+        template_note: Write TBD if unknown.
+      - key: description
+        label: Scope of the contract
+        type: long_text
+      - key: type
+        label: Type
+        type: select
+        options:
+          - Software licence
+          - SaaS subscription
+          - Support and maintenance
+          - Managed service
+          - Annual maintenance contract (hardware)
+          - Telecom and connectivity
+          - Development or project
+          - Other
+      - key: start_date
+        label: Start date
+        type: date
+      - key: end_date
+        label: End date
+        type: date
+      - key: annual_value
+        label: Annual value
+        type: text
+        template_note: Amount and currency, or "per call".
+      - key: notice_period
+        label: Notice period
+        type: text
+      - key: change_of_control
+        label: Assignment or change-of-control clause
+        type: select
+        options: ["Yes", "No", TBD]
+      - key: parent_dependency
+        label: Held by or shared with the parent group
+        type: select
+        options: ["Yes", "No", TBD]
+      - key: apps_covered
+        label: Applications covered
+        type: app_refs
+        template_note: Application ID(s) from the Application Inventory sheet.
