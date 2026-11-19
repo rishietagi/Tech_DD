@@ -7,7 +7,11 @@ import type {
   ResearchPayload,
   ResearchSource,
 } from "@/types/research";
-import { BRIEF_LABELS, BRIEF_ORDER, RESEARCH_CATEGORY_LABELS } from "@/types/research";
+import {
+  BRIEF_LABELS,
+  BRIEF_ORDER,
+  RESEARCH_CATEGORY_LABELS,
+} from "@/types/research";
 
 /** The disclaimer leads. It is the first thing a reader sees, not a footnote, because
  *  the failure mode of AI research is confident, well-formatted, plausible wrongness. */
@@ -31,7 +35,13 @@ function Disclaimer({ text }: { text: string }) {
  *  domain as a title — five claims citing five different pages on rsgroup.com would
  *  otherwise render as five identical links, and a reader could not tell which was which
  *  or find it in the list at the foot of the page. */
-function SourceLink({ source, showId = true }: { source: ResearchSource; showId?: boolean }) {
+function SourceLink({
+  source,
+  showId = true,
+}: {
+  source: ResearchSource;
+  showId?: boolean;
+}) {
   return (
     <a
       href={source.url}
@@ -42,7 +52,11 @@ function SourceLink({ source, showId = true }: { source: ResearchSource; showId?
       // single unbreakable token. Without this it pushes the page sideways at phone width.
       className="max-w-full font-sans text-[12.5px] break-all text-steel underline underline-offset-2 hover:text-kpmg-blue"
     >
-      {showId && <span className="font-mono text-[10.5px] text-muted-2">{source.id} </span>}
+      {showId && (
+        <span className="font-mono text-[10.5px] text-muted-2">
+          {source.id}{" "}
+        </span>
+      )}
       {source.title}
     </a>
   );
@@ -206,7 +220,9 @@ function BriefBlock({
     <section
       id={`brief-${sectionKey}`}
       className={`h-full scroll-mt-6 rounded-xl border px-5 py-4 ${
-        analysis ? "border-steel/40 bg-steel-tint" : "border-line-strong bg-paper-2"
+        analysis
+          ? "border-steel/40 bg-steel-tint"
+          : "border-line-strong bg-paper-2"
       }`}
     >
       <h3 className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] font-semibold tracking-[0.1em] text-muted uppercase">
@@ -295,7 +311,8 @@ function BusinessBriefView({
               // profile is the section a tech DD reader came for, and it lists systems
               // that wrap badly in a half-width card.
               className={
-                key === "implications_for_diligence" || key === "technology_profile"
+                key === "implications_for_diligence" ||
+                key === "technology_profile"
                   ? "lg:col-span-2"
                   : ""
               }
@@ -326,7 +343,9 @@ function Finding({
   return (
     <li className="border-t border-line py-3.5 first:border-t-0">
       <div className="mb-1 flex flex-wrap items-baseline gap-2">
-        <h4 className="font-sans text-[14.5px] font-semibold text-text">{finding.topic}</h4>
+        <h4 className="font-sans text-[14.5px] font-semibold text-text">
+          {finding.topic}
+        </h4>
         {!cited && (
           <span className="rounded-full border border-line-strong px-2 py-0.5 font-sans text-[10px] text-muted-2">
             uncited
@@ -381,10 +400,12 @@ function TheRecord({
 
   return (
     <section className="mb-8">
-      <h2 className="mb-1 font-display text-lg font-semibold text-text">The record</h2>
+      <h2 className="mb-1 font-display text-lg font-semibold text-text">
+        The record
+      </h2>
       <p className="mb-4 max-w-[72ch] font-sans text-[13px] text-muted">
-        Dated, specific points from the sources — the facts a deal team would cite. Check
-        each one before relying on it.
+        Dated, specific points from the sources — the facts a deal team would
+        cite. Check each one before relying on it.
       </p>
 
       <div className="space-y-4">
@@ -403,7 +424,11 @@ function TheRecord({
               </h3>
               <ul>
                 {rows.map((finding) => (
-                  <Finding key={finding.topic} finding={finding} sources={sources} />
+                  <Finding
+                    key={finding.topic}
+                    finding={finding}
+                    sources={sources}
+                  />
                 ))}
               </ul>
             </div>
@@ -479,7 +504,9 @@ export function ResearchSummary({ research }: { research: ResearchPayload }) {
         // Runs stored before the brief existed, and runs where the record was too thin
         // to support one. The short summary is still worth showing.
         <section className="mb-8">
-          <h2 className="mb-3 font-display text-lg font-semibold text-text">Summary</h2>
+          <h2 className="mb-3 font-display text-lg font-semibold text-text">
+            Summary
+          </h2>
           <p className="max-w-[72ch] font-sans text-[15px] leading-[1.65] text-text">
             {research.summary}
           </p>
@@ -497,8 +524,13 @@ export function ResearchSummary({ research }: { research: ResearchPayload }) {
           </h2>
           <ol className="space-y-1.5">
             {research.sources.map((source) => (
-              <li key={source.id} className="font-sans text-[13.5px] break-words">
-                <span className="mr-2 font-mono text-[11px] text-muted-2">{source.id}</span>
+              <li
+                key={source.id}
+                className="font-sans text-[13.5px] break-words"
+              >
+                <span className="mr-2 font-mono text-[11px] text-muted-2">
+                  {source.id}
+                </span>
                 <SourceLink source={source} showId={false} />
                 {source.publisher && (
                   <span className="ml-2 font-sans text-[12.5px] text-muted-2">
@@ -512,8 +544,8 @@ export function ResearchSummary({ research }: { research: ResearchPayload }) {
       )}
 
       <footer className="border-t border-line pt-4 font-sans text-[12px] text-muted-2">
-        Researched {new Date(research.researched_at).toLocaleString()} · generated by{" "}
-        {research.generator}
+        Researched {new Date(research.researched_at).toLocaleString()} ·
+        generated by {research.generator}
       </footer>
     </article>
   );

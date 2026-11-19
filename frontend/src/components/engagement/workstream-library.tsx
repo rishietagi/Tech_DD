@@ -29,12 +29,17 @@ function Row({ row }: { row: LibraryRow }) {
         )}
       </div>
       {row.lines.map((line, index) => (
-        <p key={index} className="mb-1 max-w-[68ch] font-sans text-[13.5px] leading-[1.55] text-muted">
+        <p
+          key={index}
+          className="mb-1 max-w-[68ch] font-sans text-[13.5px] leading-[1.55] text-muted"
+        >
           {line}
         </p>
       ))}
       {row.dd_master_ref && (
-        <p className="mt-1 font-sans text-[12px] text-muted-2 italic">{row.dd_master_ref}</p>
+        <p className="mt-1 font-sans text-[12px] text-muted-2 italic">
+          {row.dd_master_ref}
+        </p>
       )}
     </li>
   );
@@ -75,8 +80,9 @@ export function WorkstreamLibraryView() {
     <div>
       <p className="mb-8 font-sans text-[14px] leading-[1.6] text-muted">
         These are the areas the engine selects from, quoted from{" "}
-        <span className="text-text">{data.source_document}</span> ({data.source_owner}). The engine decides
-        which open and at what depth; it never invents an area that is not here.
+        <span className="text-text">{data.source_document}</span> (
+        {data.source_owner}). The engine decides which open and at what depth;
+        it never invents an area that is not here.
       </p>
 
       {Object.entries(data.decks).map(([deckId, rows]) => (
@@ -84,7 +90,9 @@ export function WorkstreamLibraryView() {
           <h3 className="mb-1 font-display text-xl font-semibold text-text">
             {DECK_TITLE[deckId] ?? deckId}
           </h3>
-          <p className="mb-3 font-sans text-[13px] text-muted-2">{rows.length} areas</p>
+          <p className="mb-3 font-sans text-[13px] text-muted-2">
+            {rows.length} areas
+          </p>
           <ul>
             {rows.map((row) => (
               <Row key={row.id} row={row} />

@@ -1,5 +1,6 @@
 import type { Band } from "@/types/assess";
 import { BAND_LABELS } from "@/types/assess";
+import { scoreFill } from "@/components/ui/score-ring";
 
 /**
  * The five maturity bands reuse the existing priority/status ramp rather than adding a
@@ -7,11 +8,14 @@ import { BAND_LABELS } from "@/types/assess";
  * green already reserved for "arrived". No raw hex in components (CLAUDE.md §8).
  */
 const BAND_CLASSES: Record<Band, string> = {
-  manual: "border-priority-critical bg-priority-critical-tint text-priority-critical",
+  manual:
+    "border-priority-critical bg-priority-critical-tint text-priority-critical",
   emerging: "border-priority-high bg-priority-high-tint text-priority-high",
-  standardised: "border-priority-medium bg-priority-medium-tint text-priority-medium",
+  standardised:
+    "border-priority-medium bg-priority-medium-tint text-priority-medium",
   integrated: "border-steel bg-steel-tint text-steel",
-  optimised: "border-status-received bg-status-received-tint text-status-received",
+  optimised:
+    "border-status-received bg-status-received-tint text-status-received",
 };
 
 export function BandBadge({
@@ -42,7 +46,11 @@ export function BandBadge({
  */
 export function LadderMeter({ score }: { score: number | null }) {
   if (score === null) {
-    return <span className="font-mono text-[11px] uppercase text-muted-2">Not assessed</span>;
+    return (
+      <span className="font-mono text-[11px] uppercase text-muted-2">
+        Not assessed
+      </span>
+    );
   }
   const filled = Math.round(score);
   return (
@@ -52,12 +60,14 @@ export function LadderMeter({ score }: { score: number | null }) {
           <span
             key={rung}
             className={`h-3.5 w-[7px] rounded-[1px] ${
-              rung <= filled ? "bg-ink" : "bg-line"
+              rung <= filled ? scoreFill(score * 20) : "bg-paper-3"
             }`}
           />
         ))}
       </span>
-      <span className="font-mono text-[12px] text-text">{score.toFixed(1)}</span>
+      <span className="font-mono text-[12px] text-text">
+        {score.toFixed(1)}
+      </span>
     </span>
   );
 }

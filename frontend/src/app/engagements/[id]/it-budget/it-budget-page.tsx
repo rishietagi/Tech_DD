@@ -16,6 +16,8 @@ import type {
   ItBudgetRead,
   LineKind,
 } from "@/types/it-budget";
+import { BudgetVarianceExplain } from "@/components/engagement/explain";
+import { InfoTip } from "@/components/ui/info-tip";
 
 const CELL =
   "w-full min-w-[84px] rounded-lg border border-line-strong bg-paper-2 px-2.5 py-1.5 text-right font-mono text-[13px] text-text focus:border-steel focus:bg-paper focus:outline-none";
@@ -508,7 +510,15 @@ export function ItBudgetPage({
 
       {/* ------------------------------------------------------------ review */}
       <section>
-        <h2 className="mb-1 font-serif text-[24px] text-ink">Review</h2>
+        <h2 className="mb-1 flex items-center font-serif text-[24px] text-ink">
+          Review
+          <InfoTip label="the budget review" title="How the review flags spend">
+            <BudgetVarianceExplain
+              tolerance={review.tolerance_pct}
+              movement={review.movement_pct}
+            />
+          </InfoTip>
+        </h2>
         <p className="mb-4 font-sans text-[13px] text-muted">
           Variance beyond ±{review.tolerance_pct}% of budget, and year-on-year
           movement in actual spend beyond {review.movement_pct}%, are flagged
@@ -522,7 +532,7 @@ export function ItBudgetPage({
           </p>
         )}
 
-        <div className="mb-6 overflow-x-auto rounded-2xl border border-line-strong">
+        <div className="card mb-6 overflow-x-auto">
           <table className="w-full border-collapse font-sans text-[13px]">
             <thead>
               <tr className="bg-paper-2 text-right">

@@ -1,6 +1,11 @@
 import Link from "next/link";
 
-import { INTAKE_STEP_LABELS, INTAKE_STEPS, type IntakeDraft, type IntakeStep } from "@/types/intake";
+import {
+  INTAKE_STEP_LABELS,
+  INTAKE_STEPS,
+  type IntakeDraft,
+  type IntakeStep,
+} from "@/types/intake";
 
 const NOT_ENTERED = "No information entered";
 
@@ -20,14 +25,29 @@ function humanizeKey(key: string): string {
     .join(" ");
 }
 
-function SectionCard({ engagementId, step, data }: { engagementId: string; step: IntakeStep; data: Record<string, unknown> | null }) {
-  const entries = data ? Object.entries(data).filter(([, v]) => v !== undefined) : [];
+function SectionCard({
+  engagementId,
+  step,
+  data,
+}: {
+  engagementId: string;
+  step: IntakeStep;
+  data: Record<string, unknown> | null;
+}) {
+  const entries = data
+    ? Object.entries(data).filter(([, v]) => v !== undefined)
+    : [];
 
   return (
     <div className="border-t border-line py-6 first:border-t-0">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-display text-[15px] font-semibold text-text">{INTAKE_STEP_LABELS[step]}</h3>
-        <Link href={`/intake/${engagementId}/${step}`} className="font-sans text-[13px] font-medium text-steel">
+        <h3 className="font-display text-[15px] font-semibold text-text">
+          {INTAKE_STEP_LABELS[step]}
+        </h3>
+        <Link
+          href={`/intake/${engagementId}/${step}`}
+          className="font-sans text-[13px] font-medium text-steel"
+        >
           Edit
         </Link>
       </div>
@@ -60,11 +80,22 @@ function SectionCard({ engagementId, step, data }: { engagementId: string; step:
   );
 }
 
-export function CoverSheet({ engagementId, intake }: { engagementId: string; intake: IntakeDraft }) {
+export function CoverSheet({
+  engagementId,
+  intake,
+}: {
+  engagementId: string;
+  intake: IntakeDraft;
+}) {
   return (
     <div className="rounded-2xl border border-line-strong bg-paper-2 px-8 py-2 sm:px-10">
       {INTAKE_STEPS.map((step) => (
-        <SectionCard key={step} engagementId={engagementId} step={step} data={intake[step] as Record<string, unknown> | null} />
+        <SectionCard
+          key={step}
+          engagementId={engagementId}
+          step={step}
+          data={intake[step] as Record<string, unknown> | null}
+        />
       ))}
     </div>
   );

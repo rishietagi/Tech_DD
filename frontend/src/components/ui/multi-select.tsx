@@ -5,7 +5,12 @@ interface MultiSelectProps {
   onChange: (value: string[]) => void;
 }
 
-export function MultiSelect({ name, options, value, onChange }: MultiSelectProps) {
+export function MultiSelect({
+  name,
+  options,
+  value,
+  onChange,
+}: MultiSelectProps) {
   const toggle = (optValue: string) => {
     if (value.includes(optValue)) {
       onChange(value.filter((v) => v !== optValue));

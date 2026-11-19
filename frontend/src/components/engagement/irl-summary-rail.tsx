@@ -1,6 +1,11 @@
 "use client";
 
 import type { IrlTracking } from "@/types/irl";
+import {
+  CollectedExplain,
+  PriorityExplain,
+} from "@/components/engagement/explain";
+import { InfoTip } from "@/components/ui/info-tip";
 
 /**
  * The header of the request list: what this deal is, how far the collection has got, and
@@ -35,18 +40,27 @@ export function summarise(
   kinds: Record<string, "document" | "question">,
 ): IrlProgress {
   const values = Object.entries(tracking);
-  const outstanding = values.filter(([, t]) => t.status !== "received_completely");
+  const outstanding = values.filter(
+    ([, t]) => t.status !== "received_completely",
+  );
 
   return {
     total: values.length,
     documents: Object.values(kinds).filter((k) => k === "document").length,
-    receivedCompletely: values.filter(([, t]) => t.status === "received_completely").length,
-    receivedPartially: values.filter(([, t]) => t.status === "received_partially").length,
+    receivedCompletely: values.filter(
+      ([, t]) => t.status === "received_completely",
+    ).length,
+    receivedPartially: values.filter(
+      ([, t]) => t.status === "received_partially",
+    ).length,
     notReceived: values.filter(([, t]) => t.status === "not_received").length,
     answered: Object.values(responses).filter((v) => v.trim()).length,
     followUps: values.reduce((n, [, t]) => n + t.follow_up_questions.length, 0),
-    outstandingCritical: outstanding.filter(([, t]) => t.priority === "critical").length,
-    outstandingHigh: outstanding.filter(([, t]) => t.priority === "high").length,
+    outstandingCritical: outstanding.filter(
+      ([, t]) => t.priority === "critical",
+    ).length,
+    outstandingHigh: outstanding.filter(([, t]) => t.priority === "high")
+      .length,
   };
 }
 
@@ -55,10 +69,12 @@ function Stat({
   value,
   label,
   tone = "neutral",
+  info,
 }: {
   value: number | string;
   label: string;
   tone?: "neutral" | "received" | "partial" | "attention";
+  info?: React.ReactNode;
 }) {
   const toneClass = {
     neutral: "text-text",
@@ -69,10 +85,15 @@ function Stat({
 
   return (
     <div className="flex flex-col gap-0.5">
-      <span className={`font-display text-[22px] leading-none font-semibold ${toneClass}`}>
+      <span
+        className={`font-display text-[22px] leading-none font-semibold ${toneClass}`}
+      >
         {value}
       </span>
-      <span className="font-sans text-[11.5px] leading-tight text-muted">{label}</span>
+      <span className="flex items-center font-sans text-[11.5px] leading-tight text-muted">
+        {label}
+        {info}
+      </span>
     </div>
   );
 }
@@ -92,8 +113,14 @@ function ProgressBar({ progress }: { progress: IrlProgress }) {
       role="img"
       aria-label={`${progress.receivedCompletely} of ${progress.total} received in full, ${progress.receivedPartially} partially`}
     >
-      <div className="bg-status-received transition-all" style={{ width: `${complete}%` }} />
-      <div className="bg-status-partial transition-all" style={{ width: `${partial}%` }} />
+      <div
+        className="bg-status-received transition-all"
+        style={{ width: `${complete}%` }}
+      />
+      <div
+        className="bg-status-partial transition-all"
+        style={{ width: `${partial}%` }}
+      />
     </div>
   );
 }
@@ -131,14 +158,18 @@ export function IrlSummaryRail({
           </h1>
           <p className="mt-1 font-mono text-[11px] text-muted-2">
             v{version} · {new Date(createdAt).toLocaleDateString()}
-            {sourceScopeVersion != null && ` · from scope v${sourceScopeVersion}`}
+            {sourceScopeVersion != null &&
+              ` · from scope v${sourceScopeVersion}`}
             {lastScannedAt &&
-              ` · drive scanned ${new Date(lastScannedAt).toLocaleString(undefined, {
-                day: "numeric",
-                month: "short",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}`}
+              ` · drive scanned ${new Date(lastScannedAt).toLocaleString(
+                undefined,
+                {
+                  day: "numeric",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                },
+              )}`}
           </p>
         </div>
 
@@ -146,21 +177,50 @@ export function IrlSummaryRail({
       </div>
 
       <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
-        <Stat value={`${percent}%`} label="collected" tone="received" />
-        <Stat value={progress.receivedCompletely} label="received in full" tone="received" />
+        <Stat
+          value={`${percent}%`}
+          label="collected"
+          tone="received"
+          info={
+            <InfoTip label="collection progress">
+              <CollectedExplain />
+            </InfoTip>
+          }
+        />
+        <Stat
+          value={progress.receivedCompletely}
+          label="received in full"
+          tone="received"
+        />
         {progress.receivedPartially > 0 && (
-          <Stat value={progress.receivedPartially} label="partial" tone="partial" />
+          <Stat
+            value={progress.receivedPartially}
+            label="partial"
+            tone="partial"
+          />
         )}
         <Stat value={progress.notReceived} label="outstanding" />
         <Stat value={progress.answered} label="answered" />
         {progress.followUps > 0 && (
-          <Stat value={progress.followUps} label="follow-ups to send" tone="attention" />
+          <Stat
+            value={progress.followUps}
+            label="follow-ups to send"
+            tone="attention"
+          />
         )}
         {progress.outstandingCritical > 0 && (
           <Stat
             value={progress.outstandingCritical}
             label="critical outstanding"
             tone="attention"
+            info={
+              <InfoTip
+                label="request priority"
+                title="How requests are prioritised"
+              >
+                <PriorityExplain />
+              </InfoTip>
+            }
           />
         )}
       </div>

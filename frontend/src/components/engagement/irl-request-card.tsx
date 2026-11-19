@@ -69,7 +69,8 @@ function FollowUps({ questions }: { questions: string[] }) {
 /** What the scan matched and why. Collapsed: checked on disagreement, not on every read. */
 function ScanEvidence({ tracking }: { tracking: IrlTracking }) {
   const [open, setOpen] = useState(false);
-  if (tracking.matched_files.length === 0 && !tracking.scan_reasoning) return null;
+  if (tracking.matched_files.length === 0 && !tracking.scan_reasoning)
+    return null;
 
   return (
     <div className="mt-2">
@@ -84,7 +85,10 @@ function ScanEvidence({ tracking }: { tracking: IrlTracking }) {
       {open && (
         <div className="mt-1.5 space-y-1 border-l-2 border-line pl-2.5">
           {tracking.matched_files.map((file) => (
-            <p key={file} className="font-mono text-[10px] break-all text-muted-2">
+            <p
+              key={file}
+              className="font-mono text-[10px] break-all text-muted-2"
+            >
               {file}
             </p>
           ))}
@@ -130,7 +134,10 @@ export function IrlRequestCard({
     if (!draft.trim()) return;
     setBusy(true);
     try {
-      await onUpdate({ question: draft.trim(), function: fn.trim() || undefined });
+      await onUpdate({
+        question: draft.trim(),
+        function: fn.trim() || undefined,
+      });
       setEditing(false);
     } finally {
       setBusy(false);
@@ -165,7 +172,10 @@ export function IrlRequestCard({
         <div className="mb-2 flex flex-wrap items-center gap-1.5">
           <KindBadge kind={question.kind} />
           {tracking && (
-            <PriorityBadge priority={tracking.priority} reason={tracking.priority_reason} />
+            <PriorityBadge
+              priority={tracking.priority}
+              reason={tracking.priority_reason}
+            />
           )}
           <span className="font-mono text-[9.5px] tracking-wide text-muted-2 uppercase">
             {question.function}
@@ -293,7 +303,11 @@ export function IrlRequestCard({
         </p>
         {tracking && (
           <>
-            <IrlTrackingCell tracking={tracking} kind={question.kind} onSave={onTrack} />
+            <IrlTrackingCell
+              tracking={tracking}
+              kind={question.kind}
+              onSave={onTrack}
+            />
             <ScanEvidence tracking={tracking} />
           </>
         )}

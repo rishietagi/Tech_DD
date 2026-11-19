@@ -9,7 +9,13 @@ export const PRIORITY_CLASSES: Record<Priority, string> = {
   low: "bg-priority-low-tint text-priority-low",
 };
 
-export function PriorityBadge({ priority, reason }: { priority: Priority; reason?: string }) {
+export function PriorityBadge({
+  priority,
+  reason,
+}: {
+  priority: Priority;
+  reason?: string;
+}) {
   return (
     <span
       // The reason is the tooltip: a colour with no explanation is not auditable, and a

@@ -1,6 +1,28 @@
 "use client";
 
 import { BandBadge } from "@/components/engagement/band-badge";
+import {
+  AiIndexExplain,
+  AppFlagsExplain,
+  ApplicationsIndexExplain,
+  AutomationLevelExplain,
+  ChecksExplain,
+  CriticalManualExplain,
+  CriticalityExplain,
+  DataTechIndexExplain,
+  DomainScoreExplain,
+  KeyPersonExplain,
+  OutsourcedExplain,
+  PlatformScoreExplain,
+  ProjectFlagsExplain,
+  ReconciliationExplain,
+  SectionsExplain,
+  StrategyIndexExplain,
+  TeamIndexExplain,
+  TriageExplain,
+} from "@/components/engagement/explain";
+import { InfoTip } from "@/components/ui/info-tip";
+import { ScoreRing, scoreFill } from "@/components/ui/score-ring";
 import type {
   ApplicationsScorePayload,
   DataTechScorePayload,
@@ -22,7 +44,7 @@ function Meter({ value, max = 5 }: { value: number | null; max?: number }) {
         {Array.from({ length: max }, (_, i) => (
           <span
             key={i}
-            className={`h-3 w-[6px] rounded-[1px] ${i < value ? "bg-ink" : "bg-line"}`}
+            className={`h-3 w-[6px] rounded-[2px] ${i < value ? scoreFill((value / max) * 100) : "bg-paper-3"}`}
           />
         ))}
       </span>
@@ -35,21 +57,60 @@ function Stat({
   label,
   value,
   sub,
+  info,
+  alert = false,
 }: {
   label: string;
   value: string;
   sub?: string;
+  info?: React.ReactNode;
+  /** Draws the card in the attention colour when the number is a problem. */
+  alert?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-line-strong px-4 py-3">
-      <p className="font-mono text-[10px] uppercase tracking-wide text-muted">
+    <div
+      className={`card relative overflow-hidden px-4 py-3.5 before:absolute before:inset-y-0 before:left-0 before:w-[3px] ${
+        alert ? "before:bg-priority-critical" : "before:bg-kpmg-blue-light"
+      }`}
+    >
+      <p className="flex items-center font-sans text-[10.5px] font-semibold tracking-[0.06em] text-muted uppercase">
         {label}
+        {info}
       </p>
-      <p className="font-serif text-[26px] leading-tight text-ink">{value}</p>
+      <p
+        className={`mt-0.5 font-display text-[28px] leading-tight font-semibold tabular-nums ${
+          alert ? "text-priority-critical" : "text-ink"
+        }`}
+      >
+        {value}
+      </p>
       {sub && <p className="font-sans text-[11.5px] text-muted-2">{sub}</p>}
     </div>
   );
 }
+
+function Tip({
+  label,
+  title,
+  children,
+}: {
+  label: string;
+  title?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <InfoTip label={label} title={title}>
+      {children}
+    </InfoTip>
+  );
+}
+
+const INDEX_EXPLAIN: Record<EstateScorePayload["domain"], React.ReactNode> = {
+  applications: <ApplicationsIndexExplain />,
+  data_tech: <DataTechIndexExplain />,
+  team_governance: <TeamIndexExplain />,
+  strategy_projects: <StrategyIndexExplain />,
+};
 
 /** Headline, written summary and pointers — the same for every assessment. */
 export function ScoreHeader({
@@ -62,25 +123,28 @@ export function ScoreHeader({
   indexLabel: string;
 }) {
   return (
-    <section className="mb-8 grid gap-6 rounded-2xl border border-line-strong bg-paper p-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-      <div>
-        <p className="font-mono text-[10.5px] uppercase tracking-wide text-muted">
+    <section className="card mb-8 grid overflow-hidden lg:grid-cols-[300px_minmax(0,1fr)]">
+      <div className="border-b border-line bg-gradient-to-br from-kpmg-blue-tint-strong via-kpmg-blue-tint to-paper p-6 lg:border-r lg:border-b-0">
+        <p className="flex items-center font-sans text-[11px] font-semibold tracking-[0.08em] text-kpmg-blue uppercase">
           {indexLabel}
+          <Tip label={indexLabel.toLowerCase()}>
+            {INDEX_EXPLAIN[payload.domain]}
+          </Tip>
         </p>
         {payload.index !== null && payload.band ? (
           <>
-            <p className="font-serif text-[52px] leading-none text-ink">
-              {payload.index.toFixed(0)}
-              <span className="text-[20px] text-muted-2">/100</span>
-            </p>
-            <div className="mt-2">
+            <div className="mt-4 flex items-center gap-4">
+              <ScoreRing
+                value={payload.index}
+                label={`${indexLabel} ${payload.index.toFixed(0)} of 100`}
+              />
               <BandBadge
                 band={payload.band}
                 title={payload.band_meaning}
                 label={payload.band_label}
               />
             </div>
-            <p className="mt-3 font-sans text-[12.5px] leading-[1.5] text-muted">
+            <p className="mt-4 font-sans text-[12.5px] leading-[1.5] text-muted">
               {payload.band_meaning}
             </p>
           </>
@@ -89,14 +153,14 @@ export function ScoreHeader({
             Not enough evidence for an index yet.
           </p>
         )}
-        <p className="mt-4 font-mono text-[10.5px] uppercase text-muted-2">
+        <p className="mt-4 font-sans text-[11px] text-muted-2">
           Version {version} ·{" "}
           {payload.generator === "llm"
             ? "summary written by the model"
             : "rules summary"}
         </p>
       </div>
-      <div>
+      <div className="p-6">
         <p className="mb-1.5 font-mono text-[10.5px] uppercase tracking-wide text-muted">
           Executive summary
         </p>
@@ -157,10 +221,19 @@ function Flags({ flags }: { flags: string[] }) {
   );
 }
 
-function Th({ children }: { children: React.ReactNode }) {
+function Th({
+  children,
+  info,
+}: {
+  children: React.ReactNode;
+  info?: React.ReactNode;
+}) {
   return (
     <th className="px-4 py-2.5 font-mono text-[10.5px] font-medium uppercase tracking-wide text-muted">
-      {children}
+      <span className="inline-flex items-center">
+        {children}
+        {info}
+      </span>
     </th>
   );
 }
@@ -170,24 +243,29 @@ function SectionCards({ sections }: { sections: SectionScore[] }) {
   if (sections.length === 0) return null;
   return (
     <div>
-      <p className="mb-2 font-mono text-[10.5px] uppercase tracking-wide text-muted">
+      <p className="mb-2 flex items-center font-mono text-[10.5px] uppercase tracking-wide text-muted">
         Sections
+        <Tip label="section scores">
+          <SectionsExplain />
+        </Tip>
       </p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {sections.map((s) => (
-          <div
-            key={s.key}
-            className="rounded-xl border border-line-strong px-4 py-3"
-          >
-            <p className="font-mono text-[10px] uppercase tracking-wide text-muted">
-              {s.label} · weight {s.weight}
+          <div key={s.key} className="card px-4 py-3.5">
+            <p className="font-sans text-[10.5px] font-semibold tracking-[0.04em] text-muted uppercase">
+              {s.label}
             </p>
-            <p className="font-serif text-[26px] leading-tight text-ink">
-              {s.score !== null ? s.score.toFixed(0) : "—"}
+            <p className="mt-0.5 flex items-baseline justify-between gap-2">
+              <span className="font-display text-[26px] leading-tight font-semibold text-ink tabular-nums">
+                {s.score !== null ? s.score.toFixed(0) : "—"}
+              </span>
+              <span className="rounded-full bg-paper-2 px-2 py-0.5 font-sans text-[10.5px] text-muted">
+                weight {s.weight}
+              </span>
             </p>
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-paper-3">
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-paper-3">
               <div
-                className="h-full rounded-full bg-ink"
+                className={`h-full origin-left animate-grow-x rounded-full ${scoreFill(s.score)}`}
                 style={{ width: `${s.score ?? 0}%` }}
               />
             </div>
@@ -222,31 +300,76 @@ export function ApplicationResults({
           value={String(counts.applications)}
           sub={`${counts.assessed} with a criticality`}
         />
-        <Stat label="Business-critical" value={String(counts.critical)} />
+        <Stat
+          label="Business-critical"
+          value={String(counts.critical)}
+          sub="criticality 4 or 5"
+          info={
+            <Tip label="criticality" title="Criticality">
+              <CriticalityExplain />
+            </Tip>
+          }
+        />
         <Stat
           label="End of support ≤ 24 months"
           value={String(counts.end_of_life)}
+          alert={counts.end_of_life > 0}
         />
         <Stat
           label="Critical and manual"
           value={String(counts.manual_critical)}
+          alert={counts.manual_critical > 0}
+          info={
+            <Tip label="critical and manual" title="Critical and manual">
+              <CriticalManualExplain />
+            </Tip>
+          }
         />
         <Stat
           label="AI level"
           value={payload.ai_index !== null ? payload.ai_index.toFixed(0) : "—"}
           sub="criticality-weighted, of 100"
+          info={
+            <Tip label="the AI level">
+              <AiIndexExplain />
+            </Tip>
+          }
         />
       </div>
       <SectionCards sections={payload.portfolio} />
-      <div className="overflow-x-auto rounded-2xl border border-line-strong">
+      <div className="card overflow-x-auto">
         <table className="w-full min-w-[860px] border-collapse font-sans text-[13px]">
           <thead>
             <tr className="bg-paper-2 text-left">
               <Th>Application</Th>
-              <Th>Criticality</Th>
-              <Th>Automation</Th>
+              <Th
+                info={
+                  <Tip label="criticality" title="Criticality">
+                    <CriticalityExplain />
+                  </Tip>
+                }
+              >
+                Criticality
+              </Th>
+              <Th
+                info={
+                  <Tip label="automation level" title="Automation level">
+                    <AutomationLevelExplain />
+                  </Tip>
+                }
+              >
+                Automation
+              </Th>
               <Th>AI</Th>
-              <Th>From the inventory</Th>
+              <Th
+                info={
+                  <Tip label="inventory flags" title="What raises each flag">
+                    <AppFlagsExplain />
+                  </Tip>
+                }
+              >
+                From the inventory
+              </Th>
             </tr>
           </thead>
           <tbody>
@@ -316,6 +439,14 @@ export function TeamGovernanceResults({
           sub={`${people.in_house} in-house`}
         />
         <Stat
+          info={
+            <Tip
+              label="the outsourced share"
+              title="Outsourced or shared share"
+            >
+              <OutsourcedExplain />
+            </Tip>
+          }
           label="Outsourced or shared"
           value={
             people.outsourced_share_pct !== null
@@ -327,10 +458,22 @@ export function TeamGovernanceResults({
         <Stat
           label="Only one person can do it"
           value={String(people.sole_holders.length)}
+          alert={people.sole_holders.length > 0}
+          info={
+            <Tip label="key-person dependency" title="Key-person dependency">
+              <KeyPersonExplain />
+            </Tip>
+          }
         />
         <Stat
           label="Critical apps, one supporter"
           value={String(people.single_person_critical_apps.length)}
+          alert={people.single_person_critical_apps.length > 0}
+          info={
+            <Tip label="key-person dependency" title="Key-person dependency">
+              <KeyPersonExplain />
+            </Tip>
+          }
         />
       </div>
       {(people.single_person_critical_apps.length > 0 ||
@@ -373,11 +516,28 @@ export function StrategyProjectsResults({
           sub={`${portfolio.open} in flight · ${portfolio.planned} planned`}
         />
         <Stat
+          info={
+            <Tip
+              label="the roadmap reconciliation"
+              title="Roadmap against the change budget"
+            >
+              <ReconciliationExplain />
+            </Tip>
+          }
           label="Remaining commitment"
           value={money(portfolio.remaining_commitment)}
           sub="allocated, not yet spent"
         />
         <Stat
+          alert={Boolean(portfolio.unfunded)}
+          info={
+            <Tip
+              label="the roadmap reconciliation"
+              title="Roadmap against the change budget"
+            >
+              <ReconciliationExplain />
+            </Tip>
+          }
           label={`Change budget ${portfolio.change_budget_year}`.trim()}
           value={money(portfolio.change_budget)}
           sub={
@@ -389,6 +549,12 @@ export function StrategyProjectsResults({
           }
         />
         <Stat
+          alert={portfolio.over_budget + portfolio.late > 0}
+          info={
+            <Tip label="project flags" title="What raises each project flag">
+              <ProjectFlagsExplain />
+            </Tip>
+          }
           label="Over budget · late"
           value={`${portfolio.over_budget} · ${portfolio.late}`}
           sub={`${portfolio.stop_candidates} ${portfolio.stop_candidates === 1 ? "candidate" : "candidates"} to stop`}
@@ -396,7 +562,7 @@ export function StrategyProjectsResults({
       </div>
       <SectionCards sections={payload.sections} />
       {payload.projects.length > 0 && (
-        <div className="overflow-x-auto rounded-2xl border border-line-strong">
+        <div className="card overflow-x-auto">
           <table className="w-full min-w-[900px] border-collapse font-sans text-[13px]">
             <thead>
               <tr className="bg-paper-2 text-left">
@@ -405,8 +571,27 @@ export function StrategyProjectsResults({
                 <Th>Allocated</Th>
                 <Th>Used</Th>
                 <Th>Complete</Th>
-                <Th>Deal relevance</Th>
-                <Th>Observations</Th>
+                <Th
+                  info={
+                    <Tip label="deal relevance" title="Deal relevance (triage)">
+                      <TriageExplain />
+                    </Tip>
+                  }
+                >
+                  Deal relevance
+                </Th>
+                <Th
+                  info={
+                    <Tip
+                      label="project flags"
+                      title="What raises each project flag"
+                    >
+                      <ProjectFlagsExplain />
+                    </Tip>
+                  }
+                >
+                  Observations
+                </Th>
               </tr>
             </thead>
             <tbody>
@@ -449,6 +634,23 @@ export function StrategyProjectsResults({
   );
 }
 
+/** A 0-100 score as a short bar and a number, coloured on the band scale. */
+function ScorePill({ value }: { value: number | null }) {
+  return (
+    <span className="inline-flex flex-none items-center gap-2">
+      <span className="h-1.5 w-12 overflow-hidden rounded-full bg-paper-3">
+        <span
+          className={`block h-full rounded-full ${scoreFill(value)}`}
+          style={{ width: `${value ?? 0}%` }}
+        />
+      </span>
+      <span className="w-7 text-right font-display text-[14px] font-semibold text-text tabular-nums">
+        {value ?? "—"}
+      </span>
+    </span>
+  );
+}
+
 const CHECK_CLASSES: Record<string, string> = {
   pass: "bg-status-received-tint text-status-received",
   partial: "bg-priority-high-tint text-priority-high",
@@ -468,10 +670,13 @@ export function DataTechResults({
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div>
-          <p className="mb-2 font-mono text-[10.5px] uppercase tracking-wide text-muted">
+          <p className="mb-2 flex items-center font-mono text-[10.5px] uppercase tracking-wide text-muted">
             Data domains
+            <Tip label="a data-domain score" title="Data-domain score">
+              <DomainScoreExplain />
+            </Tip>
           </p>
-          <ul className="divide-y divide-line rounded-2xl border border-line-strong">
+          <ul className="card divide-y divide-line">
             {payload.domains.length === 0 && (
               <li className="px-4 py-3 font-sans text-[13px] text-muted-2">
                 None inventoried.
@@ -495,18 +700,19 @@ export function DataTechResults({
                       .join(" · ")}
                   </p>
                 </div>
-                <span className="font-mono text-[14px] text-text">
-                  {d.score ?? "—"}
-                </span>
+                <ScorePill value={d.score} />
               </li>
             ))}
           </ul>
         </div>
         <div>
-          <p className="mb-2 font-mono text-[10.5px] uppercase tracking-wide text-muted">
+          <p className="mb-2 flex items-center font-mono text-[10.5px] uppercase tracking-wide text-muted">
             Infrastructure platforms
+            <Tip label="a platform score" title="Platform score">
+              <PlatformScoreExplain />
+            </Tip>
           </p>
-          <ul className="divide-y divide-line rounded-2xl border border-line-strong">
+          <ul className="card divide-y divide-line">
             {payload.platforms.length === 0 && (
               <li className="px-4 py-3 font-sans text-[13px] text-muted-2">
                 None inventoried.
@@ -536,9 +742,7 @@ export function DataTechResults({
                       .join(" · ")}
                   </p>
                 </div>
-                <span className="font-mono text-[14px] text-text">
-                  {p.score ?? "—"}
-                </span>
+                <ScorePill value={p.score} />
               </li>
             ))}
           </ul>
@@ -546,8 +750,11 @@ export function DataTechResults({
       </div>
 
       <div>
-        <p className="mb-2 font-mono text-[10.5px] uppercase tracking-wide text-muted">
+        <p className="mb-2 flex items-center font-mono text-[10.5px] uppercase tracking-wide text-muted">
           Estate checks
+          <Tip label="the estate checks" title="How the checks score">
+            <ChecksExplain />
+          </Tip>
         </p>
         <div className="grid gap-2 md:grid-cols-2">
           {payload.checks.map((c) => (

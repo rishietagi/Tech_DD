@@ -7,6 +7,11 @@ import { TextArea } from "@/components/ui/text-area";
 import { TextInput } from "@/components/ui/text-input";
 import { IMPACT_LABELS } from "@/types/estate";
 import type { Gap, GapEdit, Severity } from "@/types/estate";
+import {
+  ImpactExplain,
+  SeverityExplain,
+} from "@/components/engagement/explain";
+import { InfoTip } from "@/components/ui/info-tip";
 
 const SEVERITY_CLASSES: Record<Severity, string> = {
   High: "border-priority-critical bg-priority-critical-tint text-priority-critical",
@@ -18,6 +23,18 @@ const EDGE: Record<Severity, string> = {
   High: "border-l-priority-critical",
   Medium: "border-l-priority-high",
   Low: "border-l-priority-low",
+};
+
+const COUNT_EDGE: Record<Severity, string> = {
+  High: "border-t-priority-critical",
+  Medium: "border-t-priority-high",
+  Low: "border-t-priority-low",
+};
+
+const COUNT_TEXT: Record<Severity, string> = {
+  High: "text-priority-critical",
+  Medium: "text-priority-high",
+  Low: "text-priority-low",
 };
 
 export function SeverityBadge({ severity }: { severity: Severity }) {
@@ -137,7 +154,7 @@ function GapRow({
 
   return (
     <li
-      className={`rounded-2xl border border-line-strong border-l-4 bg-paper px-5 py-4 ${EDGE[gap.severity]}`}
+      className={`card border-l-4 px-5 py-4 transition-shadow hover:shadow-raised ${EDGE[gap.severity]}`}
     >
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div>
@@ -197,7 +214,7 @@ function GapRow({
           <p className="font-sans text-[13.5px] leading-[1.55] text-text">
             {gap.action}
           </p>
-          <div className="mt-3 flex flex-wrap gap-1.5">
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
             {gap.impact.map((lens) => (
               <span
                 key={lens}
@@ -206,6 +223,11 @@ function GapRow({
                 {IMPACT_LABELS[lens] ?? lens}
               </span>
             ))}
+            {gap.impact.length > 0 && (
+              <InfoTip label="the deal-impact lens" title="Deal-impact lens">
+                <ImpactExplain />
+              </InfoTip>
+            )}
           </div>
           <div className="mt-3 flex gap-3">
             {!editing && (
@@ -282,6 +304,16 @@ export function GapRegister({
 
   return (
     <section aria-label="Findings">
+      <p className="mb-2 flex items-center font-mono text-[10.5px] uppercase tracking-wide text-muted">
+        By severity — click to filter
+        <InfoTip label="severity" title="How severity is set">
+          <SeverityExplain />
+          <p>
+            A theme takes the highest severity of the observations behind it.
+            You can change it; the rules version is kept beside yours.
+          </p>
+        </InfoTip>
+      </p>
       <div className="mb-4 grid grid-cols-3 gap-3">
         {(["High", "Medium", "Low"] as Severity[]).map((s) => (
           <button
@@ -289,16 +321,16 @@ export function GapRegister({
             type="button"
             onClick={() => setSeverity(severity === s ? "all" : s)}
             aria-pressed={severity === s}
-            className={`rounded-xl border px-4 py-3 text-left transition-colors ${
-              severity === s
-                ? "border-ink bg-paper-2"
-                : "border-line-strong hover:bg-paper-2"
+            className={`card border-t-[3px] px-4 py-3 text-left transition-all hover:-translate-y-px hover:shadow-raised ${COUNT_EDGE[s]} ${
+              severity === s ? "ring-2 ring-kpmg-blue/30" : ""
             }`}
           >
-            <p className="font-mono text-[10px] uppercase tracking-wide text-muted">
+            <p className="font-sans text-[10.5px] font-semibold tracking-[0.06em] text-muted uppercase">
               {s} severity
             </p>
-            <p className="font-serif text-[26px] leading-tight text-ink">
+            <p
+              className={`font-display text-[28px] leading-tight font-semibold tabular-nums ${COUNT_TEXT[s]}`}
+            >
               {counts[s]}
             </p>
           </button>

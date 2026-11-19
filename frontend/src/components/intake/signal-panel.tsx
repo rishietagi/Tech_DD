@@ -38,7 +38,9 @@ export function SignalPanel({ engagementId }: { engagementId: string }) {
   if (isLoading) {
     return (
       <aside className="rounded-2xl border border-line bg-paper-2 p-5">
-        <h3 className="mb-2 font-sans text-[13px] font-semibold text-text">Enterprise / Product signal</h3>
+        <h3 className="mb-2 font-sans text-[13px] font-semibold text-text">
+          Enterprise / Product signal
+        </h3>
         <p className="font-sans text-[13px] text-muted">Reading the intake…</p>
       </aside>
     );
@@ -47,24 +49,35 @@ export function SignalPanel({ engagementId }: { engagementId: string }) {
   if (isError || !data) {
     return (
       <aside className="rounded-2xl border border-line bg-paper-2 p-5">
-        <h3 className="mb-2 font-sans text-[13px] font-semibold text-text">Enterprise / Product signal</h3>
+        <h3 className="mb-2 font-sans text-[13px] font-semibold text-text">
+          Enterprise / Product signal
+        </h3>
         <p className="font-sans text-[13px] text-muted">
-          The signal preview is unavailable right now. It does not affect your answers.
+          The signal preview is unavailable right now. It does not affect your
+          answers.
         </p>
       </aside>
     );
   }
 
   const { classification, row_count } = data;
-  const fired = classification.signals.filter((s) => s.effect !== "unknown" && s.detail?.mix_delta);
+  const fired = classification.signals.filter(
+    (s) => s.effect !== "unknown" && s.detail?.mix_delta,
+  );
   const topSignals = [...fired]
-    .sort((a, b) => Math.abs(Number(b.detail.mix_delta)) - Math.abs(Number(a.detail.mix_delta)))
+    .sort(
+      (a, b) =>
+        Math.abs(Number(b.detail.mix_delta)) -
+        Math.abs(Number(a.detail.mix_delta)),
+    )
     .slice(0, 3);
 
   return (
     <aside className="rounded-2xl border border-line bg-paper-2 p-5">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h3 className="font-sans text-[13px] font-semibold text-text">Enterprise / Product signal</h3>
+        <h3 className="font-sans text-[13px] font-semibold text-text">
+          Enterprise / Product signal
+        </h3>
         <Badge tone={CONFIDENCE_TONE[classification.confidence] ?? "neutral"}>
           {classification.confidence}
         </Badge>
@@ -91,7 +104,10 @@ export function SignalPanel({ engagementId }: { engagementId: string }) {
       {classification.override_applied && (
         <p className="mb-3 font-sans text-[12.5px] text-muted">
           You declared this engagement. The engine reads the answers as{" "}
-          <strong className="text-text">{DECK_LABEL[classification.computed_dd_type]}</strong>.
+          <strong className="text-text">
+            {DECK_LABEL[classification.computed_dd_type]}
+          </strong>
+          .
         </p>
       )}
 
@@ -104,8 +120,13 @@ export function SignalPanel({ engagementId }: { engagementId: string }) {
             {topSignals.map((signal) => {
               const delta = Number(signal.detail.mix_delta);
               return (
-                <li key={signal.code} className="font-sans text-[12.5px] text-text">
-                  <span className="mr-1.5 font-medium text-kpmg-blue">{signal.code}</span>
+                <li
+                  key={signal.code}
+                  className="font-sans text-[12.5px] text-text"
+                >
+                  <span className="mr-1.5 font-medium text-kpmg-blue">
+                    {signal.code}
+                  </span>
                   {signal.label}
                   <span className="ml-1.5 text-muted-2">
                     ({delta > 0 ? "+" : ""}
@@ -118,7 +139,8 @@ export function SignalPanel({ engagementId }: { engagementId: string }) {
         </>
       ) : (
         <p className="mb-3 font-sans text-[12.5px] text-muted">
-          No archetype signals yet. Answer the technology and target steps to see the leaning form.
+          No archetype signals yet. Answer the technology and target steps to
+          see the leaning form.
         </p>
       )}
 

@@ -25,6 +25,11 @@ import type {
   RiskLevel,
 } from "@/types/report";
 import { RISK_LEVELS } from "@/types/report";
+import {
+  InvestmentExplain,
+  ReportRiskExplain,
+} from "@/components/engagement/explain";
+import { InfoTip } from "@/components/ui/info-tip";
 
 /**
  * The final report — the deliverable. docs/reference/REPORT_STRUCTURE.md.
@@ -493,8 +498,11 @@ function FindingView({
         </EditableList>
       </div>
       <div>
-        <p className="mb-1 font-mono text-[10px] tracking-wide text-muted uppercase">
+        <p className="mb-1 flex items-center font-mono text-[10px] tracking-wide text-muted uppercase">
           Investment impact
+          <InfoTip label="investment impact" title="Why investment is XXX">
+            <InvestmentExplain />
+          </InfoTip>
         </p>
         <EditableText
           value={finding.investment}
@@ -532,9 +540,7 @@ function ExecutiveRowView({
 }) {
   const key = (field: string) => `exec.${row.area_id}.${field}`;
   return (
-    <li
-      className={`rounded-xl border border-line-strong p-5 ${row.include ? "" : "bg-paper-2 opacity-60"}`}
-    >
+    <li className={`card p-5 ${row.include ? "" : "bg-paper-2 opacity-60"}`}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="font-mono text-[12px] text-muted-2">
@@ -552,10 +558,16 @@ function ExecutiveRowView({
               {row.title}
             </h3>
           </EditableText>
-          <span
-            aria-label={`Area risk ${row.risk}`}
-            className={`h-2.5 w-7 rounded-sm ${RISK_CLASSES[row.risk]}`}
-          />
+          <span className="inline-flex items-center gap-1.5 font-sans text-[11px] text-muted">
+            <span
+              aria-label={`Area risk ${row.risk}`}
+              className={`h-2.5 w-7 rounded-sm ${RISK_CLASSES[row.risk]}`}
+            />
+            {row.risk}
+            <InfoTip label="the area risk" title="How risk is set">
+              <ReportRiskExplain />
+            </InfoTip>
+          </span>
         </div>
         <IncludeToggle
           included={row.include}

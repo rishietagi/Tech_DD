@@ -26,7 +26,10 @@ import { useAutosize } from "@/lib/use-autosize";
  *  a consultant reading the column would not trust either label. The stored values are
  *  identical — only the wording changes — so the checklist, the summary counts and the
  *  scanner all keep working off one set of states. */
-const STATUS_OPTIONS: Record<RequestKind, { value: IrlTracking["status"]; label: string }[]> = {
+const STATUS_OPTIONS: Record<
+  RequestKind,
+  { value: IrlTracking["status"]; label: string }[]
+> = {
   document: [
     { value: "not_received", label: "Not yet received" },
     { value: "received_partially", label: "Received partially" },
@@ -41,8 +44,10 @@ const STATUS_OPTIONS: Record<RequestKind, { value: IrlTracking["status"]; label:
 
 const STATUS_CLASSES: Record<IrlTracking["status"], string> = {
   not_received: "border-status-missing text-status-missing bg-paper",
-  received_partially: "border-status-partial text-status-partial bg-status-partial-tint",
-  received_completely: "border-status-received text-status-received bg-status-received-tint",
+  received_partially:
+    "border-status-partial text-status-partial bg-status-partial-tint",
+  received_completely:
+    "border-status-received text-status-received bg-status-received-tint",
 };
 
 /** Remarks autosave on a debounce, the same way responses already do. */
@@ -68,7 +73,10 @@ export function IrlTrackingCell({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Last value we know the server holds, so a re-render from the whole-list response
   // cannot overwrite what is being typed.
-  const committed = useRef({ remarks: tracking.remarks, docType: tracking.document_type });
+  const committed = useRef({
+    remarks: tracking.remarks,
+    docType: tracking.document_type,
+  });
 
   useEffect(() => {
     if (tracking.remarks !== committed.current.remarks) {
@@ -81,16 +89,26 @@ export function IrlTrackingCell({
     }
   }, [tracking.remarks, tracking.document_type]);
 
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
 
-  const debouncedSave = (patch: { document_type?: string; remarks?: string }) => {
+  const debouncedSave = (patch: {
+    document_type?: string;
+    remarks?: string;
+  }) => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
       setSaving(true);
       try {
         await onSave(patch);
-        if (patch.remarks !== undefined) committed.current.remarks = patch.remarks;
-        if (patch.document_type !== undefined) committed.current.docType = patch.document_type;
+        if (patch.remarks !== undefined)
+          committed.current.remarks = patch.remarks;
+        if (patch.document_type !== undefined)
+          committed.current.docType = patch.document_type;
       } finally {
         setSaving(false);
       }
@@ -117,17 +135,17 @@ export function IrlTrackingCell({
       {/* A question has no artefact to classify, so the type field would only ever be
           filled in by mistake. */}
       {kind === "document" && (
-      <input
-        type="text"
-        value={docType}
-        placeholder="Document type"
-        aria-label="Document type"
-        onChange={(event) => {
-          setDocType(event.target.value);
-          debouncedSave({ document_type: event.target.value });
-        }}
-        className="w-full rounded-lg border border-line-strong bg-paper-2 px-2.5 py-1.5 font-sans text-[12.5px] text-text focus:border-steel focus:bg-paper focus:outline-none"
-      />
+        <input
+          type="text"
+          value={docType}
+          placeholder="Document type"
+          aria-label="Document type"
+          onChange={(event) => {
+            setDocType(event.target.value);
+            debouncedSave({ document_type: event.target.value });
+          }}
+          className="w-full rounded-lg border border-line-strong bg-paper-2 px-2.5 py-1.5 font-sans text-[12.5px] text-text focus:border-steel focus:bg-paper focus:outline-none"
+        />
       )}
 
       <TextArea
@@ -153,7 +171,10 @@ export function IrlTrackingCell({
       />
 
       {saving && (
-        <span role="status" className="font-mono text-[10px] uppercase text-muted-2">
+        <span
+          role="status"
+          className="font-mono text-[10px] uppercase text-muted-2"
+        >
           Saving…
         </span>
       )}

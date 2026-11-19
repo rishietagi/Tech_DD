@@ -10,7 +10,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { engagementsApi } from "@/lib/api/engagements";
 
 export function EngagementDetail({ engagementId }: { engagementId: string }) {
-  const { data: engagement, isLoading, isError, refetch } = useQuery({
+  const {
+    data: engagement,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["engagement", engagementId],
     queryFn: () => engagementsApi.get(engagementId),
   });
@@ -50,7 +55,9 @@ export function EngagementDetail({ engagementId }: { engagementId: string }) {
           <div className="mb-1 font-sans text-xs font-semibold tracking-[0.08em] text-kpmg-blue uppercase">
             {engagement.denorm?.company_name ?? "Target not yet named"}
           </div>
-          <h1 className="font-display font-semibold text-3xl">{engagement.deal_name}</h1>
+          <h1 className="font-display font-semibold text-3xl">
+            {engagement.deal_name}
+          </h1>
           <div className="mt-2 flex items-center gap-3">
             <EngagementStatusBadge status={engagement.status} />
             <span className="font-sans text-xs text-muted-2">
@@ -77,7 +84,7 @@ export function EngagementDetail({ engagementId }: { engagementId: string }) {
             href={`/engagements/${engagementId}/irl`}
             className="rounded-full border border-line-strong px-5 py-3 font-sans text-[13px] font-medium transition-colors hover:bg-paper-2"
           >
-            Request list
+            Information requests
           </Link>
         </div>
       </div>

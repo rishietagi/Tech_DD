@@ -57,6 +57,8 @@ describe("CoverSheet", () => {
       },
     };
     render(<CoverSheet engagementId="abc-123" intake={intake} />);
-    expect(screen.getByText("Cost takeout, Margin expansion")).toBeInTheDocument();
+    expect(
+      screen.getByText("Cost takeout, Margin expansion"),
+    ).toBeInTheDocument();
   });
 });

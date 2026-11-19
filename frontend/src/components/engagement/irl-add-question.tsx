@@ -20,7 +20,11 @@ export function IrlAddQuestion({
 }: {
   scopeAreas: string[];
   functions: string[];
-  onAdd: (body: { question: string; function: string; scope_area?: string }) => Promise<void>;
+  onAdd: (body: {
+    question: string;
+    function: string;
+    scope_area?: string;
+  }) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [question, setQuestion] = useState("");

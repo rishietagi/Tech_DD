@@ -4,11 +4,18 @@ interface StepFooterProps {
   nextLabel?: string;
 }
 
-export function StepFooter({ backHref, isSubmitting, nextLabel = "Save & continue" }: StepFooterProps) {
+export function StepFooter({
+  backHref,
+  isSubmitting,
+  nextLabel = "Save & continue",
+}: StepFooterProps) {
   return (
     <div className="mt-8 flex items-center justify-between border-t border-line pt-6">
       {backHref ? (
-        <a href={backHref} className="font-sans text-[14px] font-medium text-muted transition-colors hover:text-text">
+        <a
+          href={backHref}
+          className="font-sans text-[14px] font-medium text-muted transition-colors hover:text-text"
+        >
           ← Back
         </a>
       ) : (

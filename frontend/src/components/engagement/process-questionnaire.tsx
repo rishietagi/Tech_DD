@@ -2,8 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import {
+  StepScoreExplain,
+  StepWeightExplain,
+} from "@/components/engagement/explain";
+import { InfoTip } from "@/components/ui/info-tip";
 import { TextArea } from "@/components/ui/text-area";
-import type { AssessmentRead, Nudge, ProcessStep, Question } from "@/types/assess";
+import type {
+  AssessmentRead,
+  Nudge,
+  ProcessStep,
+  Question,
+} from "@/types/assess";
 import { nudgeApplies } from "@/types/assess";
 
 /**
@@ -18,7 +28,11 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 function SaveIndicator({ state }: { state: SaveState }) {
   if (state === "idle") return null;
   const text =
-    state === "saving" ? "Saving…" : state === "saved" ? "Saved" : "Not saved — retry";
+    state === "saving"
+      ? "Saving…"
+      : state === "saved"
+        ? "Saved"
+        : "Not saved — retry";
   return (
     <span
       role="status"
@@ -41,7 +55,10 @@ function TextAnswer({
   questionId: string;
   value: string;
   placeholder: string;
-  onSave: (questionId: string, patch: { value?: string; remarks?: string }) => Promise<void>;
+  onSave: (
+    questionId: string,
+    patch: { value?: string; remarks?: string },
+  ) => Promise<void>;
 }) {
   const [draft, setDraft] = useState(value);
   const [state, setState] = useState<SaveState>("idle");
@@ -57,7 +74,12 @@ function TextAnswer({
     }
   }, [value]);
 
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
 
   const handleChange = (next: string) => {
     setDraft(next);
@@ -90,7 +112,6 @@ function TextAnswer({
   );
 }
 
-
 /**
  * The consultant's note on the option they just picked.
  *
@@ -107,7 +128,10 @@ export function RemarksBox({
 }: {
   questionId: string;
   value: string;
-  onSave: (questionId: string, patch: { value?: string; remarks?: string }) => Promise<void>;
+  onSave: (
+    questionId: string,
+    patch: { value?: string; remarks?: string },
+  ) => Promise<void>;
 }) {
   const [draft, setDraft] = useState(value);
   const [state, setState] = useState<SaveState>("idle");
@@ -121,7 +145,12 @@ export function RemarksBox({
     }
   }, [value]);
 
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
 
   const handleChange = (next: string) => {
     setDraft(next);
@@ -172,14 +201,19 @@ function NudgeBlock({
 }: {
   nudge: Nudge;
   value: string;
-  onSave: (questionId: string, patch: { value?: string; remarks?: string }) => Promise<void>;
+  onSave: (
+    questionId: string,
+    patch: { value?: string; remarks?: string },
+  ) => Promise<void>;
 }) {
   return (
     <div className="mt-3 border-l-2 border-steel pl-4">
       <p className="mb-1 font-mono text-[10px] uppercase tracking-wide text-steel">
         Follow up
       </p>
-      <p className="mb-2 font-sans text-[14px] leading-relaxed text-text">{nudge.ask}</p>
+      <p className="mb-2 font-sans text-[14px] leading-relaxed text-text">
+        {nudge.ask}
+      </p>
       <TextAnswer
         questionId={nudge.id}
         value={value}
@@ -199,7 +233,10 @@ function QuestionBlock({
   question: Question;
   answers: Record<string, string>;
   remarks: Record<string, string>;
-  onSave: (questionId: string, patch: { value?: string; remarks?: string }) => Promise<void>;
+  onSave: (
+    questionId: string,
+    patch: { value?: string; remarks?: string },
+  ) => Promise<void>;
 }) {
   const answer = answers[question.id] ?? "";
   const [selectState, setSelectState] = useState<SaveState>("idle");
@@ -217,23 +254,33 @@ function QuestionBlock({
     }
   };
 
-  const visibleNudges = question.nudges.filter((nudge) => nudgeApplies(nudge, answer));
+  const visibleNudges = question.nudges.filter((nudge) =>
+    nudgeApplies(nudge, answer),
+  );
 
   return (
     <div className="border-t border-line py-5 first:border-t-0">
       <div className="mb-3 flex items-baseline gap-3">
-        <span className="font-mono text-[11px] text-muted-2">{question.id}</span>
+        <span className="font-mono text-[11px] text-muted-2">
+          {question.id}
+        </span>
         {question.is_custom && (
           <span className="rounded-full border border-line-strong px-2 py-0.5 font-mono text-[10px] uppercase text-muted">
             Added
           </span>
         )}
       </div>
-      <p className="mb-3 font-sans text-[15px] leading-relaxed text-text">{question.text}</p>
+      <p className="mb-3 font-sans text-[15px] leading-relaxed text-text">
+        {question.text}
+      </p>
 
       {question.type === "single_select" ? (
         <>
-          <div role="radiogroup" aria-label={question.text} className="flex flex-col gap-1.5">
+          <div
+            role="radiogroup"
+            aria-label={question.text}
+            className="flex flex-col gap-1.5"
+          >
             {question.options.map((option) => {
               const selected = answer === option.label;
               return (
@@ -344,8 +391,8 @@ function AddQuestion({
         onChange={(event) => setText(event.target.value)}
       />
       <p className="mt-2 font-sans text-[12px] text-muted">
-        Added questions capture evidence but do not score — they have no place on the
-        maturity ladder.
+        Added questions capture evidence but do not score — they have no place
+        on the maturity ladder.
       </p>
       <div className="mt-3 flex gap-2">
         <button
@@ -358,7 +405,10 @@ function AddQuestion({
         </button>
         <button
           type="button"
-          onClick={() => { setOpen(false); setText(""); }}
+          onClick={() => {
+            setOpen(false);
+            setText("");
+          }}
           className="rounded-full border border-line-strong px-4 py-2 font-sans text-[13px] text-muted"
         >
           Cancel
@@ -378,10 +428,15 @@ function StepBlock({
   step: ProcessStep;
   answers: Record<string, string>;
   remarks: Record<string, string>;
-  onSave: (questionId: string, patch: { value?: string; remarks?: string }) => Promise<void>;
+  onSave: (
+    questionId: string,
+    patch: { value?: string; remarks?: string },
+  ) => Promise<void>;
   onAdd: (stepKey: string, text: string) => Promise<void>;
 }) {
-  const answered = step.questions.filter((q) => (answers[q.id] ?? "").trim()).length;
+  const answered = step.questions.filter((q) =>
+    (answers[q.id] ?? "").trim(),
+  ).length;
 
   return (
     <section className="mb-10 rounded-2xl border border-line-strong bg-paper p-6">
@@ -393,8 +448,12 @@ function StepBlock({
             </span>
             {step.title}
           </h2>
-          <span className="font-mono text-[11px] uppercase text-muted-2">
+          <span className="inline-flex items-center font-mono text-[11px] uppercase text-muted-2">
             {step.weight}% weight · {answered}/{step.questions.length} answered
+            <InfoTip label="a step weight" title="Step weight">
+              <StepWeightExplain />
+              <StepScoreExplain />
+            </InfoTip>
           </span>
         </div>
         <p className="max-w-[72ch] font-sans text-[14px] leading-relaxed text-muted">
@@ -423,7 +482,10 @@ export function ProcessQuestionnaire({
   onAdd,
 }: {
   assessment: AssessmentRead;
-  onSave: (questionId: string, patch: { value?: string; remarks?: string }) => Promise<void>;
+  onSave: (
+    questionId: string,
+    patch: { value?: string; remarks?: string },
+  ) => Promise<void>;
   onAdd: (stepKey: string, text: string) => Promise<void>;
 }) {
   const answers: Record<string, string> = Object.fromEntries(

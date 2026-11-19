@@ -287,6 +287,23 @@ validated at startup. Put content there, not in code.
 
 ## 8. Design language (carry over from the mockup — do not invent a new one)
 
+> **Superseded in part (Rishi, 2026-11-18/19).** The app now wears the **KPMG theme**: KPMG
+> blue `#00338D` sidebar and primary actions, light blue `#0091DA` for information, white
+> paper — tokens in `frontend/src/styles/tokens.css`. Type is a **Helvetica-style
+> neo-grotesque**: **Inter** for text and **Inter Tight** for headings, loaded with
+> `next/font/google` (Helvetica itself is licensed and Windows swaps it for Arial).
+> `font-serif`/`font-display` both map to the heading face, `font-mono` to Inter with
+> tabular figures, and `font-code` (Plex Mono) is the only true monospace. Screens ease in
+> (`app/template.tsx`), route segments show `PageLoader` (`loading.tsx`), sidebar links show
+> a top progress bar while pending, and placeholders shimmer. The palette and fonts below are
+> history; the motifs (section numbers, progress rail, status stamp, cover sheet) still apply.
+>
+> **Explainability is a design rule** (Rishi, 2026-11-19): every computed number carries an ⓘ
+> (`InfoTip`) or a "How … is scored" disclosure (`HowItWorks`) stating its rule and formula.
+> All the text lives in `components/engagement/explain.tsx`, written from the backend code —
+> change it when a scoring rule changes. Editors and confirmations open as a centred `Modal`,
+> never a side drawer. Scores share one band-keyed colour scale (`ui/score-ring.tsx`).
+
 Editorial / legal-document aesthetic: paper ground, ink text, a single red accent
 used as a "redline", a steel blue for informational and focus states. Serif for
 display headings, sans for UI, mono for labels, section numbers and metadata.

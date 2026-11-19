@@ -13,6 +13,18 @@ import { assessApi } from "@/lib/api/assess";
 import { estateApi } from "@/lib/api/estate";
 import type { ProcessSummary } from "@/types/assess";
 import type { EstateSummaryEntry } from "@/types/estate";
+import {
+  ApplicationsIndexExplain,
+  DataTechIndexExplain,
+  ProcessIndexExplain,
+  ReconciliationExplain,
+  SeverityExplain,
+  StrategyIndexExplain,
+  TeamIndexExplain,
+  ThemesExplain,
+} from "@/components/engagement/explain";
+import { HowItWorks } from "@/components/ui/info-tip";
+import { scoreBefore } from "@/components/ui/score-ring";
 
 type Tab =
   | "business"
@@ -61,6 +73,78 @@ const TABS: { key: Tab; label: string; blurb: string }[] = [
   },
 ];
 
+/** How each tab turns answers into a score and findings — one click under the blurb. */
+function HowScored({ tab }: { tab: Tab }) {
+  const findings = (
+    <>
+      <p className="pt-1 font-semibold text-text">Findings</p>
+      <ThemesExplain />
+      <SeverityExplain />
+    </>
+  );
+  switch (tab) {
+    case "business":
+      return (
+        <HowItWorks
+          className="mt-5 max-w-[80ch]"
+          title="How the automation index is calculated"
+        >
+          <ProcessIndexExplain />
+          <p>
+            A process scored Manual or Emerging becomes a finding in the report:
+            Manual is High, Emerging is Medium.
+          </p>
+        </HowItWorks>
+      );
+    case "applications":
+      return (
+        <HowItWorks
+          className="mt-5 max-w-[80ch]"
+          title="How applications are scored"
+        >
+          <ApplicationsIndexExplain />
+          {findings}
+        </HowItWorks>
+      );
+    case "data_tech":
+      return (
+        <HowItWorks
+          className="mt-5 max-w-[80ch]"
+          title="How data & infrastructure is scored"
+        >
+          <DataTechIndexExplain />
+          {findings}
+        </HowItWorks>
+      );
+    case "team_governance":
+      return (
+        <HowItWorks
+          className="mt-5 max-w-[80ch]"
+          title="How team & governance is scored"
+        >
+          <TeamIndexExplain />
+          {findings}
+        </HowItWorks>
+      );
+    case "strategy_projects":
+      return (
+        <HowItWorks
+          className="mt-5 max-w-[80ch]"
+          title="How strategy & projects is scored"
+        >
+          <StrategyIndexExplain />
+          <p className="pt-1 font-semibold text-text">
+            Roadmap against the budget
+          </p>
+          <ReconciliationExplain />
+          {findings}
+        </HowItWorks>
+      );
+    default:
+      return null;
+  }
+}
+
 const ESTATE_TABS = new Set<Tab>([
   "applications",
   "data_tech",
@@ -71,9 +155,19 @@ const ESTATE_TABS = new Set<Tab>([
 function TabMeta({ entry }: { entry: EstateSummaryEntry | undefined }) {
   if (!entry) return null;
   if (entry.has_score && entry.index !== null) {
+    // Compact so all six tabs fit one row: the index, then the finding count as a pill.
     return (
-      <span className="ml-2 font-mono text-[11px] opacity-70">
-        {entry.index.toFixed(0)} · {entry.gap_count} findings
+      <span
+        className="ml-2 inline-flex items-center gap-1.5 font-mono text-[11px]"
+        title={`Index ${entry.index.toFixed(0)}/100 · ${entry.gap_count} findings`}
+      >
+        <span className="opacity-70">{entry.index.toFixed(0)}</span>
+        <span
+          aria-label={`${entry.gap_count} findings`}
+          className="rounded-full bg-current/15 px-1.5 py-px text-[10px] font-semibold"
+        >
+          {entry.gap_count}
+        </span>
       </span>
     );
   }
@@ -118,7 +212,11 @@ function ProcessCard({
   return (
     <Link
       href={`/engagements/${engagementId}/assess/${process.key}`}
-      className="block rounded-2xl border border-line-strong bg-paper p-6 transition-colors hover:border-ink focus:outline-none focus-visible:border-steel"
+      className={`card relative block overflow-hidden p-6 transition-all before:absolute before:inset-x-0 before:top-0 before:h-[3px] hover:-translate-y-0.5 hover:shadow-raised focus:outline-none focus-visible:ring-2 focus-visible:ring-kpmg-blue-light ${
+        process.has_score && process.index !== null
+          ? scoreBefore(process.index)
+          : "before:bg-paper-3"
+      }`}
     >
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-3">
         <div className="flex items-baseline gap-3">
@@ -151,7 +249,7 @@ function ProcessCard({
           aria-label={`${process.name} questionnaire progress`}
         >
           <div
-            className="h-full rounded-full bg-ink"
+            className="h-full rounded-full bg-gradient-to-r from-kpmg-blue to-kpmg-blue-light"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -217,7 +315,7 @@ export function AssessIndexPage({ engagementId }: { engagementId: string }) {
   return (
     <main className="mx-auto w-full max-w-[1600px] px-7 pt-12 pb-24">
       <header className="mb-7 border-b border-line-strong pb-7">
-        <p className="mb-2 font-mono text-[11px] uppercase tracking-wide text-muted">
+        <p className="mb-2 font-sans text-[11px] font-semibold tracking-[0.12em] text-kpmg-blue-light uppercase">
           Assess
         </p>
         <h1 className="mb-3 font-serif text-[34px] leading-tight text-ink">
@@ -226,12 +324,13 @@ export function AssessIndexPage({ engagementId }: { engagementId: string }) {
         <p className="max-w-[80ch] font-sans text-[15px] leading-relaxed text-muted">
           {TABS.find((t) => t.key === tab)?.blurb}
         </p>
+        <HowScored key={tab} tab={tab} />
       </header>
 
       <div
         role="tablist"
         aria-label="Assessments"
-        className="mb-8 flex flex-wrap gap-1 rounded-full border border-line-strong bg-paper-2 p-1"
+        className="mb-8 flex gap-1 overflow-x-auto rounded-full border border-line-strong bg-paper-2 p-1 [scrollbar-width:none]"
       >
         {TABS.map((t) => (
           <button
@@ -240,7 +339,7 @@ export function AssessIndexPage({ engagementId }: { engagementId: string }) {
             role="tab"
             aria-selected={tab === t.key}
             onClick={() => setTab(t.key)}
-            className={`rounded-full px-4 py-2 font-sans text-[13px] font-medium transition-colors ${
+            className={`flex-none rounded-full px-4 py-2 font-sans text-[13px] font-medium whitespace-nowrap transition-colors ${
               tab === t.key
                 ? "bg-ink text-paper-on-ink"
                 : "text-muted hover:text-text"

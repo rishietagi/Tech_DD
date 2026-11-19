@@ -19,14 +19,25 @@ function stampStateFor(status: string, visitedCount: number): StampState {
   return "draft";
 }
 
-export function IntakeShell({ engagementId, children }: { engagementId: string; children: React.ReactNode }) {
+export function IntakeShell({
+  engagementId,
+  children,
+}: {
+  engagementId: string;
+  children: React.ReactNode;
+}) {
   const setEngagement = useIntakeStore((s) => s.setEngagement);
   const visitedSteps = useIntakeStore((s) => s.visitedSteps);
   const saveStatus = useIntakeStore((s) => s.saveStatus);
   const lastSavedAt = useIntakeStore((s) => s.lastSavedAt);
   const storeEngagementId = useIntakeStore((s) => s.engagementId);
 
-  const { data: engagement, isLoading, isError, refetch } = useQuery({
+  const {
+    data: engagement,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ["engagement", engagementId],
     queryFn: () => engagementsApi.get(engagementId),
   });
@@ -71,16 +82,23 @@ export function IntakeShell({ engagementId, children }: { engagementId: string; 
     <div>
       <section className="mx-auto w-full max-w-[1600px] px-8 pt-10 pb-6">
         <div className="mb-3 flex items-start justify-between gap-4">
-          <div className="font-sans text-xs font-semibold tracking-[0.08em] text-kpmg-blue uppercase">{engagement.deal_name}</div>
+          <div className="font-sans text-xs font-semibold tracking-[0.08em] text-kpmg-blue uppercase">
+            {engagement.deal_name}
+          </div>
           <Stamp state={stampStateFor(engagement.status, visitedSteps.size)} />
         </div>
         <div className="flex items-center justify-between gap-4">
-          <FieldCounter filled={visitedSteps.size} total={INTAKE_STEPS.length} />
+          <FieldCounter
+            filled={visitedSteps.size}
+            total={INTAKE_STEPS.length}
+          />
           <AutosaveIndicator status={saveStatus} lastSavedAt={lastSavedAt} />
         </div>
       </section>
 
-      <main className="mx-auto w-full max-w-[1600px] px-8 pb-24">{children}</main>
+      <main className="mx-auto w-full max-w-[1600px] px-8 pb-24">
+        {children}
+      </main>
     </div>
   );
 }

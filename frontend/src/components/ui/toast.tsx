@@ -17,23 +17,31 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [messages, setMessages] = useState<ToastMessage[]>([]);
 
-  const show = useCallback((text: string, tone: "neutral" | "error" = "neutral") => {
-    const id = Date.now();
-    setMessages((prev) => [...prev, { id, text, tone }]);
-    setTimeout(() => {
-      setMessages((prev) => prev.filter((m) => m.id !== id));
-    }, 3500);
-  }, []);
+  const show = useCallback(
+    (text: string, tone: "neutral" | "error" = "neutral") => {
+      const id = Date.now();
+      setMessages((prev) => [...prev, { id, text, tone }]);
+      setTimeout(() => {
+        setMessages((prev) => prev.filter((m) => m.id !== id));
+      }, 3500);
+    },
+    [],
+  );
 
   return (
     <ToastContext.Provider value={{ show }}>
       {children}
-      <div aria-live="polite" className="fixed right-5 bottom-5 z-50 flex flex-col gap-2">
+      <div
+        aria-live="polite"
+        className="fixed right-5 bottom-5 z-50 flex flex-col gap-2"
+      >
         {messages.map((m) => (
           <div
             key={m.id}
             className={`rounded-xl border px-4 py-2.5 font-sans text-[13px] font-medium shadow-md ${
-              m.tone === "error" ? "border-redline bg-paper text-redline" : "border-line-strong bg-ink text-paper"
+              m.tone === "error"
+                ? "border-redline bg-paper text-redline"
+                : "border-line-strong bg-ink text-paper"
             }`}
           >
             {m.text}

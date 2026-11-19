@@ -27,6 +27,8 @@ import type {
   EstateSubject,
   GapEdit,
 } from "@/types/estate";
+import { ThemesExplain } from "@/components/engagement/explain";
+import { InfoTip } from "@/components/ui/info-tip";
 
 const GROUP_LABELS: Record<string, string> = {
   criticality: "Criticality",
@@ -351,7 +353,11 @@ export function EstateAssessment({
     );
   }
 
-  const hasItems = data.subjects.some((s) => s.kind !== "estate");
+  // Team & governance has no per-item subjects (roles are facts, not things to assess),
+  // so it is never "empty" — its questionnaire is the assessment.
+  const hasItems =
+    domain === "team_governance" ||
+    data.subjects.some((s) => s.kind !== "estate");
   const subject = data.subjects.find((s) => s.id === selected) ?? null;
   const questions: EstateQuestion[] = subject
     ? (data.questions[subject.kind] ?? [])
@@ -542,7 +548,12 @@ export function EstateAssessment({
               {scoreRead.payload.domain === "strategy_projects" && (
                 <StrategyProjectsResults payload={scoreRead.payload} />
               )}
-              <h3 className="mb-1 font-serif text-[24px] text-ink">Findings</h3>
+              <h3 className="mb-1 flex items-center font-serif text-[24px] text-ink">
+                Findings
+                <InfoTip label="findings" title="Observations and themes">
+                  <ThemesExplain />
+                </InfoTip>
+              </h3>
               <p className="mb-4 max-w-3xl font-sans text-[13px] text-muted">
                 Each finding is a theme the deal team acts on — what it means
                 for the value of the deal, and what the target should do. The

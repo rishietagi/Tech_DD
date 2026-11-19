@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { LinkPending } from "@/components/ui/loading";
 import { INTAKE_STEPS, INTAKE_STEP_LABELS } from "@/types/intake";
 
 /** The engagement currently being worked on, from either the intake wizard or one of
@@ -18,7 +19,7 @@ function useActiveEngagementId(): string | null {
 
 function NavSectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mt-7 mb-2 px-4 font-sans text-[11px] font-semibold tracking-[0.06em] text-paper-on-ink/55 uppercase first:mt-0">
+    <div className="mt-6 mb-1.5 px-4 font-sans text-[11px] font-semibold tracking-[0.06em] text-paper-on-ink/55 uppercase first:mt-0">
       {children}
     </div>
   );
@@ -37,13 +38,14 @@ function NavLink({
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`block rounded-xl px-4 py-2 font-sans text-[13.5px] transition-colors ${
+      className={`relative block rounded-lg px-4 py-[7px] font-sans text-[13.5px] transition-all duration-150 ${
         active
-          ? "bg-white/12 font-medium text-white"
-          : "text-paper-on-ink/75 hover:bg-white/8 hover:text-paper-on-ink"
+          ? "bg-white/14 font-semibold text-white before:absolute before:top-1.5 before:bottom-1.5 before:left-0 before:w-[3px] before:rounded-full before:bg-kpmg-blue-light"
+          : "text-paper-on-ink/72 hover:translate-x-0.5 hover:bg-white/8 hover:text-paper-on-ink"
       }`}
     >
       {children}
+      <LinkPending />
     </Link>
   );
 }
@@ -67,7 +69,10 @@ export function SidebarNav() {
         />
       </Link>
 
-      <nav aria-label="Primary" className="flex-1 overflow-y-auto px-2 pb-6">
+      <nav
+        aria-label="Primary"
+        className="min-h-0 flex-1 overflow-y-auto px-2 pb-6"
+      >
         <NavSectionLabel>Generate Scope of Work</NavSectionLabel>
         <div className="space-y-0.5">
           <NavLink href="/intake/new" active={pathname === "/intake/new"}>

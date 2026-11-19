@@ -55,9 +55,9 @@ export function ReminderPanel({
       {open && (
         <div className="border-t border-line-strong px-5 py-4">
           <p className="mb-4 max-w-[72ch] font-sans text-[13px] leading-[1.55] text-muted">
-            Once connected, this sends the outstanding items to the consultant on the
-            engagement as a scheduled nudge. The preview below is built from the live
-            request list.
+            Once connected, this sends the outstanding items to the consultant
+            on the engagement as a scheduled nudge. The preview below is built
+            from the live request list.
           </p>
 
           <div className="mb-4 flex flex-wrap items-end gap-3">
@@ -89,13 +89,14 @@ export function ReminderPanel({
             </p>
             <p className="font-sans text-[13px] leading-[1.6] text-text">
               <span className="font-semibold">
-                {companyName ?? "The target"} — {outstanding} outstanding request
+                {companyName ?? "The target"} — {outstanding} outstanding
+                request
                 {outstanding === 1 ? "" : "s"}
               </span>
               <br />
-              {progress.outstandingCritical} critical and {progress.outstandingHigh} high
-              priority still to arrive. {progress.receivedCompletely} of {progress.total}{" "}
-              received in full
+              {progress.outstandingCritical} critical and{" "}
+              {progress.outstandingHigh} high priority still to arrive.{" "}
+              {progress.receivedCompletely} of {progress.total} received in full
               {progress.receivedPartially > 0 &&
                 `, ${progress.receivedPartially} partially`}
               .

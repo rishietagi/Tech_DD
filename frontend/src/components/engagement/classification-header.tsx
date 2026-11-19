@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 
+import { ConfidenceExplain, MixExplain } from "@/components/engagement/explain";
 import { Badge } from "@/components/ui/badge";
+import { InfoTip } from "@/components/ui/info-tip";
 import type { Classification } from "@/types/engagement";
 
 const DECK_LABEL: Record<string, string> = {
@@ -25,15 +27,21 @@ function MixReadout({ mix }: { mix: number }) {
         <span>Enterprise</span>
         <span>Product</span>
       </div>
-      <div className="relative h-2 w-full rounded-full bg-paper-3">
+      <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-kpmg-blue/25 via-paper-3 to-kpmg-blue-light/35">
         <div
           className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-kpmg-blue shadow-sm"
           style={{ left: `${mix}%` }}
           aria-hidden
         />
       </div>
-      <div className="mt-1.5 text-center font-sans text-[11px] text-muted">
+      <div className="mt-1.5 flex items-center justify-center font-sans text-[11px] text-muted">
         mix {mix} / 100
+        <InfoTip
+          label="the Enterprise–Product mix"
+          title="Enterprise–Product mix"
+        >
+          <MixExplain />
+        </InfoTip>
       </div>
     </div>
   );
@@ -65,16 +73,23 @@ export function ClassificationHeader({
   const unknownSignals = signals.filter((s) => s.effect === "unknown");
 
   return (
-    <section className="mb-8 rounded-2xl border border-line bg-paper-2 p-6">
+    <section className="card mb-8 bg-gradient-to-br from-kpmg-blue-tint to-paper p-6">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="mb-1 font-sans text-xs font-semibold tracking-[0.08em] text-kpmg-blue uppercase">
             Classification
           </div>
-          <h2 className="font-display text-2xl font-semibold text-text">{DECK_LABEL[dd_type] ?? dd_type}</h2>
+          <h2 className="font-display text-2xl font-semibold text-text">
+            {DECK_LABEL[dd_type] ?? dd_type}
+          </h2>
         </div>
         <div className="flex items-center gap-2">
-          <Badge tone={CONFIDENCE_TONE[confidence] ?? "neutral"}>{confidence} confidence</Badge>
+          <Badge tone={CONFIDENCE_TONE[confidence] ?? "neutral"}>
+            {confidence} confidence
+          </Badge>
+          <InfoTip label="confidence" title="Classification confidence">
+            <ConfidenceExplain />
+          </InfoTip>
           {generator.startsWith("rules") && generator !== "rules" && (
             <Badge tone="neutral">prose not tailored</Badge>
           )}
@@ -88,17 +103,23 @@ export function ClassificationHeader({
       {override_applied && (
         <div
           className={`mb-4 rounded-xl border px-4 py-3 ${
-            disagrees ? "border-redline bg-redline-tint" : "border-line bg-paper"
+            disagrees
+              ? "border-redline bg-redline-tint"
+              : "border-line bg-paper"
           }`}
         >
           <p className="font-sans text-[13px] text-text">
-            <span className="font-semibold">Archetype declared in the intake:</span> {override_source}.
+            <span className="font-semibold">
+              Archetype declared in the intake:
+            </span>{" "}
+            {override_source}.
           </p>
           {disagrees && (
             <p className="mt-1 font-sans text-[13px] text-muted">
-              The engine derived <strong>{DECK_LABEL[computed_dd_type]}</strong> (mix {computed_dd_mix}) from
-              the answers given. The declaration is used for this scope; the disagreement is shown because it
-              is informative, not because either is wrong.
+              The engine derived <strong>{DECK_LABEL[computed_dd_type]}</strong>{" "}
+              (mix {computed_dd_mix}) from the answers given. The declaration is
+              used for this scope; the disagreement is shown because it is
+              informative, not because either is wrong.
             </p>
           )}
         </div>
@@ -138,8 +159,13 @@ export function ClassificationHeader({
               {firedSignals.map((signal) => {
                 const delta = signal.detail?.mix_delta as number | undefined;
                 return (
-                  <li key={signal.code} className="font-sans text-[13px] text-text">
-                    <span className="mr-2 font-medium text-kpmg-blue">{signal.code}</span>
+                  <li
+                    key={signal.code}
+                    className="font-sans text-[13px] text-text"
+                  >
+                    <span className="mr-2 font-medium text-kpmg-blue">
+                      {signal.code}
+                    </span>
                     {signal.label}
                     {typeof delta === "number" && (
                       <span className="ml-2 text-muted">
@@ -149,10 +175,15 @@ export function ClassificationHeader({
                     )}
                     {signal.source_field && (
                       <span className="ml-2 text-muted-2">
-                        · {signal.source_field.split(".").pop()} = {signal.source_value}
+                        · {signal.source_field.split(".").pop()} ={" "}
+                        {signal.source_value}
                       </span>
                     )}
-                    {signal.citation && <span className="ml-2 text-muted-2 italic">{signal.citation}</span>}
+                    {signal.citation && (
+                      <span className="ml-2 text-muted-2 italic">
+                        {signal.citation}
+                      </span>
+                    )}
                   </li>
                 );
               })}
@@ -165,8 +196,8 @@ export function ClassificationHeader({
                 Not captured by this intake ({unknownSignals.length})
               </h3>
               <p className="mb-1.5 font-sans text-[12px] text-muted">
-                These rules could not be applied. They are reported rather than scored, so they do not move
-                the classification.
+                These rules could not be applied. They are reported rather than
+                scored, so they do not move the classification.
               </p>
               <p className="font-sans text-[12px] text-muted-2">
                 {unknownSignals.map((s) => s.code).join(", ")}

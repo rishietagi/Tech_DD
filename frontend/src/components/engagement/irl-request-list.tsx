@@ -16,7 +16,8 @@ import type { IrlPayload, IrlQuestion, IrlTracking } from "@/types/irl";
  * the thing that makes a request defensible: every one traces to an area the scope opened.
  */
 
-type Filter = "all" | "outstanding" | "follow_ups" | "received" | "documents" | "questions";
+type Filter =
+  "all" | "outstanding" | "follow_ups" | "received" | "documents" | "questions";
 
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "All" },
@@ -100,7 +101,10 @@ function matches(
 
 /** How much of one group has arrived — shown on the group header so a collapsed section
  *  still reports its state. */
-function groupProgress(questions: IrlQuestion[], tracking: Record<string, IrlTracking>) {
+function groupProgress(
+  questions: IrlQuestion[],
+  tracking: Record<string, IrlTracking>,
+) {
   const received = questions.filter(
     (q) => tracking[q.id]?.status === "received_completely",
   ).length;
@@ -181,7 +185,11 @@ export function IrlRequestList({
     <section>
       {/* ------------------------------------------------------------------ filters */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter requests">
+        <div
+          className="flex flex-wrap items-center gap-1.5"
+          role="group"
+          aria-label="Filter requests"
+        >
           {FILTERS.map((option) => {
             const active = filter === option.value;
             return (
@@ -214,7 +222,9 @@ export function IrlRequestList({
 
       {shown === 0 ? (
         <div className="rounded-2xl border border-dashed border-line-strong bg-paper-2/50 px-6 py-14 text-center">
-          <p className="font-sans text-[14px] text-text">No requests match that filter.</p>
+          <p className="font-sans text-[14px] text-text">
+            No requests match that filter.
+          </p>
           <button
             type="button"
             onClick={() => {
@@ -265,7 +275,9 @@ export function IrlRequestList({
                   </span>
                   <span className="flex flex-none items-center gap-3 font-mono text-[10px] tracking-wide text-muted-2 uppercase">
                     {followUps > 0 && (
-                      <span className="text-redline">{followUps} follow-up</span>
+                      <span className="text-redline">
+                        {followUps} follow-up
+                      </span>
                     )}
                     <span>
                       {received}/{questions.length} in

@@ -178,6 +178,67 @@ The YAML is validated at startup; a malformed file fails loudly.
 
 ## Decisions that override the specs
 
+### Explainability icons, centred editors, score colours (2026-11-19)
+
+**What Rishi asked for.** Inventory editors open "as a pop-up in the middle", not a side
+drawer; an information icon wherever a score needs explaining ("how the score is derived and
+what the formula is"), and more explainability across the app generally; more colour; an
+end-to-end frontend check.
+
+**What changed.**
+- `components/ui/modal.tsx` — one centred dialog, portalled to `<body>` (Escape, backdrop
+  click, scroll lock, focus in and back). The inventory editor (two-column form) and the
+  engagement delete confirmation use it. No side drawers remain.
+- `components/ui/info-tip.tsx` — `InfoTip` (ⓘ: hover or focus shows it, click pins it for
+  touch, portalled and viewport-positioned so tables never clip it), `Formula`, `Scale`,
+  and `HowItWorks` (a disclosure for longer explanations).
+- `components/engagement/explain.tsx` — **every explanation in one file**, each written from
+  the backend rule it describes (file references in its header). Where a weight or tolerance
+  is in the payload the UI shows the live value instead of repeating it. **If a scoring rule
+  changes, change its text here** — nothing tests the prose against the arithmetic.
+- Icons on: the process index, step weight, step score, the ±1 refinement and pointers; all
+  four estate indices, the section cards, every stat card, the application and project
+  table headers (criticality, automation, flags, triage), data-domain / platform scores and
+  the estate checks; findings, severity and the deal-impact lens; budget variance; request
+  collection progress and priority; the Enterprise–Product mix and confidence; report area
+  risk and why investment is XXX. Each Assess tab has a "How … is scored" disclosure.
+- `components/ui/score-ring.tsx` — one band-keyed colour scale for every 0-100 number
+  (≤20 red, ≤40 amber, ≤60 KPMG blue, ≤80 light blue, above green), used by the index ring,
+  section bars, ladder meters and process-card accents, so a ring and a badge never disagree.
+- `page-in` now fills `backwards` — a fill that outlives the animation leaves a transform on
+  the page wrapper, and a transformed ancestor traps `position: fixed` children.
+
+**Process slip.** `prettier --write src/components` was run over the whole folder (the
+Phase 8 lesson, repeated). It reformatted ~37 files with no other change; restoring them was
+blocked by the permission guard, so they remain formatting-only diffs. Rishi may restore them
+with `git checkout --` on the files listed in the session notes, or keep them.
+
+### Visual refresh — Helvetica-style type, KPMG theme, screen transitions (2026-11-19)
+
+**What Rishi asked for.** "Beautify the entire app", a font "like Helvetica", nicer
+headings, keep it KPMG-themed, check the frontend end to end, and loading animations
+between screens. This overrides CLAUDE.md §8's Newsreader / IBM Plex list (noted there).
+
+**What changed.** Inter (text) + Inter Tight (headings) via `next/font/google`; Manrope
+dropped. `font-serif` had never been defined in the theme, so 18 headings were rendering in
+the browser's Georgia fallback — now every heading class resolves to Inter Tight, set at
+600 with slight negative tracking. `font-mono` labels render in Inter with tabular figures;
+`font-code` keeps Plex Mono for the AI skills page. Cards gain a soft shadow and link-cards
+lift on hover (`globals.css`, applied by shape). A branded KPMG-blue welcome screen.
+Transitions: `app/template.tsx` fades each screen in; `loading.tsx` at the root, engagements,
+engagement, intake and about segments shows `PageLoader`; sidebar links render a top
+progress bar while their navigation is pending (`useLinkStatus`); skeletons shimmer. All
+motion stops under `prefers-reduced-motion`.
+
+**Found driving every screen in a browser:**
+1. The intake header read "of 6 steps on file" — the count was white on white.
+2. The sidebar list ran under its footer at 900px height (missing `min-h-0` on the scroller).
+3. Team & governance always showed "Nothing inventoried yet" — it has no per-item subjects.
+4. The six Assess tabs wrapped onto two rows inside a pill; the score meta is now compact.
+5. The progress bar drew inside the sidebar link — a hover `transform` makes `fixed` relative
+   to the link; it is portalled to `<body>` now.
+6. The overview button still said "Request list".
+
 ### Phase 8 — diligence-grade assessments and strategic findings (2026-11-18)
 
 **What Rishi asked for.** Having compared the platform with a real KPMG "Gaps & Risks" deck

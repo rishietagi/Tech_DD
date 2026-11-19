@@ -11,7 +11,14 @@ interface FieldProps {
   children: (id: string, describedBy: string | undefined) => React.ReactNode;
 }
 
-export function Field({ label, required, optional, hint, error, children }: FieldProps) {
+export function Field({
+  label,
+  required,
+  optional,
+  hint,
+  error,
+  children,
+}: FieldProps) {
   const id = useId();
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
@@ -19,14 +26,22 @@ export function Field({ label, required, optional, hint, error, children }: Fiel
 
   return (
     <div className="mb-5">
-      <label htmlFor={id} className="mb-1.5 block font-sans text-[13px] font-semibold text-text">
+      <label
+        htmlFor={id}
+        className="mb-1.5 block font-sans text-[13px] font-semibold text-text"
+      >
         {label}
         {required && (
-          <span className="ml-0.5 font-sans text-redline" title="Required to file">
+          <span
+            className="ml-0.5 font-sans text-redline"
+            title="Required to file"
+          >
             *<span className="sr-only"> (required)</span>
           </span>
         )}
-        {optional && <span className="ml-1 font-sans text-muted-2 italic">optional</span>}
+        {optional && (
+          <span className="ml-1 font-sans text-muted-2 italic">optional</span>
+        )}
       </label>
       {hint && (
         <p id={hintId} className="mb-2 font-sans text-[13px] text-muted italic">
@@ -35,7 +50,11 @@ export function Field({ label, required, optional, hint, error, children }: Fiel
       )}
       {children(id, describedBy)}
       {error && (
-        <p id={errorId} role="alert" className="mt-1.5 font-sans text-[12px] font-medium text-redline">
+        <p
+          id={errorId}
+          role="alert"
+          className="mt-1.5 font-sans text-[12px] font-medium text-redline"
+        >
           {error}
         </p>
       )}

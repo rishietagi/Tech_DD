@@ -74,7 +74,7 @@ function SkillCard({ skill }: { skill: SkillStatus }) {
         {open ? "Hide" : "Show"} the instructions the model is given
       </button>
       {open && (
-        <pre className="mt-3 max-h-[480px] overflow-auto rounded-xl bg-paper-2 p-4 font-mono text-[12px] leading-[1.55] whitespace-pre-wrap text-text">
+        <pre className="mt-3 max-h-[480px] overflow-auto rounded-xl bg-paper-2 p-4 font-code text-[12px] leading-[1.55] whitespace-pre-wrap text-text">
           {skill.body}
         </pre>
       )}

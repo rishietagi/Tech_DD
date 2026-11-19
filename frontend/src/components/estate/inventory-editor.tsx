@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import { Field } from "@/components/ui/field";
+import { Modal } from "@/components/ui/modal";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { Select } from "@/components/ui/select";
 import { TextArea } from "@/components/ui/text-area";
@@ -59,19 +60,6 @@ export function InventoryEditor({
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const dialog = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    dialog.current
-      ?.querySelector<HTMLElement>("input, textarea, select")
-      ?.focus();
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   const set = (key: string, value: FieldValue) =>
     setValues((v) => ({ ...v, [key]: value }));
 
@@ -203,45 +191,45 @@ export function InventoryEditor({
     cyber_tool: "tool",
   };
 
-  return (
-    <div
-      className="fixed inset-0 z-50 flex justify-end bg-ink/25"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        ref={dialog}
-        role="dialog"
-        aria-modal="true"
-        aria-label={item ? `Edit ${item.ref}` : `Add ${nounFor[kind]}`}
-        className="flex h-full w-full max-w-[620px] flex-col bg-paper shadow-2xl"
-      >
-        <header className="flex flex-none items-start justify-between gap-4 border-b border-line-strong px-7 py-5">
-          <div>
-            <p className="font-mono text-[11px] uppercase tracking-wide text-muted">
-              {definition.label}
-            </p>
-            <h2 className="font-serif text-[24px] leading-tight text-ink">
-              {item
-                ? `${item.ref} · ${String(item.fields.name ?? "")}`
-                : `New ${nounFor[kind]}`}
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full px-2 py-1 font-sans text-[13px] text-muted hover:text-text"
-            aria-label="Close"
-          >
-            Close
-          </button>
-        </header>
+  // Wide fields take the full row; short ones pair up, so the form reads as a sheet
+  // rather than one long column.
+  const wide = (field: FieldDef) =>
+    ["long_text", "multi_select", "process_list", "app_refs"].includes(
+      field.type,
+    );
 
-        <div className="flex-1 overflow-y-auto px-7 py-6">
-          {definition.fields.map((field) => (
+  return (
+    <Modal
+      onClose={onClose}
+      size="lg"
+      dismissable={!busy}
+      label={item ? `Edit ${item.ref}` : `Add ${nounFor[kind]}`}
+    >
+      <header className="flex flex-none items-start justify-between gap-4 border-b border-line bg-gradient-to-r from-kpmg-blue-tint to-transparent px-7 py-5">
+        <div>
+          <p className="font-sans text-[11px] font-semibold tracking-[0.12em] text-kpmg-blue-light uppercase">
+            {definition.label}
+          </p>
+          <h2 className="mt-0.5 font-display text-[22px] leading-tight font-semibold text-ink">
+            {item
+              ? `${item.ref} · ${String(item.fields.name ?? "")}`
+              : `New ${nounFor[kind]}`}
+          </h2>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="-mr-2 inline-flex h-9 w-9 items-center justify-center rounded-full text-[20px] leading-none text-muted transition-colors hover:bg-paper-2 hover:text-text"
+          aria-label="Close"
+        >
+          ×
+        </button>
+      </header>
+
+      <div className="grid flex-1 gap-x-6 overflow-y-auto px-7 pt-6 pb-2 sm:grid-cols-2">
+        {definition.fields.map((field) => (
+          <div key={field.key} className={wide(field) ? "sm:col-span-2" : ""}>
             <Field
-              key={field.key}
               label={field.label}
               required={field.required}
               hint={field.template_note || undefined}
@@ -249,71 +237,74 @@ export function InventoryEditor({
             >
               {(id) => renderField(field, id)}
             </Field>
-          ))}
-        </div>
+          </div>
+        ))}
+      </div>
 
-        <footer className="flex flex-none items-center justify-between gap-3 border-t border-line-strong px-7 py-4">
-          <div>
-            {item && onDelete && !confirmDelete && (
+      <footer className="flex flex-none items-center justify-between gap-3 border-t border-line bg-paper-2 px-7 py-4">
+        <div>
+          {item && onDelete && !confirmDelete && (
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="font-sans text-[13px] text-redline hover:underline"
+            >
+              Delete
+            </button>
+          )}
+          {confirmDelete && onDelete && (
+            <span className="flex items-center gap-3 font-sans text-[13px]">
+              <span className="text-text">
+                Delete {item?.ref} and its assessment answers?
+              </span>
               <button
                 type="button"
-                onClick={() => setConfirmDelete(true)}
-                className="font-sans text-[13px] text-redline hover:underline"
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    await onDelete();
+                    onClose();
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+                className="font-semibold text-redline hover:underline"
               >
                 Delete
               </button>
-            )}
-            {confirmDelete && onDelete && (
-              <span className="flex items-center gap-3 font-sans text-[13px]">
-                <span className="text-text">
-                  Delete {item?.ref} and its assessment answers?
-                </span>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setBusy(true);
-                    try {
-                      await onDelete();
-                      onClose();
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                  className="font-semibold text-redline hover:underline"
-                >
-                  Delete
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmDelete(false)}
-                  className="text-muted"
-                >
-                  Keep
-                </button>
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            {formError && (
-              <span className="font-sans text-[12.5px] text-redline">
-                {formError}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => void submit()}
-              disabled={busy}
-              className="rounded-full bg-ink px-5 py-2.5 font-sans text-[13px] font-medium text-paper-on-ink hover:bg-ink-2 disabled:opacity-50"
-            >
-              {busy
-                ? "Saving…"
-                : item
-                  ? "Save changes"
-                  : `Add ${nounFor[kind]}`}
-            </button>
-          </div>
-        </footer>
-      </div>
-    </div>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                className="text-muted"
+              >
+                Keep
+              </button>
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {formError && (
+            <span className="font-sans text-[12.5px] text-redline">
+              {formError}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full px-4 py-2.5 font-sans text-[13px] font-medium text-muted hover:text-text"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={busy}
+            className="rounded-full bg-ink px-5 py-2.5 font-sans text-[13px] font-medium text-paper-on-ink hover:bg-ink-2 disabled:opacity-50"
+          >
+            {busy ? "Saving…" : item ? "Save changes" : `Add ${nounFor[kind]}`}
+          </button>
+        </div>
+      </footer>
+    </Modal>
   );
 }
