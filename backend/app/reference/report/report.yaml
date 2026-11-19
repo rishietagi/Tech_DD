@@ -68,22 +68,8 @@ max_findings_per_area: 5
 max_bullets_per_finding: 3
 
 # A business process scored Manual or Emerging is a finding of its own, as in the sample.
-process_finding:
-  area: process_enablement
-  headline: "{process} cycle is not automated"
-  bullet: >-
-    {process} scores {index}/100 ({band}) on the automation assessment: the work is largely
-    done by hand around the systems.
-  implication: >-
-    The process depends on manual effort, so headcount scales with volume and errors and
-    control gaps follow.
-  action: >-
-    Target should prioritise automation of {process}, starting with the highest-volume
-    manual steps, using the capability already in its systems where it exists.
-  impact: [plan_risk, run_cost]
-  # Bands that raise it, and the severity of each.
-  bands: {manual: High, emerging: Medium}
-
+# Business-process findings are raised on the process tab (reference/processes/_findings.yaml)
+# and arrive here as themes under process_enablement, like every other register.
 no_findings: No material gaps were identified on the information received.
 not_assessed: Not assessed — the information needed was not received (see Data limitations).
 

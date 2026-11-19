@@ -3,7 +3,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { SeverityBadge } from "@/components/estate/gap-register";
+import { GapRegister } from "@/components/estate/gap-register";
+import { ExportLink } from "@/components/ui/export-link";
+import { findingsApi } from "@/lib/api/assess";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TextArea } from "@/components/ui/text-area";
@@ -583,40 +585,28 @@ export function ItBudgetPage({
           </table>
         </div>
 
-        <h3 className="mb-3 font-sans text-[15px] font-semibold text-text">
-          Findings{" "}
-          <span className="font-mono text-[12px] text-muted-2">
-            {review.findings.length}
-          </span>
-        </h3>
-        {review.findings.length === 0 ? (
-          <p className="font-sans text-[13.5px] text-muted">
-            No findings on what has been entered so far.
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {review.findings.map((f, i) => (
-              <li
-                key={i}
-                className="flex items-start gap-3 rounded-xl border border-line px-4 py-3"
-              >
-                <SeverityBadge severity={f.severity} />
-                <span className="mt-0.5 rounded-full bg-paper-2 px-2 py-0.5 font-mono text-[10px] uppercase text-muted">
-                  {f.source === "process"
-                    ? "Process"
-                    : f.source === "variance"
-                      ? "Variance"
-                      : f.source === "movement"
-                        ? "Movement"
-                        : "No budget"}
-                </span>
-                <p className="font-sans text-[13.5px] leading-[1.5] text-text">
-                  {f.text}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="mt-2">
+          <GapRegister
+            gaps={review.gaps}
+            empty="No findings on what has been saved so far."
+            onEdit={async (key, edit) => {
+              const fresh = await itBudgetApi.editGap(engagementId, key, edit);
+              queryClient.setQueryData(["it-budget", engagementId], fresh);
+              show("Finding updated");
+            }}
+            onRevert={async (key) => {
+              const fresh = await itBudgetApi.revertGap(engagementId, key);
+              queryClient.setQueryData(["it-budget", engagementId], fresh);
+              show("Finding reverted");
+            }}
+            actions={
+              <ExportLink
+                href={findingsApi.exportUrl(engagementId, "it_budget")}
+                label="Export"
+              />
+            }
+          />
+        </div>
 
         <label className="mt-8 block">
           <span className="mb-1.5 block font-mono text-[10.5px] uppercase tracking-wide text-muted">
@@ -652,9 +642,8 @@ function FinancialsUpload({
   return (
     <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-line-strong bg-paper-2 px-5 py-3.5">
       <p className="mr-auto max-w-[70ch] font-sans text-[13px] text-muted">
-        The target can supply its budget and actual figures on the IT financials
-        sheet — in the IRL workbook, or as its own template. An upload fills the
-        figures below and never clears one.
+        Budget and actuals can come from the target&rsquo;s IT financials sheet.
+        An upload never clears a figure.
       </p>
       <a
         href={itBudgetApi.templateUrl(engagementId)}

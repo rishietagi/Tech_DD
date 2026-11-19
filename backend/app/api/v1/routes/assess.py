@@ -3,15 +3,15 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.models.assess import ProcessAssessmentScore
 from app.schemas.assess import (
     AnswerWrite,
     AssessmentRead,
-    AssessmentScoreRead,
     CustomQuestionCreate,
     ProcessListResponse,
     ScoreVersionSummary,
 )
+from app.schemas.estate import GapNoteWrite
+from app.schemas.process_findings import ProcessScoreRead
 from app.services.assess import service as assess_service
 
 router = APIRouter(prefix="/engagements/{engagement_id}/assess", tags=["assess"])
@@ -23,21 +23,6 @@ class GenerateScoreRequest(BaseModel):
     model_config = {"extra": "forbid"}
 
     generator: str | None = None
-
-
-def _to_read(row: ProcessAssessmentScore) -> AssessmentScoreRead:
-    return AssessmentScoreRead.model_validate(
-        {
-            "id": row.id,
-            "engagement_id": row.engagement_id,
-            "process_key": row.process_key,
-            "version": row.version,
-            "generator": row.generator,
-            "payload": row.payload_json,
-            "created_at": row.created_at,
-            "updated_at": row.updated_at,
-        }
-    )
 
 
 @router.get("/processes", response_model=ProcessListResponse)
@@ -105,26 +90,41 @@ def add_custom_question(
 # kept distinct from the `/{process_key}` GET above. FastAPI matches in declaration order,
 # so a bare `/{process_key}` placed after these would be fine, but a `/{version}`-style
 # catch-all must never precede them — the same trap already recorded for export.pdf.
-@router.post("/{process_key}/score", response_model=AssessmentScoreRead)
+@router.post("/{process_key}/score", response_model=ProcessScoreRead)
 def generate_score(
     engagement_id: str,
     process_key: str,
     payload: GenerateScoreRequest | None = None,
     db: Session = Depends(get_db),
-) -> AssessmentScoreRead:
+) -> ProcessScoreRead:
     """Score the recorded answers and store the result as a new version."""
     request = payload or GenerateScoreRequest()
-    return _to_read(
-        assess_service.generate_score(db, engagement_id, process_key, request.generator)
-    )
+    row = assess_service.generate_score(db, engagement_id, process_key, request.generator)
+    return assess_service.score_read(db, row)
 
 
-@router.get("/{process_key}/score", response_model=AssessmentScoreRead)
-def get_latest_score(
-    engagement_id: str, process_key: str, db: Session = Depends(get_db)
-) -> AssessmentScoreRead:
-    """The most recent score. 404 `no_score` if this process has not been scored."""
-    return _to_read(assess_service.get_latest_score(db, engagement_id, process_key))
+@router.get("/{process_key}/score", response_model=ProcessScoreRead)
+def get_latest_score(engagement_id: str, process_key: str, db: Session = Depends(get_db)) -> ProcessScoreRead:
+    """The most recent score and its findings. 404 `no_score` if not scored yet."""
+    return assess_service.score_read(db, assess_service.get_latest_score(db, engagement_id, process_key))
+
+
+@router.patch("/{process_key}/gaps/{gap_key}", response_model=ProcessScoreRead)
+def edit_gap(
+    engagement_id: str,
+    process_key: str,
+    gap_key: str,
+    payload: GapNoteWrite,
+    db: Session = Depends(get_db),
+) -> ProcessScoreRead:
+    """Edit one finding's headline, evidence, action or severity. Survives re-scoring."""
+    return assess_service.save_gap_note(db, engagement_id, process_key, gap_key, payload)
+
+
+@router.delete("/{process_key}/gaps/{gap_key}", response_model=ProcessScoreRead)
+def revert_gap(engagement_id: str, process_key: str, gap_key: str, db: Session = Depends(get_db)) -> ProcessScoreRead:
+    """Put a finding back to the generated text."""
+    return assess_service.delete_gap_note(db, engagement_id, process_key, gap_key)
 
 
 @router.get("/{process_key}/score/versions", response_model=list[ScoreVersionSummary])

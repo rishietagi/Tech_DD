@@ -302,7 +302,12 @@ validated at startup. Put content there, not in code.
 > (`InfoTip`) or a "How … is scored" disclosure (`HowItWorks`) stating its rule and formula.
 > All the text lives in `components/engagement/explain.tsx`, written from the backend code —
 > change it when a scoring rule changes. Editors and confirmations open as a centred `Modal`,
-> never a side drawer. Scores share one band-keyed colour scale (`ui/score-ring.tsx`).
+> never a side drawer.
+>
+> **Minimal** (Rishi, 2026-11-19): hairlines not shadows, nothing moves on hover, colour only
+> where it carries meaning (a dot for band or severity), short page intros, longer
+> explanation in drop-downs. Every Assess result reads **score → findings → detail**, and
+> every findings register is editable and exports to Excel (per tab and all together).
 
 Editorial / legal-document aesthetic: paper ground, ink text, a single red accent
 used as a "redline", a steel blue for informational and focus states. Serif for
@@ -556,6 +561,10 @@ a due diligence. What changed, and what must not drift back:
 - **The roadmap is reconciled against the change budget**, scaled by the budget's unit.
   Arithmetic on reported figures only — still not a cost model.
 - The IRL page is **Information requests**; the workbook keeps the name IRL.
+- **Business processes have findings too** (2026-11-19): three process-agnostic rules in
+  `reference/processes/_findings.yaml`, computed on read and editable. They replace the
+  report's single process row. Every register's edits live in one table and reach both the
+  findings export (`/findings/export.xlsx`, `/findings/{register}/export.xlsx`) and the report.
 
 **Phase 9+ — not planned.** Evidence collection beyond the drive scan, multi-user auth,
 email reminders.

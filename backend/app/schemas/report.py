@@ -29,18 +29,6 @@ class AreaDef(BaseModel):
     workstreams: list[str] = Field(default_factory=list)
 
 
-class ProcessFindingDef(BaseModel):
-    model_config = {"extra": "forbid"}
-
-    area: str
-    headline: str
-    bullet: str
-    implication: str
-    action: str
-    impact: list[str]
-    bands: dict[str, Literal["High", "Medium", "Low"]]
-
-
 class SectionDef(BaseModel):
     model_config = {"extra": "forbid"}
 
@@ -58,7 +46,6 @@ class ReportConfig(BaseModel):
     areas: list[AreaDef]
     max_findings_per_area: int
     max_bullets_per_finding: int
-    process_finding: ProcessFindingDef
     no_findings: str
     not_assessed: str
     limitations: dict[str, str]

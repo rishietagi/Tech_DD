@@ -9,13 +9,14 @@ import { EstateAssessment } from "@/components/estate/estate-assessment";
 import { ItBudgetPage } from "@/app/engagements/[id]/it-budget/it-budget-page";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { assessApi } from "@/lib/api/assess";
+import { assessApi, findingsApi } from "@/lib/api/assess";
 import { estateApi } from "@/lib/api/estate";
 import type { ProcessSummary } from "@/types/assess";
 import type { EstateSummaryEntry } from "@/types/estate";
 import {
   ApplicationsIndexExplain,
   DataTechIndexExplain,
+  ProcessFindingsExplain,
   ProcessIndexExplain,
   ReconciliationExplain,
   SeverityExplain,
@@ -24,7 +25,7 @@ import {
   ThemesExplain,
 } from "@/components/engagement/explain";
 import { HowItWorks } from "@/components/ui/info-tip";
-import { scoreBefore } from "@/components/ui/score-ring";
+import { ExportLink } from "@/components/ui/export-link";
 
 type Tab =
   | "business"
@@ -39,37 +40,37 @@ const TABS: { key: Tab; label: string; blurb: string }[] = [
     key: "business",
     label: "Business processes",
     blurb:
-      "How much of the work still needs a person. Licences reveal what was bought; process automation reveals what is used, and the gap between the two is where diligence findings live. Each process is assessed step by step and scored on a 0–100 automation index.",
+      "How much of each business process still needs a person, step by step, on a 0–100 automation index.",
   },
   {
     key: "applications",
     label: "Applications",
     blurb:
-      "Each inventoried application rated for criticality, automation and AI, and four questions on the landscape as a whole. The findings are about what the landscape means for the deal — end-of-support exposure, integration, overlap, unused capability — not a verdict on each system.",
+      "What the application landscape means for the deal: support, integration, overlap and unused capability.",
   },
   {
     key: "data_tech",
     label: "Data & infrastructure",
     blurb:
-      "Whether the data is governed well enough to trust, and whether the infrastructure underneath stays supported, recoverable and secure through the hold — per data domain, per platform, and across the estate. The cyber tools checklist sits beside the checks as evidence; a tool is not a control.",
+      "Whether the data can be trusted and the infrastructure stays supported, recoverable and secure.",
   },
   {
     key: "team_governance",
     label: "Team & governance",
     blurb:
-      "Who runs IT and how it is governed: leadership and accountability, decision forums, capacity against the plan, and what breaks if one person leaves. Key-person dependencies are counted from the IT team sheet; the rest is the analyst's judgement from the management interview.",
+      "Who runs IT, how it is governed, and what breaks if one person leaves.",
   },
   {
     key: "strategy_projects",
     label: "Strategy & projects",
     blurb:
-      "Is there a technology strategy, is it funded, and are the projects in flight delivering it? Projects are measured on the target's own figures — spend against allocation, progress, dates — and the roadmap is reconciled against the change budget. AI strategy and governance sit here too.",
+      "Whether there is a funded technology strategy, and whether the projects in flight deliver it.",
   },
   {
     key: "budget",
     label: "IT budget",
     blurb:
-      "How the technology budget is built, approved and controlled, and where reported spend landed against it over the review period. A budgeting-process review — it does not build, validate or benchmark a cost model, and it shows no share of revenue.",
+      "How the IT budget is built, approved and controlled, and where spend landed against it.",
   },
 ];
 
@@ -90,10 +91,8 @@ function HowScored({ tab }: { tab: Tab }) {
           title="How the automation index is calculated"
         >
           <ProcessIndexExplain />
-          <p>
-            A process scored Manual or Emerging becomes a finding in the report:
-            Manual is High, Emerging is Medium.
-          </p>
+          <p className="pt-1 font-semibold text-text">Findings</p>
+          <ProcessFindingsExplain />
         </HowItWorks>
       );
     case "applications":
@@ -212,31 +211,32 @@ function ProcessCard({
   return (
     <Link
       href={`/engagements/${engagementId}/assess/${process.key}`}
-      className={`card relative block overflow-hidden p-6 transition-all before:absolute before:inset-x-0 before:top-0 before:h-[3px] hover:-translate-y-0.5 hover:shadow-raised focus:outline-none focus-visible:ring-2 focus-visible:ring-kpmg-blue-light ${
-        process.has_score && process.index !== null
-          ? scoreBefore(process.index)
-          : "before:bg-paper-3"
-      }`}
+      className="block rounded-xl border border-line bg-paper p-6 transition-colors hover:border-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-kpmg-blue-light"
     >
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-3">
         <div className="flex items-baseline gap-3">
           <span className="font-mono text-[12px] text-muted-2">
             {process.short_name}
           </span>
-          <h2 className="font-serif text-[20px] text-ink">{process.name}</h2>
+          <h2 className="font-display text-[18px] font-semibold text-ink">
+            {process.name}
+          </h2>
         </div>
         {process.has_score && process.band && process.index !== null && (
           <div className="flex items-center gap-3">
-            <span className="font-mono text-[13px] text-text">
-              {process.index.toFixed(1)}/100
+            <span className="font-sans text-[14px] font-semibold text-text tabular-nums">
+              {process.index.toFixed(0)}
+              <span className="font-normal text-muted-2">/100</span>
             </span>
             <BandBadge band={process.band} />
           </div>
         )}
       </div>
 
-      <p className="mb-5 max-w-[52ch] font-sans text-[14px] leading-relaxed text-muted">
-        {process.description}
+      <p className="mb-4 font-sans text-[13px] text-muted">
+        {process.has_score
+          ? `${process.gap_count} ${process.gap_count === 1 ? "finding" : "findings"}`
+          : "Not scored yet"}
       </p>
 
       <div className="flex items-center gap-3">
@@ -249,11 +249,11 @@ function ProcessCard({
           aria-label={`${process.name} questionnaire progress`}
         >
           <div
-            className="h-full rounded-full bg-gradient-to-r from-kpmg-blue to-kpmg-blue-light"
+            className="h-full rounded-full bg-ink"
             style={{ width: `${progress}%` }}
           />
         </div>
-        <span className="font-mono text-[11px] uppercase text-muted-2">
+        <span className="font-sans text-[12px] text-muted-2">
           {process.answered_count}/{process.question_count} answered
         </span>
       </div>
@@ -314,10 +314,14 @@ export function AssessIndexPage({ engagementId }: { engagementId: string }) {
 
   return (
     <main className="mx-auto w-full max-w-[1600px] px-7 pt-12 pb-24">
-      <header className="mb-7 border-b border-line-strong pb-7">
-        <p className="mb-2 font-sans text-[11px] font-semibold tracking-[0.12em] text-kpmg-blue-light uppercase">
-          Assess
-        </p>
+      <header className="mb-7 border-b border-line pb-6">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+          <p className="font-sans text-[13px] font-medium text-muted">Assess</p>
+          <ExportLink
+            href={findingsApi.exportAllUrl(engagementId)}
+            label="Export all findings"
+          />
+        </div>
         <h1 className="mb-3 font-serif text-[34px] leading-tight text-ink">
           {TABS.find((t) => t.key === tab)?.label}
         </h1>

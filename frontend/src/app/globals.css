@@ -194,32 +194,11 @@ body {
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
 }
 
-/* Depth (2026-11-19): content cards sit slightly above the page, and a card that is a
-   link lifts on hover so it reads as clickable. Applied by shape rather than by editing
-   every component; utilities that set their own shadow still win. */
+/* Minimal (Rishi, 2026-11-19): surfaces are separated by hairlines, not shadows, and
+   nothing moves on hover — a link card only darkens its border. */
 @layer components {
-  .rounded-2xl.border.bg-paper,
-  .rounded-xl.border.bg-paper {
-    box-shadow: var(--shadow-card);
-  }
-
-  a.rounded-2xl.border,
-  a.rounded-xl.border {
-    transition:
-      box-shadow 180ms ease,
-      transform 180ms ease,
-      border-color 180ms ease;
-  }
-
-  a.rounded-2xl.border:hover,
-  a.rounded-xl.border:hover {
-    box-shadow: var(--shadow-raised);
-    transform: translateY(-2px);
-  }
-
   button,
   a {
     -webkit-tap-highlight-color: transparent;

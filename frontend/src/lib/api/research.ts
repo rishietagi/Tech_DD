@@ -1,4 +1,4 @@
-import { apiClient } from "@/lib/api/client";
+import { API_BASE_URL, apiClient } from "@/lib/api/client";
 import type { ResearchRead } from "@/types/research";
 
 export const researchApi = {
@@ -7,6 +7,10 @@ export const researchApi = {
    *  422 `research_rejected` when the answer could not be grounded in real sources. */
   run: (engagementId: string) =>
     apiClient.post<ResearchRead>(`/engagements/${engagementId}/research`, {}),
+
+  /** The latest brief, edits included, as a Word document. */
+  exportUrl: (engagementId: string) =>
+    `${API_BASE_URL}/engagements/${engagementId}/research/export.docx`,
 
   getLatest: (engagementId: string) =>
     apiClient.get<ResearchRead>(`/engagements/${engagementId}/research`),

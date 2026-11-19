@@ -113,6 +113,36 @@ export function PointersExplain() {
   );
 }
 
+export function ProcessFindingsExplain() {
+  return (
+    <>
+      <p>
+        Up to three findings per process, from the same rules for every process:
+      </p>
+      <Scale
+        rows={[
+          [
+            "Largely manual",
+            "the process is in the Manual band (High) or Emerging (Medium)",
+          ],
+          [
+            "Stops part-way",
+            "one end of the cycle is a full point or more ahead of the other (Medium)",
+          ],
+          [
+            "Isolated manual steps",
+            "an otherwise automated process with steps at 2/5 or below: Medium if one carries 15% of the weight, else Low",
+          ],
+        ]}
+      />
+      <p>
+        Each finding is editable; the edit is what the export and the report
+        carry.
+      </p>
+    </>
+  );
+}
+
 /* ------------------------------------------------------------- estate indices */
 
 export function ApplicationsIndexExplain() {

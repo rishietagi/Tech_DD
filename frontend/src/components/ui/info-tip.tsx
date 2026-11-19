@@ -126,12 +126,12 @@ export function InfoTip({
             setPinned(true);
           }
         }}
-        className={`ml-1.5 inline-flex h-[17px] w-[17px] flex-none translate-y-[-1px] items-center justify-center rounded-full align-middle font-serif text-[10.5px] font-bold italic normal-case leading-none tracking-normal transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-kpmg-blue-light ${
+        className={`ml-1.5 inline-flex h-[15px] w-[15px] flex-none translate-y-[-1px] items-center justify-center rounded-full border align-middle font-serif text-[9.5px] font-bold italic normal-case leading-none tracking-normal transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-kpmg-blue-light ${
           tone === "inverse"
             ? "bg-white/15 text-white hover:bg-white/30"
             : open
-              ? "bg-kpmg-blue text-white"
-              : "bg-kpmg-blue-tint-strong text-kpmg-blue hover:bg-kpmg-blue hover:text-white"
+              ? "border-ink text-ink"
+              : "border-muted-2 text-muted-2 hover:border-ink hover:text-ink"
         } ${className}`}
       >
         i
@@ -201,13 +201,11 @@ export function HowItWorks({
   className?: string;
 }) {
   return (
-    <details
-      className={`group rounded-xl border border-kpmg-blue/15 bg-kpmg-blue-tint/60 open:bg-paper ${className}`}
-    >
-      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 font-sans text-[13px] font-semibold text-kpmg-blue select-none [&::-webkit-details-marker]:hidden">
+    <details className={`group ${className}`}>
+      <summary className="inline-flex cursor-pointer list-none items-center gap-2 py-1 font-sans text-[13px] font-medium text-muted select-none hover:text-text [&::-webkit-details-marker]:hidden">
         <span
           aria-hidden
-          className="inline-flex h-[17px] w-[17px] items-center justify-center rounded-full bg-kpmg-blue font-serif text-[10.5px] font-bold text-white italic"
+          className="inline-flex h-[16px] w-[16px] items-center justify-center rounded-full border border-current font-serif text-[10px] font-bold italic"
         >
           i
         </span>
@@ -215,7 +213,7 @@ export function HowItWorks({
         <svg
           aria-hidden
           viewBox="0 0 12 12"
-          className="ml-auto h-3 w-3 text-kpmg-blue/70 transition-transform group-open:rotate-180"
+          className="h-3 w-3 transition-transform group-open:rotate-180"
         >
           <path
             d="M2.5 4.5 6 8l3.5-3.5"
@@ -227,7 +225,7 @@ export function HowItWorks({
           />
         </svg>
       </summary>
-      <div className="space-y-2.5 border-t border-kpmg-blue/10 px-4 py-3.5 font-sans text-[13px] leading-[1.6] text-muted [&_strong]:font-semibold [&_strong]:text-text">
+      <div className="mt-2 max-w-[80ch] space-y-2.5 rounded-lg border border-line px-4 py-3.5 font-sans text-[13px] leading-[1.6] text-muted [&_strong]:font-semibold [&_strong]:text-text">
         {children}
       </div>
     </details>

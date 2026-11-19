@@ -181,6 +181,8 @@ class ProcessSummary(BaseModel):
     has_score: bool = False
     index: float | None = None
     band: Band | None = None
+    # Findings the latest score raises (Phase 8 follow-up, 2026-11-19).
+    gap_count: int = 0
 
 
 class ProcessListResponse(BaseModel):

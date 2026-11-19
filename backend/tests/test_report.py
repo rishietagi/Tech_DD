@@ -174,7 +174,28 @@ def _inputs(**overrides: object) -> ReportInputs:
             ],
             "checks": [{"id": "CY2", "section": "cyber", "text": "MFA everywhere", "status": "fail"}],
         },
-        processes=[ProcessResult("procure_to_pay", "Procure to Pay", "P2P", 18.0, "manual", "Manual")],
+        processes=[
+            ProcessResult(
+                "procure_to_pay",
+                "Procure to Pay",
+                "P2P",
+                18.0,
+                "manual",
+                "Manual",
+                gaps=[
+                    {
+                        **_gap(
+                            "process_manual",
+                            "process_enablement",
+                            "High",
+                            "Procure to Pay is largely run by hand",
+                            ["Procure to Pay scores 18/100 (Manual) on the automation assessment."],
+                        ),
+                        "display_id": "P2P-01",
+                    }
+                ],
+            )
+        ],
         budget=None,
         budget_saved=False,
         inventory={
@@ -198,7 +219,7 @@ def test_no_finding_is_ever_dropped() -> None:
     assert {
         "applications-end_of_support",
         "data_tech-identity_access",
-        "process-procure_to_pay",
+        "process-procure_to_pay-process_manual",
         "applications-mystery",
     } <= set(_findings(payload))
     odd = next(r for r in payload.executive if r.area_id == "an_area_nobody_configured")
@@ -207,8 +228,8 @@ def test_no_finding_is_ever_dropped() -> None:
 
 def test_each_finding_carries_its_own_risk_actions_and_investment() -> None:
     payload = build(_inputs(), get_report_config())
-    process = _findings(payload)["process-procure_to_pay"]
-    assert process.risk == "High" and process.headline == "Procure to Pay cycle is not automated"  # type: ignore[attr-defined]
+    process = _findings(payload)["process-procure_to_pay-process_manual"]
+    assert process.risk == "High" and process.headline == "Procure to Pay is largely run by hand"  # type: ignore[attr-defined]
     for finding in _findings(payload).values():
         assert finding.investment == "XXX" and finding.actions  # type: ignore[attr-defined]
 
@@ -464,4 +485,19 @@ def test_a_weak_process_already_named_by_a_theme_is_not_reported_twice() -> None
     covering["subjects"] = ["Procure to Pay"]
     inputs = _inputs(applications_score={"gaps": [covering]})
     keys = set(_findings(build(inputs, get_report_config())))
-    assert "applications-capability_unused" in keys and "process-procure_to_pay" not in keys
+    assert "applications-capability_unused" in keys and "process-procure_to_pay-process_manual" not in keys
+
+
+def test_an_edited_process_finding_is_reported_even_when_a_theme_names_the_process() -> None:
+    covering = _gap(
+        "capability_unused",
+        "process_enablement",
+        "Medium",
+        "Licensed system capability not used",
+        ["Procure to Pay scores 18/100 although Ledger claims to support it."],
+    )
+    covering["subjects"] = ["Procure to Pay"]
+    inputs = _inputs(applications_score={"gaps": [covering]})
+    inputs.processes[0].gaps[0]["edited"] = True
+    keys = set(_findings(build(inputs, get_report_config())))
+    assert "process-procure_to_pay-process_manual" in keys

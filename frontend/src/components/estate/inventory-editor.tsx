@@ -205,9 +205,9 @@ export function InventoryEditor({
       dismissable={!busy}
       label={item ? `Edit ${item.ref}` : `Add ${nounFor[kind]}`}
     >
-      <header className="flex flex-none items-start justify-between gap-4 border-b border-line bg-gradient-to-r from-kpmg-blue-tint to-transparent px-7 py-5">
+      <header className="flex flex-none items-start justify-between gap-4 border-b border-line px-7 py-5">
         <div>
-          <p className="font-sans text-[11px] font-semibold tracking-[0.12em] text-kpmg-blue-light uppercase">
+          <p className="font-sans text-[12px] font-medium text-muted">
             {definition.label}
           </p>
           <h2 className="mt-0.5 font-display text-[22px] leading-tight font-semibold text-ink">
@@ -241,7 +241,7 @@ export function InventoryEditor({
         ))}
       </div>
 
-      <footer className="flex flex-none items-center justify-between gap-3 border-t border-line bg-paper-2 px-7 py-4">
+      <footer className="flex flex-none items-center justify-between gap-3 border-t border-line px-7 py-4">
         <div>
           {item && onDelete && !confirmDelete && (
             <button

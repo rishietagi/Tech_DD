@@ -178,6 +178,66 @@ The YAML is validated at startup; a malformed file fails loudly.
 
 ## Decisions that override the specs
 
+### Process findings, editable everywhere, findings exports, minimal Assess (2026-11-19)
+
+**What Rishi asked for.** The business-process tab shows findings in the same format as the
+other Assess tabs; every Score & findings view reads score → findings → detail; the app is
+minimal (no loud colour, not content-heavy, explanation in drop-downs); everything
+exportable is editable and exportable — findings per tab and all together, and each page;
+and "make sure everything is connected" and tested. Decisions taken by question: **Excel**
+for the findings exports; **three process rules**; exports for every Assess tab, editable
+IT budget findings, and a research-brief export.
+
+**Business-process findings** — `reference/processes/_findings.yaml` (content) and
+`services/assess/findings.py`. Process-agnostic like the scoring: (1) *largely manual* —
+Manual band High, Emerging Medium, naming the weakest heavy steps; (2) *stops part-way
+through the cycle* — front/back means a full ladder point apart, Medium, the implication is
+the questionnaire's own `shape` reading; (3) *isolated manual steps* in an otherwise
+system-supported process — Medium if a weak step carries 15% of the weight, else Low.
+**Computed on read** from the stored payload, so old scores show findings without a
+re-score. `GET/POST /assess/{process}/score` now return `ProcessScoreRead` (score + gaps +
+gap_counts); `PATCH/DELETE /assess/{process}/gaps/{key}` edit and revert. `ProcessSummary`
+carries `gap_count`. The process themes join `all_themes()`, so the report's boot check
+covers their area.
+
+**The report** no longer has `process_finding` in `report.yaml` — process findings arrive
+as themes under `process_enablement`, edits applied, keyed `process-<process>-<theme>`
+(old executive edit keys `exec.process_enablement.process-<process>.*` are now inert). The
+"largely manual" finding is still skipped when an application theme already names the
+process — **unless the team has edited it**: found by the end-to-end run, where an edited
+finding vanished from the report and read as a broken link.
+
+**One edit store for every register.** `services/estate/gaps.py` gains `load_notes`,
+`write_note`, `delete_note` over `estate_gap_note`: estate domains by domain; IT budget as
+domain `it_budget`; processes as domain `process` with the key prefixed `<process>|`. No
+migration. IT budget findings are now editable (`PATCH/DELETE /it-budget/gaps/{key}`),
+overlaid on read in `get_budget`, so the report and the export carry the edits.
+
+**Exports.** `services/findings/` — `registers.py` reads each tab exactly as the screen
+does (edits applied); `export_xlsx.py` writes a Summary sheet (score, rating, H/M/L counts,
+summary, then the breakdown) and a Findings sheet (ID, assessment, process, diligence area,
+severity, finding, evidence, implication, deal impact, action, edited).
+`GET /findings/export.xlsx` (all) and `GET /findings/{register}/export.xlsx`
+(business | applications | data_tech | team_governance | strategy_projects | it_budget).
+`GET /research/export.docx` renders the edited brief with numbered citations and sources
+(python-docx was already pinned for the drive scanner).
+
+**Frontend.** Every Score & findings view: `ScoreSummary` (number, band, summary) → the
+`GapRegister` (severity filter, Export, each row editable; implication, deal impact and the
+observations behind a "More" toggle) → detail. Process pointers, shape and coverage sit in a
+"Notes" drop-down. Minimal pass: no score ring, gradients, coloured stat strips, shadows or
+hover lifts (`score-ring.tsx` deleted); bars and meters in ink; band and severity shown as a
+word with a small dot; the ⓘ icon is a thin outline; Assess tab blurbs cut to one line;
+process cards show finding counts instead of descriptions.
+
+**Tested.** `tests/test_findings.py` (18): every rule and its severity, edits survive
+re-scoring and do not leak between processes, budget edits, all six exports plus the
+combined one carry edits, estate edits reach the export, process and budget edits reach the
+report, the Word export. Plus a test that an edited process finding is always reported.
+pytest 598, ruff and mypy clean; tsc, eslint, vitest 19/19. A browser run (scratchpad
+`e2e.mjs`) edited a finding in the UI and followed it into the page, the Excel export and
+the regenerated report — 17/17 checks — and the 19-screen tour shows 0 console errors.
+
 ### Explainability icons, centred editors, score colours (2026-11-19)
 
 **What Rishi asked for.** Inventory editors open "as a pop-up in the middle", not a side

@@ -232,7 +232,14 @@ def all_themes() -> dict[str, list[ThemeDef]]:
         "team_governance": get_team_governance_config().themes,
         "strategy_projects": get_strategy_projects_config().themes,
         "it_budget": get_it_budget_config().themes,
+        "processes": _process_themes(),
     }
+
+
+def _process_themes() -> list[ThemeDef]:
+    from app.services.assess.findings import get_process_findings_config  # local: avoids a cycle
+
+    return get_process_findings_config().themes
 
 
 @lru_cache(maxsize=1)

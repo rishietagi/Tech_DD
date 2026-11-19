@@ -12,5 +12,5 @@ pillow==12.3.0  # required by python-pptx
 python-pptx==1.0.2
 xlsxwriter==3.2.9  # IRL Excel export (also a python-pptx dependency)
 openpyxl==3.1.5    # reads a completed IRL workbook back in (services/irl/import_xlsx.py)
-python-docx==1.1.2 # reads .docx text for the shared-drive scanner (services/checklist/extract.py)
+python-docx==1.1.2 # reads .docx for the drive scanner; writes the research brief export
 python-multipart==0.0.20  # multipart/form-data, for the IRL response upload

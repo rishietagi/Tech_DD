@@ -51,6 +51,8 @@ class ProcessResult:
     index: float
     band: str
     band_label: str
+    # The process tab's findings, edits applied (Gap dicts).
+    gaps: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass

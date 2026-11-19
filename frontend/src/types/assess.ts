@@ -1,8 +1,11 @@
 /** Mirrors backend/app/schemas/assess.py. If these drift, that is a bug. */
 
+import type { Gap, GapCounts } from "@/types/estate";
+
 export type AnswerType = "single_select" | "text";
 
-export type Band = "manual" | "emerging" | "standardised" | "integrated" | "optimised";
+export type Band =
+  "manual" | "emerging" | "standardised" | "integrated" | "optimised";
 
 export type PointerKind = "gap" | "strength" | "probe";
 
@@ -53,6 +56,8 @@ export interface ProcessSummary {
   has_score: boolean;
   index: number | null;
   band: Band | null;
+  /** Findings the latest score raises. */
+  gap_count: number;
 }
 
 export interface ProcessListResponse {
@@ -142,6 +147,9 @@ export interface AssessmentScoreRead {
   payload: AssessmentScorePayload;
   created_at: string;
   updated_at: string;
+  /** The process's findings, edits applied (schemas/process_findings.py). */
+  gaps: Gap[];
+  gap_counts: GapCounts;
 }
 
 export const BAND_LABELS: Record<Band, string> = {
@@ -160,7 +168,10 @@ export const BAND_LABELS: Record<Band, string> = {
  * answers it holds, and a nudge answer is stored the same way whether or not its parent
  * still shows it.
  */
-export function nudgeApplies(nudge: Nudge, answer: string | undefined): boolean {
+export function nudgeApplies(
+  nudge: Nudge,
+  answer: string | undefined,
+): boolean {
   const value = (answer ?? "").trim();
   if (!value) return false;
   const { when } = nudge;

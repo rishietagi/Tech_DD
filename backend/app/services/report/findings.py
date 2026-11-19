@@ -4,8 +4,8 @@ Phase 8 (Rishi, 2026-11-18). Every assessment now reports **themes** — strateg
 such as "critical applications facing end-of-support risks" — and each theme names the
 diligence area it belongs to (`reference/report/report.yaml › areas`). The executive
 summary is one row per finding, grouped by area, each with its own risk and actions, as in
-the sample's Gaps & Risks table. Business processes scored Manual or Emerging are findings
-of their own.
+the sample's Gaps & Risks table. Business-process findings come from the process tab's own
+register (reference/processes/_findings.yaml), edits applied, like every other register.
 
 **No finding is ever dropped** — one whose area is not configured is reported under its own
 name. That is pinned by a test, because a report that silently loses a High finding is
@@ -24,6 +24,7 @@ from app.schemas.report import ExecutiveFinding, ExecutiveRow, Limitation, Repor
 from app.services.report.inputs import ReportInputs
 
 SEVERITY_RANK = {"High": 0, "Medium": 1, "Low": 2}
+PROCESS_AREA = "process_enablement"
 ASSESSMENTS = ("applications", "data_tech", "team_governance", "strategy_projects")
 REGISTER_NAMES = {
     "applications": "applications",
@@ -85,7 +86,7 @@ def _from_gap(prefix: str, register: str, gap: dict[str, Any]) -> Finding:
     )
 
 
-def collect(inputs: ReportInputs, config: ReportConfig) -> list[Finding]:
+def collect(inputs: ReportInputs, config: ReportConfig) -> list[Finding]:  # noqa: ARG001 - kept for the builder's call
     out: list[Finding] = []
     scores = {
         "applications": inputs.applications_score,
@@ -101,36 +102,26 @@ def collect(inputs: ReportInputs, config: ReportConfig) -> list[Finding]:
         for gap in ((inputs.budget or {}).get("review") or {}).get("gaps", []):
             out.append(_from_gap("it_budget", REGISTER_NAMES["it_budget"], gap))
 
-    template = config.process_finding
     # A process the application themes already name ("licensed capability not used",
-    # "incomplete digitisation") is not reported again on its own: on Kiln every weak
-    # process appeared twice and pushed the area past its five findings (2026-11-18).
+    # "incomplete digitisation") is not reported again as wholly manual: on Kiln every weak
+    # process appeared twice and pushed the area past its five findings (2026-11-18). The
+    # cycle-shape and weak-step findings say something the application themes do not, so
+    # they stay.
     covered = {
         subject
-        for score in (inputs.applications_score or {},)
-        for gap in score.get("gaps", [])
-        if gap.get("area") == template.area
+        for gap in (inputs.applications_score or {}).get("gaps", [])
+        if gap.get("area") == PROCESS_AREA
         for subject in gap.get("subjects", [])
     }
     for process in sorted(inputs.processes, key=lambda p: p.index):
-        severity = template.bands.get(process.band)
-        if severity is None or process.name in covered:
-            continue
-        values = {"process": process.name, "index": f"{process.index:.0f}", "band": process.band_label}
-        out.append(
-            Finding(
-                key=f"process-{process.key}",
-                area=template.area,
-                severity=severity,
-                headline=template.headline.format(**values),
-                bullets=[" ".join(template.bullet.format(**values).split())],
-                implication=" ".join(template.implication.split()),
-                impact=list(template.impact),
-                action=" ".join(template.action.format(**values).split()),
-                source=process.short_name or process.name,
-                register="business process",
-            )
-        )
+        for gap in process.gaps:
+            # An edited finding is the deal team's own wording: always reported, never
+            # filtered as a duplicate (2026-11-19 — an edit vanishing from the report read
+            # as a broken link between the tab and the report).
+            if gap["theme"] == "process_manual" and process.name in covered and not gap.get("edited"):
+                continue
+            finding = _from_gap(f"process-{process.key}", "business process", gap)
+            out.append(finding)
     return out
 
 

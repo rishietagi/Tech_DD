@@ -1,21 +1,17 @@
 import type { Band } from "@/types/assess";
 import { BAND_LABELS } from "@/types/assess";
-import { scoreFill } from "@/components/ui/score-ring";
 
 /**
- * The five maturity bands reuse the existing priority/status ramp rather than adding a
- * sixth palette: low maturity reads as the problem colour, high maturity as the "good"
+ * The band as a word with a small dot (Rishi, 2026-11-19: minimal, no loud colour). The dot
+ * reuses the priority/status ramp: low maturity in the problem colour, high in the "good"
  * green already reserved for "arrived". No raw hex in components (CLAUDE.md §8).
  */
-const BAND_CLASSES: Record<Band, string> = {
-  manual:
-    "border-priority-critical bg-priority-critical-tint text-priority-critical",
-  emerging: "border-priority-high bg-priority-high-tint text-priority-high",
-  standardised:
-    "border-priority-medium bg-priority-medium-tint text-priority-medium",
-  integrated: "border-steel bg-steel-tint text-steel",
-  optimised:
-    "border-status-received bg-status-received-tint text-status-received",
+const BAND_DOT: Record<Band, string> = {
+  manual: "bg-priority-critical",
+  emerging: "bg-priority-high",
+  standardised: "bg-kpmg-blue",
+  integrated: "bg-kpmg-blue-light",
+  optimised: "bg-status-received",
 };
 
 export function BandBadge({
@@ -31,8 +27,9 @@ export function BandBadge({
   return (
     <span
       title={title}
-      className={`inline-block rounded-full border px-2.5 py-0.5 font-sans text-[11px] font-semibold uppercase ${BAND_CLASSES[band]}`}
+      className="inline-flex items-center gap-1.5 rounded-full border border-line-strong px-2.5 py-0.5 font-sans text-[12px] font-medium text-text"
     >
+      <span className={`h-2 w-2 rounded-full ${BAND_DOT[band]}`} aria-hidden />
       {label || BAND_LABELS[band]}
     </span>
   );
@@ -47,9 +44,7 @@ export function BandBadge({
 export function LadderMeter({ score }: { score: number | null }) {
   if (score === null) {
     return (
-      <span className="font-mono text-[11px] uppercase text-muted-2">
-        Not assessed
-      </span>
+      <span className="font-sans text-[12px] text-muted-2">Not assessed</span>
     );
   }
   const filled = Math.round(score);
@@ -59,9 +54,7 @@ export function LadderMeter({ score }: { score: number | null }) {
         {[1, 2, 3, 4, 5].map((rung) => (
           <span
             key={rung}
-            className={`h-3.5 w-[7px] rounded-[1px] ${
-              rung <= filled ? scoreFill(score * 20) : "bg-paper-3"
-            }`}
+            className={`h-3 w-[6px] rounded-[1px] ${rung <= filled ? "bg-ink" : "bg-paper-3"}`}
           />
         ))}
       </span>

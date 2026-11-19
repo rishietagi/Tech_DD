@@ -27,7 +27,7 @@ function MixReadout({ mix }: { mix: number }) {
         <span>Enterprise</span>
         <span>Product</span>
       </div>
-      <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-kpmg-blue/25 via-paper-3 to-kpmg-blue-light/35">
+      <div className="relative h-1.5 w-full rounded-full bg-paper-3">
         <div
           className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-kpmg-blue shadow-sm"
           style={{ left: `${mix}%` }}
@@ -73,7 +73,7 @@ export function ClassificationHeader({
   const unknownSignals = signals.filter((s) => s.effect === "unknown");
 
   return (
-    <section className="card mb-8 bg-gradient-to-br from-kpmg-blue-tint to-paper p-6">
+    <section className="mb-8 rounded-xl border border-line p-6">
       <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="mb-1 font-sans text-xs font-semibold tracking-[0.08em] text-kpmg-blue uppercase">

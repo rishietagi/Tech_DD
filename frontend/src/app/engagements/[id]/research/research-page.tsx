@@ -7,6 +7,7 @@ import { useState } from "react";
 import { ResearchSummary } from "@/components/engagement/research-summary";
 import { ResearchEditor } from "@/components/engagement/research-editor";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ExportLink } from "@/components/ui/export-link";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
@@ -167,6 +168,11 @@ export function ResearchPage({ engagementId }: { engagementId: string }) {
           >
             {runMutation.isPending ? "Researching…" : "Run again"}
           </button>
+          <ExportLink
+            href={researchApi.exportUrl(engagementId)}
+            label="Export Word"
+            primary
+          />
         </div>
       </div>
       {editing && (

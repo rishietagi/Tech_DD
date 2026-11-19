@@ -2,53 +2,35 @@
 
 import { useState } from "react";
 
+import {
+  ImpactExplain,
+  SeverityExplain,
+  ThemesExplain,
+} from "@/components/engagement/explain";
+import { InfoTip } from "@/components/ui/info-tip";
 import { Select } from "@/components/ui/select";
 import { TextArea } from "@/components/ui/text-area";
 import { TextInput } from "@/components/ui/text-input";
 import { IMPACT_LABELS } from "@/types/estate";
 import type { Gap, GapEdit, Severity } from "@/types/estate";
-import {
-  ImpactExplain,
-  SeverityExplain,
-} from "@/components/engagement/explain";
-import { InfoTip } from "@/components/ui/info-tip";
 
-const SEVERITY_CLASSES: Record<Severity, string> = {
-  High: "border-priority-critical bg-priority-critical-tint text-priority-critical",
-  Medium: "border-priority-high bg-priority-high-tint text-priority-high",
-  Low: "border-priority-low bg-priority-low-tint text-priority-low",
+const DOT: Record<Severity, string> = {
+  High: "bg-priority-critical",
+  Medium: "bg-priority-high",
+  Low: "bg-muted-2",
 };
 
-const EDGE: Record<Severity, string> = {
-  High: "border-l-priority-critical",
-  Medium: "border-l-priority-high",
-  Low: "border-l-priority-low",
-};
-
-const COUNT_EDGE: Record<Severity, string> = {
-  High: "border-t-priority-critical",
-  Medium: "border-t-priority-high",
-  Low: "border-t-priority-low",
-};
-
-const COUNT_TEXT: Record<Severity, string> = {
-  High: "text-priority-critical",
-  Medium: "text-priority-high",
-  Low: "text-priority-low",
-};
-
+/** Severity as a word with a small dot — colour carries meaning, never decoration. */
 export function SeverityBadge({ severity }: { severity: Severity }) {
   return (
-    <span
-      className={`inline-block rounded-full border px-2.5 py-0.5 font-sans text-[11px] font-semibold uppercase ${SEVERITY_CLASSES[severity]}`}
-    >
+    <span className="inline-flex items-center gap-1.5 font-sans text-[12px] font-semibold text-text">
+      <span className={`h-2 w-2 rounded-full ${DOT[severity]}`} aria-hidden />
       {severity}
     </span>
   );
 }
 
-const LABEL =
-  "mb-1 block font-mono text-[10px] uppercase tracking-wide text-muted";
+const LABEL = "mb-1 block font-sans text-[12px] font-medium text-muted";
 
 function GapEditor({
   gap,
@@ -66,31 +48,33 @@ function GapEditor({
   const [busy, setBusy] = useState(false);
 
   return (
-    <div className="mt-4 space-y-3 rounded-xl border border-line-strong bg-paper-2 p-4">
-      <label className="block">
-        <span className={LABEL}>Severity</span>
-        <Select
-          value={severity}
-          onChange={(e) => setSeverity(e.target.value as Severity)}
-          className="max-w-[200px] py-2 text-[13px]"
-          options={["High", "Medium", "Low"].map((s) => ({
-            value: s,
-            label: s,
-          }))}
-        />
-      </label>
-      <label className="block">
-        <span className={LABEL}>Finding</span>
-        <TextInput
-          value={headline}
-          onChange={(e) => setHeadline(e.target.value)}
-          className="text-[14px]"
-        />
-      </label>
+    <div className="mt-4 space-y-3 rounded-lg border border-line bg-paper-2 p-4">
+      <div className="grid gap-3 sm:grid-cols-[160px_minmax(0,1fr)]">
+        <label className="block">
+          <span className={LABEL}>Severity</span>
+          <Select
+            value={severity}
+            onChange={(e) => setSeverity(e.target.value as Severity)}
+            className="py-2 text-[13px]"
+            options={["High", "Medium", "Low"].map((s) => ({
+              value: s,
+              label: s,
+            }))}
+          />
+        </label>
+        <label className="block">
+          <span className={LABEL}>Finding</span>
+          <TextInput
+            value={headline}
+            onChange={(e) => setHeadline(e.target.value)}
+            className="py-2 text-[14px]"
+          />
+        </label>
+      </div>
       <label className="block">
         <span className={LABEL}>Evidence — one point per line</span>
         <TextArea
-          rows={4}
+          rows={3}
           className="!min-h-0 text-[14px]"
           value={evidence}
           onChange={(e) => setEvidence(e.target.value)}
@@ -109,7 +93,7 @@ function GapEditor({
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-full px-4 py-2 font-sans text-[12.5px] text-muted hover:text-text"
+          className="rounded-full px-4 py-2 font-sans text-[13px] text-muted hover:text-text"
         >
           Cancel
         </button>
@@ -129,7 +113,7 @@ function GapEditor({
               setBusy(false);
             }
           }}
-          className="rounded-full bg-ink px-4 py-2 font-sans text-[12.5px] font-medium text-paper-on-ink hover:bg-ink-2 disabled:opacity-50"
+          className="rounded-full bg-ink px-4 py-2 font-sans text-[13px] font-medium text-paper-on-ink hover:bg-ink-2 disabled:opacity-50"
         >
           {busy ? "Saving…" : "Save"}
         </button>
@@ -153,104 +137,88 @@ function GapRow({
   const [open, setOpen] = useState(false);
 
   return (
-    <li
-      className={`card border-l-4 px-5 py-4 transition-shadow hover:shadow-raised ${EDGE[gap.severity]}`}
-    >
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-        <div>
-          <div className="mb-1.5 flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[11px] font-semibold text-muted">
-              {gap.display_id}
-            </span>
-            <SeverityBadge severity={gap.severity} />
-            <span className="rounded-full bg-paper-2 px-2.5 py-0.5 font-sans text-[11px] text-muted">
-              {areaLabel}
-            </span>
-            {gap.edited && (
-              <span className="font-mono text-[10px] uppercase tracking-wide text-steel">
-                Edited
-              </span>
-            )}
-          </div>
-          <h4 className="font-sans text-[15px] font-semibold leading-snug text-text">
-            {gap.headline}
-          </h4>
-          <ul className="mt-1.5 list-disc space-y-1 pl-5 font-sans text-[13.5px] leading-[1.5] text-text">
-            {gap.evidence.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-          <p className="mt-2 font-sans text-[13px] italic leading-[1.5] text-muted">
-            {gap.implication}
-          </p>
-          {gap.observations.length > 0 && (
+    <li className="px-5 py-4">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <SeverityBadge severity={gap.severity} />
+        <span className="font-mono text-[11.5px] text-muted-2">
+          {gap.display_id}
+        </span>
+        <span className="font-sans text-[12px] text-muted-2">{areaLabel}</span>
+        {gap.edited && (
+          <span className="font-sans text-[11.5px] text-steel">Edited</span>
+        )}
+        <span className="ml-auto flex gap-3">
+          {!editing && (
             <button
               type="button"
-              onClick={() => setOpen((o) => !o)}
-              className="mt-2 font-sans text-[12px] text-steel underline-offset-2 hover:underline"
-              aria-expanded={open}
+              onClick={() => setEditing(true)}
+              className="font-sans text-[12.5px] font-medium text-ink hover:underline"
             >
-              {open ? "Hide" : "Show"} what raised it ({gap.observations.length}
-              )
+              Edit
             </button>
           )}
-          {open && (
-            <ul className="mt-2 space-y-1 font-sans text-[12.5px] text-muted">
-              {gap.observations.map((o) => (
-                <li key={`${o.source}-${o.text}`} className="flex gap-2">
-                  <span className="shrink-0 font-mono text-[10.5px] uppercase text-muted-2">
-                    {o.severity} · {o.source.replace(":", " ")}
-                  </span>
-                  <span>{o.text}</span>
-                </li>
-              ))}
-            </ul>
+          {gap.edited && !editing && (
+            <button
+              type="button"
+              onClick={() => void onRevert(gap.key)}
+              className="font-sans text-[12.5px] text-muted hover:text-text"
+            >
+              Revert
+            </button>
           )}
-        </div>
-        <div className="border-line lg:border-l lg:pl-5">
-          <p className="mb-1 font-mono text-[10px] uppercase tracking-wide text-muted">
-            Recommended action
+        </span>
+      </div>
+      <h4 className="mt-1.5 font-sans text-[15px] leading-snug font-semibold text-text">
+        {gap.headline}
+      </h4>
+      <ul className="mt-1.5 list-disc space-y-0.5 pl-5 font-sans text-[13.5px] leading-[1.5] text-text">
+        {gap.evidence.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+      <p className="mt-2 font-sans text-[13.5px] leading-[1.5] text-muted">
+        <span className="font-medium text-text">Action: </span>
+        {gap.action}
+      </p>
+
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="mt-2 font-sans text-[12.5px] text-muted hover:text-text"
+      >
+        {open ? "Less" : "More"} ▸
+      </button>
+      {open && (
+        <div className="mt-2 space-y-2 border-l-2 border-line pl-4 font-sans text-[13px] leading-[1.55] text-muted">
+          <p>
+            <span className="font-medium text-text">Why it matters: </span>
+            {gap.implication}
           </p>
-          <p className="font-sans text-[13.5px] leading-[1.55] text-text">
-            {gap.action}
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            {gap.impact.map((lens) => (
-              <span
-                key={lens}
-                className="rounded-full bg-steel-tint px-2.5 py-0.5 font-sans text-[11px] text-steel"
-              >
-                {IMPACT_LABELS[lens] ?? lens}
-              </span>
-            ))}
-            {gap.impact.length > 0 && (
-              <InfoTip label="the deal-impact lens" title="Deal-impact lens">
+          {gap.impact.length > 0 && (
+            <p className="flex flex-wrap items-center gap-x-1">
+              <span className="font-medium text-text">Deal impact: </span>
+              {gap.impact
+                .map((lens) => IMPACT_LABELS[lens] ?? lens)
+                .join(" · ")}
+              <InfoTip label="the deal impact" title="Deal impact">
                 <ImpactExplain />
               </InfoTip>
-            )}
-          </div>
-          <div className="mt-3 flex gap-3">
-            {!editing && (
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
-                className="font-sans text-[12px] font-medium text-steel hover:underline"
-              >
-                Edit
-              </button>
-            )}
-            {gap.edited && !editing && (
-              <button
-                type="button"
-                onClick={() => void onRevert(gap.key)}
-                className="font-sans text-[12px] text-muted hover:text-text"
-              >
-                Revert to generated
-              </button>
-            )}
-          </div>
+            </p>
+          )}
+          {gap.observations.length > 0 && (
+            <div>
+              <p className="font-medium text-text">What raised it</p>
+              <ul className="mt-0.5 list-disc space-y-0.5 pl-5">
+                {gap.observations.map((o) => (
+                  <li key={`${o.source}-${o.text}`}>{o.text}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
-      </div>
+      )}
+
       {editing && (
         <GapEditor
           gap={gap}
@@ -265,7 +233,7 @@ function GapRow({
   );
 }
 
-/** Diligence-area labels for the badge on each finding (reference/report/report.yaml). */
+/** Diligence-area labels for each finding (reference/report/report.yaml). */
 const AREA_LABELS: Record<string, string> = {
   process_enablement: "Business process enablement",
   applications: "IT applications",
@@ -283,17 +251,22 @@ const AREA_LABELS: Record<string, string> = {
 };
 
 /**
- * The register: one row per finding — a theme with its evidence, implication, deal
- * impact and action (Phase 8). The single observations that raised it sit underneath.
+ * The findings register, the same on every Assess tab: a heading with a severity filter
+ * and an optional action (the export), then one row per finding. Every row is editable,
+ * and the edit is what the export and the report carry.
  */
 export function GapRegister({
   gaps,
   onEdit,
   onRevert,
+  actions,
+  empty = "No findings raised on what has been answered so far.",
 }: {
   gaps: Gap[];
   onEdit: (key: string, edit: GapEdit) => Promise<void>;
   onRevert: (key: string) => Promise<void>;
+  actions?: React.ReactNode;
+  empty?: string;
 }) {
   const [severity, setSeverity] = useState<Severity | "all">("all");
   const shown = gaps.filter(
@@ -302,52 +275,59 @@ export function GapRegister({
   const counts = { High: 0, Medium: 0, Low: 0 } as Record<Severity, number>;
   for (const g of gaps) counts[g.severity] += 1;
 
+  const filter = (value: Severity | "all", label: string, n: number) => (
+    <button
+      key={value}
+      type="button"
+      onClick={() => setSeverity(value)}
+      aria-pressed={severity === value}
+      className={`rounded-full px-3 py-1 font-sans text-[12.5px] transition-colors ${
+        severity === value
+          ? "bg-ink text-paper-on-ink"
+          : "text-muted hover:text-text"
+      }`}
+    >
+      {label} <span className="tabular-nums opacity-70">{n}</span>
+    </button>
+  );
+
   return (
-    <section aria-label="Findings">
-      <p className="mb-2 flex items-center font-mono text-[10.5px] uppercase tracking-wide text-muted">
-        By severity — click to filter
-        <InfoTip label="severity" title="How severity is set">
-          <SeverityExplain />
-          <p>
-            A theme takes the highest severity of the observations behind it.
-            You can change it; the rules version is kept beside yours.
-          </p>
-        </InfoTip>
-      </p>
-      <div className="mb-4 grid grid-cols-3 gap-3">
-        {(["High", "Medium", "Low"] as Severity[]).map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setSeverity(severity === s ? "all" : s)}
-            aria-pressed={severity === s}
-            className={`card border-t-[3px] px-4 py-3 text-left transition-all hover:-translate-y-px hover:shadow-raised ${COUNT_EDGE[s]} ${
-              severity === s ? "ring-2 ring-kpmg-blue/30" : ""
-            }`}
-          >
-            <p className="font-sans text-[10.5px] font-semibold tracking-[0.06em] text-muted uppercase">
-              {s} severity
-            </p>
-            <p
-              className={`font-display text-[28px] leading-tight font-semibold tabular-nums ${COUNT_TEXT[s]}`}
+    <section aria-label="Findings" className="mb-12">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h3 className="flex items-center font-display text-[20px] font-semibold text-ink">
+          Findings
+          <InfoTip label="findings" title="How findings are made">
+            <ThemesExplain />
+            <SeverityExplain />
+          </InfoTip>
+        </h3>
+        <div className="flex flex-wrap items-center gap-2">
+          {gaps.length > 0 && (
+            <div
+              className="flex gap-0.5"
+              role="group"
+              aria-label="Filter by severity"
             >
-              {counts[s]}
-            </p>
-          </button>
-        ))}
+              {filter("all", "All", gaps.length)}
+              {(["High", "Medium", "Low"] as Severity[]).map((s) =>
+                filter(s, s, counts[s]),
+              )}
+            </div>
+          )}
+          {actions}
+        </div>
       </div>
 
       {gaps.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-line-strong bg-paper-2 px-6 py-8 text-center font-sans text-[13.5px] text-muted">
-          No findings raised. Either the estate is sound or too little has been
-          answered to tell — the coverage note above says which.
-        </div>
+        <p className="rounded-xl border border-dashed border-line-strong px-5 py-6 font-sans text-[13.5px] text-muted">
+          {empty}
+        </p>
       ) : shown.length === 0 ? (
         <p className="font-sans text-[13.5px] text-muted">
           No findings at this severity.
         </p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y divide-line rounded-xl border border-line bg-paper">
           {shown.map((gap) => (
             <GapRow
               key={gap.key}

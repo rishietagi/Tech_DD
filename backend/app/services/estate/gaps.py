@@ -15,12 +15,16 @@ from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
 from app.models.estate import EstateGapNote
 from app.schemas.estate import (
     SEVERITIES,
     Gap,
     GapCounts,
     GapGenerated,
+    GapNoteWrite,
     GapObservation,
     Severity,
     ThemeDef,
@@ -162,3 +166,46 @@ def overlay(gaps: list[Gap], notes: dict[str, EstateGapNote]) -> list[Gap]:
             )
         out.append(gap.model_copy(update=update))
     return order(out)
+
+
+# ------------------------------------------------------------------ stored edits
+#
+# One table holds every register's edits. The estate assessments key it by domain; the IT
+# budget uses domain "it_budget"; business processes use domain "process" with the gap key
+# prefixed by the process ("procure_to_pay|theme:process_manual"), so five registers share
+# one domain without colliding.
+
+
+def load_notes(db: Session, engagement_id: str, domain: str, prefix: str = "") -> dict[str, EstateGapNote]:
+    """Notes for one register, keyed by the gap key with any prefix removed."""
+    rows = db.scalars(
+        select(EstateGapNote).where(EstateGapNote.engagement_id == engagement_id, EstateGapNote.domain == domain)
+    )
+    return {n.gap_key[len(prefix) :]: n for n in rows if n.gap_key.startswith(prefix)}
+
+
+def write_note(
+    db: Session, engagement_id: str, domain: str, gap_key: str, write: GapNoteWrite, prefix: str = ""
+) -> None:
+    """Create or update the edit on one gap. Blank fields fall back to the generated text."""
+    note = load_notes(db, engagement_id, domain, prefix).get(gap_key)
+    if note is None:
+        note = EstateGapNote(engagement_id=engagement_id, domain=domain, gap_key=f"{prefix}{gap_key}")
+        db.add(note)
+    if write.severity is not None:
+        note.severity = write.severity
+    if write.headline is not None:
+        note.headline = write.headline.strip() or None
+    if write.evidence is not None:
+        lines = [line.strip() for line in write.evidence if line.strip()]
+        note.description = "\n".join(lines) or None
+    if write.action is not None:
+        note.hypothesis = write.action.strip() or None
+    db.commit()
+
+
+def delete_note(db: Session, engagement_id: str, domain: str, gap_key: str, prefix: str = "") -> None:
+    note = load_notes(db, engagement_id, domain, prefix).get(gap_key)
+    if note is not None:
+        db.delete(note)
+        db.commit()

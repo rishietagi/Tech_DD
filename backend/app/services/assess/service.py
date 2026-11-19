@@ -32,6 +32,9 @@ from app.schemas.assess import (
     ProcessSummary,
     Question,
 )
+from app.schemas.estate import Gap, GapNoteWrite
+from app.schemas.process_findings import ProcessScoreRead
+from app.services.assess.findings import process_gaps
 from app.services.assess.library import (
     ProcessNotDefinedError,
     get_process_registry,
@@ -39,6 +42,7 @@ from app.services.assess.library import (
 )
 from app.services.assess.llm import LlmScoreGenerator, RulesScoreGenerator
 from app.services.engagements import assemble_intake_full, get_engagement
+from app.services.estate.gaps import count, delete_note, load_notes, overlay, write_note
 from app.services.intelligence.mode import use_llm
 
 logger = logging.getLogger(__name__)
@@ -161,6 +165,7 @@ def list_processes(db: Session, engagement_id: str) -> ProcessListResponse:
                 summary.has_score = True
                 summary.index = latest.index_value
                 summary.band = latest.band  # type: ignore[assignment]
+                summary.gap_count = len(process_gaps(payload_of(latest), questionnaire))
         summaries.append(summary)
 
     return ProcessListResponse(engagement_id=engagement_id, processes=summaries)
@@ -423,9 +428,63 @@ def payload_of(row: ProcessAssessmentScore) -> AssessmentScorePayload:
     return AssessmentScorePayload.model_validate(row.payload_json)
 
 
+# --------------------------------------------------------------------------- findings
+#
+# Edits live in the shared gap-note table under domain "process", keyed by the process so
+# the five registers never collide. Applied on read, like the estate overlay.
+
+NOTE_DOMAIN = "process"
+
+
+def _prefix(process_key: str) -> str:
+    return f"{process_key}|"
+
+
+def findings(db: Session, engagement_id: str, process_key: str, payload: AssessmentScorePayload) -> list[Gap]:
+    """The process's findings with the consultant's edits applied."""
+    gaps = process_gaps(payload, get_questionnaire(process_key))
+    return overlay(gaps, load_notes(db, engagement_id, NOTE_DOMAIN, _prefix(process_key)))
+
+
+def score_read(db: Session, row: ProcessAssessmentScore) -> ProcessScoreRead:
+    payload = payload_of(row)
+    gaps = findings(db, row.engagement_id, row.process_key, payload)
+    return ProcessScoreRead(
+        id=row.id,
+        engagement_id=row.engagement_id,
+        process_key=row.process_key,
+        version=row.version,
+        generator=row.generator,
+        payload=payload,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+        gaps=gaps,
+        gap_counts=count(gaps),
+    )
+
+
+def save_gap_note(
+    db: Session, engagement_id: str, process_key: str, gap_key: str, write: GapNoteWrite
+) -> ProcessScoreRead:
+    current = score_read(db, get_latest_score(db, engagement_id, process_key))
+    if not any(g.key == gap_key for g in current.gaps):
+        raise AppError(code="unknown_gap", message="That finding is not in the latest register.", status_code=404)
+    write_note(db, engagement_id, NOTE_DOMAIN, gap_key, write, _prefix(process_key))
+    return score_read(db, get_latest_score(db, engagement_id, process_key))
+
+
+def delete_gap_note(db: Session, engagement_id: str, process_key: str, gap_key: str) -> ProcessScoreRead:
+    delete_note(db, engagement_id, NOTE_DOMAIN, gap_key, _prefix(process_key))
+    return score_read(db, get_latest_score(db, engagement_id, process_key))
+
+
 __all__ = [
     "ProcessNotDefinedError",
     "add_custom_question",
+    "delete_gap_note",
+    "findings",
+    "save_gap_note",
+    "score_read",
     "generate_score",
     "get_assessment",
     "get_latest_score",

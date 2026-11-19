@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
 from app.models.estate import ItBudget
+from app.schemas.estate import GapNoteWrite
 from app.schemas.it_budget import (
     BudgetFinding,
     BudgetLine,
@@ -27,7 +28,14 @@ from app.schemas.it_budget import (
     YearTotal,
 )
 from app.services.engagements import get_engagement
-from app.services.estate.gaps import Observation, build_theme_gaps
+from app.services.estate.gaps import (
+    Observation,
+    build_theme_gaps,
+    delete_note,
+    load_notes,
+    overlay,
+    write_note,
+)
 from app.services.estate.library import get_it_budget_config
 
 _RANK = {"High": 0, "Medium": 1, "Low": 2}
@@ -264,6 +272,10 @@ def get_budget(db: Session, engagement_id: str) -> ItBudgetRead:
     config = get_it_budget_config()
     row = _row(db, engagement_id)
     inputs = _pad(ItBudgetInputs.model_validate(row.inputs_json)) if row is not None else default_inputs(config)
+    result = review(inputs, config)
+    # The consultant's edits to the findings (2026-11-19: "exportable, so editable"), applied
+    # on read like every other register — the review itself is recomputed every time.
+    result.gaps = overlay(result.gaps, load_notes(db, engagement_id, NOTE_DOMAIN))
     return ItBudgetRead(
         engagement_id=engagement_id,
         inputs=inputs,
@@ -271,10 +283,26 @@ def get_budget(db: Session, engagement_id: str) -> ItBudgetRead:
             ItBudgetQuestionRead(id=q.id, text=q.text, options=[o.label for o in q.options])
             for q in config.process_questions
         ],
-        review=review(inputs, config),
+        review=result,
         saved=row is not None,
         updated_at=row.updated_at if row is not None else None,
     )
+
+
+NOTE_DOMAIN = "it_budget"
+
+
+def save_gap_note(db: Session, engagement_id: str, gap_key: str, write: GapNoteWrite) -> ItBudgetRead:
+    current = get_budget(db, engagement_id)
+    if not any(g.key == gap_key for g in current.review.gaps):
+        raise AppError(code="unknown_gap", message="That finding is not in the current review.", status_code=404)
+    write_note(db, engagement_id, NOTE_DOMAIN, gap_key, write)
+    return get_budget(db, engagement_id)
+
+
+def delete_gap_note(db: Session, engagement_id: str, gap_key: str) -> ItBudgetRead:
+    delete_note(db, engagement_id, NOTE_DOMAIN, gap_key)
+    return get_budget(db, engagement_id)
 
 
 def save_budget(db: Session, engagement_id: str, inputs: ItBudgetInputs) -> ItBudgetRead:

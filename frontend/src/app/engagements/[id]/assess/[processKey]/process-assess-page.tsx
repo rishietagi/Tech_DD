@@ -54,7 +54,12 @@ export function ProcessAssessPage({
     questionId: string,
     patch: { value?: string; remarks?: string },
   ) => {
-    const fresh = await assessApi.saveAnswer(engagementId, processKey, questionId, patch);
+    const fresh = await assessApi.saveAnswer(
+      engagementId,
+      processKey,
+      questionId,
+      patch,
+    );
     // The endpoint returns the whole assessment, so the progress count stays in step with
     // the answer just written.
     queryClient.setQueryData(assessmentKey, fresh);
@@ -74,13 +79,20 @@ export function ProcessAssessPage({
     mutationFn: () => assessApi.score(engagementId, processKey),
     onSuccess: (fresh: AssessmentScoreRead) => {
       queryClient.setQueryData(scoreKey, fresh);
-      void queryClient.invalidateQueries({ queryKey: ["assess-processes", engagementId] });
+      void queryClient.invalidateQueries({
+        queryKey: ["assess-processes", engagementId],
+      });
       void queryClient.invalidateQueries({ queryKey: assessmentKey });
       setTab("score");
-      show(`Scored ${fresh.payload.index.toFixed(1)}/100 — ${fresh.payload.band_label}`);
+      show(
+        `Scored ${fresh.payload.index.toFixed(1)}/100 — ${fresh.payload.band_label}`,
+      );
     },
     onError: (err: unknown) =>
-      show(err instanceof ApiError ? err.message : "Could not score this process", "error"),
+      show(
+        err instanceof ApiError ? err.message : "Could not score this process",
+        "error",
+      ),
   });
 
   if (isLoading) {
@@ -93,7 +105,11 @@ export function ProcessAssessPage({
   }
 
   // A process named in the product but with no questionnaire behind it yet.
-  if (isError && error instanceof ApiError && error.code === "process_not_defined") {
+  if (
+    isError &&
+    error instanceof ApiError &&
+    error.code === "process_not_defined"
+  ) {
     return (
       <main className="mx-auto w-full max-w-[720px] px-7 py-20">
         <EmptyState
@@ -125,7 +141,9 @@ export function ProcessAssessPage({
 
   const progress =
     assessment.question_count > 0
-      ? Math.round((assessment.answered_count / assessment.question_count) * 100)
+      ? Math.round(
+          (assessment.answered_count / assessment.question_count) * 100,
+        )
       : 0;
   const nothingAnswered = assessment.answered_count === 0;
 
@@ -134,7 +152,7 @@ export function ProcessAssessPage({
       <header className="mb-8 border-b border-line-strong pb-7">
         <Link
           href={`/engagements/${engagementId}/assess`}
-          className="mb-3 inline-block font-mono text-[11px] uppercase tracking-wide text-muted hover:text-text"
+          className="mb-3 inline-block font-sans text-[13px] text-muted hover:text-text"
         >
           ← Assess
         </Link>
@@ -172,15 +190,21 @@ export function ProcessAssessPage({
             aria-valuemax={100}
             aria-label="Questionnaire progress"
           >
-            <div className="h-full rounded-full bg-ink" style={{ width: `${progress}%` }} />
+            <div
+              className="h-full rounded-full bg-ink"
+              style={{ width: `${progress}%` }}
+            />
           </div>
-          <span className="font-mono text-[11px] uppercase text-muted-2">
+          <span className="font-sans text-[12px] text-muted-2">
             {assessment.answered_count}/{assessment.question_count} answered
           </span>
         </div>
       </header>
 
-      <nav className="mb-8 flex gap-1 border-b border-line" aria-label="Assessment views">
+      <nav
+        className="mb-8 flex gap-1 border-b border-line"
+        aria-label="Assessment views"
+      >
         {(["questionnaire", "score"] as const).map((value) => {
           const active = tab === value;
           const disabled = value === "score" && !score;
@@ -197,7 +221,7 @@ export function ProcessAssessPage({
                   : "border-transparent text-muted hover:text-text"
               }`}
             >
-              {value === "questionnaire" ? "Questionnaire" : "Score & summary"}
+              {value === "questionnaire" ? "Questionnaire" : "Score & findings"}
             </button>
           );
         })}
@@ -213,14 +237,38 @@ export function ProcessAssessPage({
         />
       ) : score ? (
         <>
-          {score.payload.questionnaire_version !== assessment.questionnaire_version && (
-            <p className="mb-6 rounded-xl border border-redline bg-redline-tint px-5 py-3 font-sans text-[13px] text-text">
+          {score.payload.questionnaire_version !==
+            assessment.questionnaire_version && (
+            <p className="mb-6 rounded-xl border border-line-strong px-5 py-3 font-sans text-[13px] text-text">
               This score was produced against questionnaire v
               {score.payload.questionnaire_version}; the questionnaire is now v
-              {assessment.questionnaire_version}. Re-score to bring it up to date.
+              {assessment.questionnaire_version}. Re-score to bring it up to
+              date.
             </p>
           )}
-          <ProcessScore payload={score.payload} />
+          <ProcessScore
+            score={score}
+            engagementId={engagementId}
+            onEdit={async (key, edit) => {
+              const fresh = await assessApi.editGap(
+                engagementId,
+                processKey,
+                key,
+                edit,
+              );
+              queryClient.setQueryData(scoreKey, fresh);
+              show("Finding updated");
+            }}
+            onRevert={async (key) => {
+              const fresh = await assessApi.revertGap(
+                engagementId,
+                processKey,
+                key,
+              );
+              queryClient.setQueryData(scoreKey, fresh);
+              show("Finding reverted");
+            }}
+          />
         </>
       ) : (
         <EmptyState

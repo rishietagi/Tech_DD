@@ -71,7 +71,9 @@ def test_every_theme_states_its_deal_impact_and_an_action() -> None:
         for theme in themes:
             assert theme.impact, (assessment, theme.id)
             assert theme.action.startswith("Target should"), (assessment, theme.id)
-            assert theme.headline[0].isupper() and not theme.headline.endswith("."), theme.headline
+            # A process theme opens with the process name, which is capitalised once filled in.
+            opens = theme.headline[0].isupper() or theme.headline.startswith("{process}")
+            assert opens and not theme.headline.endswith("."), theme.headline
 
 
 # ============================================================================ applications

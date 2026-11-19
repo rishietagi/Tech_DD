@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
 from app.db.session import get_db
+from app.schemas.estate import GapNoteWrite
 from app.schemas.it_budget import FinancialsImportResult, ItBudgetInputs, ItBudgetRead
 from app.services.engagements import get_engagement
 from app.services.estate import budget as budget_service
@@ -25,6 +26,17 @@ def get_it_budget(engagement_id: str, db: Session = Depends(get_db)) -> ItBudget
 def save_it_budget(engagement_id: str, payload: ItBudgetInputs, db: Session = Depends(get_db)) -> ItBudgetRead:
     """Replace the inputs whole and return the recomputed review."""
     return budget_service.save_budget(db, engagement_id, payload)
+
+
+@router.patch("/gaps/{gap_key}", response_model=ItBudgetRead)
+def edit_gap(engagement_id: str, gap_key: str, payload: GapNoteWrite, db: Session = Depends(get_db)) -> ItBudgetRead:
+    """Edit one budget finding. Kept across every recomputation of the review."""
+    return budget_service.save_gap_note(db, engagement_id, gap_key, payload)
+
+
+@router.delete("/gaps/{gap_key}", response_model=ItBudgetRead)
+def revert_gap(engagement_id: str, gap_key: str, db: Session = Depends(get_db)) -> ItBudgetRead:
+    return budget_service.delete_gap_note(db, engagement_id, gap_key)
 
 
 @router.get("/template.xlsx")

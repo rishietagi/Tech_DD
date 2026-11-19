@@ -9,7 +9,7 @@ import { GapRegister } from "@/components/estate/gap-register";
 import {
   ApplicationResults,
   DataTechResults,
-  ScoreHeader,
+  INDEX_EXPLAIN,
   StrategyProjectsResults,
   TeamGovernanceResults,
 } from "@/components/estate/estate-results";
@@ -27,8 +27,9 @@ import type {
   EstateSubject,
   GapEdit,
 } from "@/types/estate";
-import { ThemesExplain } from "@/components/engagement/explain";
-import { InfoTip } from "@/components/ui/info-tip";
+import { ScoreSummary } from "@/components/estate/score-summary";
+import { ExportLink } from "@/components/ui/export-link";
+import { findingsApi } from "@/lib/api/assess";
 
 const GROUP_LABELS: Record<string, string> = {
   criticality: "Criticality",
@@ -407,8 +408,8 @@ export function EstateAssessment({
         </div>
         <div className="flex items-center gap-3">
           {scoreRead && (
-            <span className="font-mono text-[11px] uppercase text-muted-2">
-              Last scored: version {scoreRead.version}
+            <span className="font-sans text-[12px] text-muted-2">
+              Version {scoreRead.version}
             </span>
           )}
           <button
@@ -531,11 +532,31 @@ export function EstateAssessment({
           )}
           {scoreRead && (
             <>
-              <ScoreHeader
-                payload={scoreRead.payload}
-                version={scoreRead.version}
-                indexLabel={copy.indexLabel}
+              <ScoreSummary
+                label={copy.indexLabel}
+                explain={INDEX_EXPLAIN[scoreRead.payload.domain]}
+                index={scoreRead.payload.index}
+                band={scoreRead.payload.band}
+                bandLabel={scoreRead.payload.band_label ?? undefined}
+                bandMeaning={scoreRead.payload.band_meaning ?? undefined}
+                summary={scoreRead.payload.executive_summary}
+                note={scoreRead.payload.coverage_note}
+                meta={`Version ${scoreRead.version}`}
               />
+              <GapRegister
+                gaps={scoreRead.payload.gaps}
+                onEdit={editGap}
+                onRevert={revertGap}
+                actions={
+                  <ExportLink
+                    href={findingsApi.exportUrl(engagementId, domain)}
+                    label="Export"
+                  />
+                }
+              />
+              <h3 className="mb-4 font-display text-[20px] font-semibold text-ink">
+                Detail
+              </h3>
               {scoreRead.payload.domain === "applications" && (
                 <ApplicationResults payload={scoreRead.payload} />
               )}
@@ -548,22 +569,6 @@ export function EstateAssessment({
               {scoreRead.payload.domain === "strategy_projects" && (
                 <StrategyProjectsResults payload={scoreRead.payload} />
               )}
-              <h3 className="mb-1 flex items-center font-serif text-[24px] text-ink">
-                Findings
-                <InfoTip label="findings" title="Observations and themes">
-                  <ThemesExplain />
-                </InfoTip>
-              </h3>
-              <p className="mb-4 max-w-3xl font-sans text-[13px] text-muted">
-                Each finding is a theme the deal team acts on — what it means
-                for the value of the deal, and what the target should do. The
-                single observations behind it sit underneath.
-              </p>
-              <GapRegister
-                gaps={scoreRead.payload.gaps}
-                onEdit={editGap}
-                onRevert={revertGap}
-              />
             </>
           )}
         </>

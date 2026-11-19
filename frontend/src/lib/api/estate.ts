@@ -144,4 +144,13 @@ export const itBudgetApi = {
       `/engagements/${engagementId}/it-budget`,
       inputs,
     ),
+  editGap: (engagementId: string, gapKey: string, body: GapEdit) =>
+    apiClient.patch<ItBudgetRead>(
+      `/engagements/${engagementId}/it-budget/gaps/${encodeURIComponent(gapKey)}`,
+      body,
+    ),
+  revertGap: (engagementId: string, gapKey: string) =>
+    apiClient.delete<ItBudgetRead>(
+      `/engagements/${engagementId}/it-budget/gaps/${encodeURIComponent(gapKey)}`,
+    ),
 };

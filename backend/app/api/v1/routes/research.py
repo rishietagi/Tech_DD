@@ -1,10 +1,15 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.research import CompanyResearch
-from app.schemas.research import ResearchEdit, ResearchRead, ResearchVersionSummary
+from app.schemas.research import ResearchEdit, ResearchPayload, ResearchRead, ResearchVersionSummary
+from app.services.engagements import get_engagement
 from app.services.research import service as research_service
+from app.services.research.export_docx import docx_filename, render
+
+DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
 router = APIRouter(prefix="/engagements/{engagement_id}/research", tags=["research"])
 
@@ -36,6 +41,24 @@ def run_research(engagement_id: str, db: Session = Depends(get_db)) -> ResearchR
 @router.get("", response_model=ResearchRead)
 def get_latest_research(engagement_id: str, db: Session = Depends(get_db)) -> ResearchRead:
     return _to_read(research_service.get_latest_research(db, engagement_id))
+
+
+@router.get("/export.docx")
+def export_research(engagement_id: str, db: Session = Depends(get_db)) -> Response:
+    """The latest research brief, edits included, as a Word document."""
+    engagement = get_engagement(db, engagement_id)
+    research = research_service.get_latest_research(db, engagement_id)
+    content = render(
+        ResearchPayload.model_validate(research.payload_json),
+        deal_name=engagement.deal_name,
+        company_name=research.company_name or "",
+        version=research.version,
+    )
+    return Response(
+        content=content,
+        media_type=DOCX_MEDIA_TYPE,
+        headers={"Content-Disposition": f'attachment; filename="{docx_filename(engagement.deal_name)}"'},
+    )
 
 
 @router.get("/versions", response_model=list[ResearchVersionSummary])

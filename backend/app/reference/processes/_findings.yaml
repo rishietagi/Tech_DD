@@ -1,0 +1,70 @@
+# Findings for the business-process assessments (Rishi, 2026-11-19: "show findings in the
+# business process tab, in the same format as the other assess tabs").
+#
+# Process-agnostic, like the scoring: the same three rules read every process's step
+# scores. What is process-specific — where the ends of the cycle sit and what a gap between
+# them means commercially — comes from each questionnaire's own `shape` block.
+#
+# Each theme is a finding the deal team acts on. Headlines and actions may use:
+#   {process}  the process name          {steps}  the weakest heavy steps, named
+#   {index}    the automation index      {band}   the band label
+#   {weak_end} the less automated end of the cycle (cycle rule only)
+#
+# Severity, by rule:
+#   process_manual       — from the band: `manual_bands` below.
+#   process_broken_cycle — the theme's `severity`.
+#   process_weak_step    — Medium when a weak step carries `heavy_weight`% or more of the
+#                          process, otherwise the theme's `severity` (Low).
+
+version: "1.0"
+
+rules:
+  # A band that makes the whole process a finding, and the severity it carries.
+  manual_bands: {manual: High, emerging: Medium}
+  # A step at or below this (0-5) is weak — the same line the pointers use.
+  weak_step_max: 2.0
+  # A weak step carrying at least this share of the process weight is Medium, not Low.
+  heavy_weight: 15
+  # Front-of-cycle mean minus back-of-cycle mean, in ladder points, that counts as a break.
+  cycle_gap: 1.0
+  # Steps named in a headline's evidence or action, weakest-heaviest first.
+  named_steps: 3
+
+themes:
+  - id: process_manual
+    area: process_enablement
+    headline: "{process} is largely run by hand"
+    implication: >-
+      The process depends on manual effort, so headcount scales with volume, errors and
+      control gaps follow, and any synergy case that assumes the work is already automated
+      will underdeliver.
+    impact: [plan_risk, run_cost]
+    action: >-
+      Target should prioritise automation of {process}, starting with {steps}, using the
+      capability already in its systems where it exists.
+    severity: High
+
+  - id: process_broken_cycle
+    area: process_enablement
+    headline: "{process} automation stops part-way through the cycle"
+    # Replaced by the questionnaire's own shape reading when it has one.
+    implication: >-
+      One end of the cycle is materially more automated than the other, so the manual
+      effort — and the cost a synergy case assumes has gone — sits at the weaker end.
+    impact: [plan_risk, run_cost]
+    action: >-
+      Target should extend automation through {weak_end} of {process}, so the cycle
+      runs end to end without manual hand-offs.
+    severity: Medium
+
+  - id: process_weak_step
+    area: process_enablement
+    headline: "Manual steps in an otherwise system-supported {process} cycle"
+    implication: >-
+      The cycle is largely system-mediated, but isolated manual steps keep people in the
+      loop, add avoidable cost and weaken controls at those points.
+    impact: [run_cost]
+    action: >-
+      Target should automate {steps}, which remain manual while the rest of {process} runs
+      on its systems.
+    severity: Low

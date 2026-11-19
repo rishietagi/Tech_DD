@@ -21,6 +21,7 @@ from app.models.irl import IrlDocumentStatus, IrlResponse
 from app.models.report import Report, ReportAsset, ReportEdit
 from app.schemas.assess import BAND_LABELS
 from app.schemas.report import ReportConfig, ReportPayload, ReportRead
+from app.services.assess import service as assess_service
 from app.services.assess.service import list_processes
 from app.services.engagements import assemble_intake_full, get_engagement
 from app.services.estate import budget as budget_service
@@ -66,8 +67,6 @@ def get_report_config() -> ReportConfig:
         for theme in themes
         if theme.area not in area_ids
     )
-    if config.process_finding.area not in area_ids:
-        stray.append(f"process_finding->{config.process_finding.area}")
     if stray:
         raise RuntimeError(f"report.yaml: gap themes name unknown areas: {stray}")
     return config
@@ -129,18 +128,23 @@ def gather(db: Session, engagement_id: str) -> ReportInputs:
         row = estate_service.find_current(db, engagement_id, domain)  # type: ignore[arg-type]
         return estate_service.to_read(db, row).payload if row is not None else None
 
-    processes = [
-        ProcessResult(
-            key=p.key,
-            name=p.name,
-            short_name=p.short_name,
-            index=p.index or 0.0,
-            band=p.band or "manual",
-            band_label=BAND_LABELS.get(p.band or "manual", ""),
+    processes = []
+    for p in list_processes(db, engagement_id).processes:
+        if not (p.defined and p.has_score and p.index is not None):
+            continue
+        latest = assess_service.find_latest_score(db, engagement_id, p.key)
+        gaps = assess_service.score_read(db, latest).gaps if latest is not None else []
+        processes.append(
+            ProcessResult(
+                key=p.key,
+                name=p.name,
+                short_name=p.short_name,
+                index=p.index or 0.0,
+                band=p.band or "manual",
+                band_label=BAND_LABELS.get(p.band or "manual", ""),
+                gaps=[g.model_dump(mode="json") for g in gaps],
+            )
         )
-        for p in list_processes(db, engagement_id).processes
-        if p.defined and p.has_score and p.index is not None
-    ]
     budget = budget_service.get_budget(db, engagement_id)
     inventory: dict[str, list[Item]] = {}
     for item in items_of(db, engagement_id):
