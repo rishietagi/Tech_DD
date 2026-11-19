@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 
 from app.schemas.checklist import DocumentStatus, Priority
 from app.schemas.estate import InventoryImportResult
+from app.schemas.it_budget import FinancialsImportResult
 
 QuestionSource = Literal["scope", "llm", "manual"]
 
@@ -226,6 +227,8 @@ class ImportResponsesResult(BaseModel):
     # What the same upload did to the inventory sheets, when the workbook carried any
     # (PHASE6_PLAN D2). None when it carried none.
     inventory: InventoryImportResult | None = None
+    # What it did to the IT financials sheet, when the workbook carried one (Phase 8).
+    financials: FinancialsImportResult | None = None
 
 
 # ---------------------------------------------------------------- LLM contract

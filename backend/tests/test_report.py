@@ -84,6 +84,22 @@ def test_every_model_call_site_names_a_registered_skill() -> None:
 # ============================================================================ builder
 
 
+def _gap(theme: str, area: str, severity: str, headline: str, evidence: list[str]) -> dict[str, object]:
+    return {
+        "key": f"theme:{theme}",
+        "display_id": "XX-01",
+        "theme": theme,
+        "area": area,
+        "headline": headline,
+        "evidence": evidence,
+        "implication": "It matters to the deal.",
+        "impact": ["continuity"],
+        "action": "Target should fix it.",
+        "severity": severity,
+        "edited": False,
+    }
+
+
 def _inputs(**overrides: object) -> ReportInputs:
     base = dict(
         deal_name="Project Test",
@@ -137,32 +153,24 @@ def _inputs(**overrides: object) -> ReportInputs:
         research_what_they_do="",
         applications_score={
             "gaps": [
-                {
-                    "key": "app:1",
-                    "scope": "item",
-                    "category": "Application",
-                    "severity": "High",
-                    "title": "Ledger",
-                    "description": "x",
-                    "findings": ["High technical debt (80/100)"],
-                    "subject": {"name": "Ledger", "item_id": "1"},
-                    "edited": False,
-                },
+                _gap(
+                    "end_of_support",
+                    "applications",
+                    "High",
+                    "Critical applications facing end-of-support risks",
+                    ["1 business-critical application (Ledger) reaches end of vendor support within 24 months."],
+                ),
             ]
         },
         data_tech_score={
             "gaps": [
-                {
-                    "key": "check:CY2",
-                    "scope": "item",
-                    "category": "Cyber security",
-                    "severity": "High",
-                    "title": "MFA everywhere",
-                    "description": "x",
-                    "findings": ["Not in place"],
-                    "subject": {"name": "Cyber security", "item_id": ""},
-                    "edited": False,
-                },
+                _gap(
+                    "identity_access",
+                    "cyber",
+                    "High",
+                    "Weak identity and access controls",
+                    ["Not in place: MFA everywhere."],
+                ),
             ],
             "checks": [{"id": "CY2", "section": "cyber", "text": "MFA everywhere", "status": "fail"}],
         },
@@ -178,27 +186,57 @@ def _inputs(**overrides: object) -> ReportInputs:
     return ReportInputs(**base)  # type: ignore[arg-type]
 
 
+def _findings(payload: ReportPayload) -> dict[str, object]:
+    return {f.key: f for row in payload.executive for f in row.findings}
+
+
 def test_no_finding_is_ever_dropped() -> None:
+    stray = _gap("mystery", "an_area_nobody_configured", "Medium", "Something odd", ["It is odd."])
+    inputs = _inputs()
+    inputs.applications_score["gaps"].append(stray)  # type: ignore[index]
+    payload = build(inputs, get_report_config())
+    assert {
+        "applications-end_of_support",
+        "data_tech-identity_access",
+        "process-procure_to_pay",
+        "applications-mystery",
+    } <= set(_findings(payload))
+    odd = next(r for r in payload.executive if r.area_id == "an_area_nobody_configured")
+    assert odd.include and odd.title == "An Area Nobody Configured"
+
+
+def test_each_finding_carries_its_own_risk_actions_and_investment() -> None:
     payload = build(_inputs(), get_report_config())
-    keys = {k for row in payload.executive for k in row.gap_keys}
-    assert {"app:1", "check:CY2", "process:weak"} <= keys
+    process = _findings(payload)["process-procure_to_pay"]
+    assert process.risk == "High" and process.headline == "Procure to Pay cycle is not automated"  # type: ignore[attr-defined]
+    for finding in _findings(payload).values():
+        assert finding.investment == "XXX" and finding.actions  # type: ignore[attr-defined]
 
 
-def test_a_finding_with_no_scope_area_gets_a_fallback_area() -> None:
+def test_areas_follow_the_configured_order() -> None:
     payload = build(_inputs(), get_report_config())
-    cyber = next(r for r in payload.executive if r.title == "Cyber Security")
-    assert cyber.risk == "High" and cyber.include
+    shown = [r.area_id for r in payload.executive if r.include]
+    assert shown == ["process_enablement", "applications", "cyber"]
 
 
-def test_investment_is_always_xxx() -> None:
-    payload = build(_inputs(), get_report_config())
-    assert {r.investment for r in payload.executive} == {"XXX"}
+def test_a_crowded_area_shows_five_findings_and_says_how_many_more() -> None:
+    gaps = [_gap(f"t{i}", "applications", "Medium", f"Finding {i}", [f"Evidence {i}."]) for i in range(7)]
+    payload = build(_inputs(applications_score={"gaps": gaps}), get_report_config())
+    row = next(r for r in payload.executive if r.area_id == "applications")
+    assert len(row.findings) == 5 and row.note.startswith("2 further findings")
+
+
+def test_a_long_finding_keeps_three_bullets_and_points_to_the_register() -> None:
+    gap = _gap("t", "applications", "High", "Many things", [f"Line {i}." for i in range(6)])
+    payload = build(_inputs(applications_score={"gaps": [gap]}), get_report_config())
+    bullets = _findings(payload)["applications-t"].bullets  # type: ignore[attr-defined]
+    assert len(bullets) == 4 and bullets[-1].startswith("A further 3 observations are recorded")
 
 
 def test_an_area_with_most_requests_missing_is_not_assessed_not_clean() -> None:
     payload = build(_inputs(), get_report_config())
-    strategy = next(r for r in payload.executive if r.area_id == "EN-02")
-    assert strategy.risk == "Not assessed" and not strategy.include
+    strategy = next(r for r in payload.executive if r.area_id == "strategy")
+    assert strategy.risk == "Not assessed" and not strategy.include and not strategy.findings
 
 
 def test_limitations_carry_missing_requests_and_follow_ups() -> None:
@@ -244,14 +282,23 @@ def test_a_rewrite_that_adds_a_number_is_rejected() -> None:
 
 def test_the_executive_rewrite_keeps_risk_and_rejects_invented_numbers() -> None:
     payload = build(_inputs(), get_report_config())
-    row = next(r for r in payload.executive if r.area_id == "EN-01")
-    risk_before = row.risk
+    finding = _findings(payload)["applications-end_of_support"]
     fake = mock.MagicMock()
     fake.models.generate_content.return_value = mock.MagicMock(
-        text='{"rows": [{"area_id": "EN-01", "findings": ["Ledger carries 7 years of debt."], "implication": "x"}]}'
+        text=(
+            '{"findings": ['
+            '{"key": "applications-end_of_support", "headline": "Ledger out of support", '
+            '"bullets": ["Ledger has been unsupported for 7 years."], "implication": "x"},'
+            '{"key": "data_tech-identity_access", "headline": "Access controls are weak", '
+            '"bullets": ["Multi-factor authentication is not in place."], "implication": "Access is exposed."}'
+            "]}"
+        )
     )
-    ReportWriter(settings=Settings(gemini_api_key="k"), client=fake).executive(payload)
-    assert row.findings[0].startswith("Ledger:") and row.risk == risk_before
+    changed = ReportWriter(settings=Settings(gemini_api_key="k"), client=fake).executive(payload)
+    assert changed == 1
+    assert finding.headline == "Critical applications facing end-of-support risks"  # type: ignore[attr-defined]
+    cyber = _findings(payload)["data_tech-identity_access"]
+    assert cyber.headline == "Access controls are weak" and cyber.risk == "High"  # type: ignore[attr-defined]
 
 
 # ============================================================================ API
@@ -270,24 +317,31 @@ def test_report_round_trip_edits_survive_regeneration(client) -> None:
     url = f"/api/v1/engagements/{eid}/report"
     first = client.post(url).json()
     area = next(r for r in first["payload"]["executive"] if r["include"])
-    key = f"exec.{area['area_id']}.investment"
+    finding = area["findings"][0]
+    key = f"exec.{area['area_id']}.{finding['key']}.investment"
     edited = client.patch(f"{url}/elements/{key}", json={"value": "EUR 0.2m – 0.4m"}).json()
     assert key in edited["payload"]["edited_keys"]
 
+    risk_key = f"exec.{area['area_id']}.{finding['key']}.risk"
+    lowered = client.patch(f"{url}/elements/{risk_key}", json={"value": "Low"}).json()
+    row = next(r for r in lowered["payload"]["executive"] if r["area_id"] == area["area_id"])
+    assert row["risk"] == min((f["risk"] for f in row["findings"]), key=["High", "Medium", "Low"].index)
+
     again = client.post(url).json()
     row = next(r for r in again["payload"]["executive"] if r["area_id"] == area["area_id"])
-    assert again["version"] == 2 and row["investment"] == "EUR 0.2m – 0.4m"
+    found = next(f for f in row["findings"] if f["key"] == finding["key"])
+    assert again["version"] == 2 and found["investment"] == "EUR 0.2m – 0.4m"
 
     reverted = client.delete(f"{url}/elements/{key}").json()
     row = next(r for r in reverted["payload"]["executive"] if r["area_id"] == area["area_id"])
-    assert row["investment"] == "XXX"
+    assert next(f for f in row["findings"] if f["key"] == finding["key"])["investment"] == "XXX"
 
 
 def test_an_edit_to_a_missing_element_or_wrong_type_is_rejected(client) -> None:
     eid = _scoped(client)
     url = f"/api/v1/engagements/{eid}/report"
     client.post(url)
-    assert client.patch(f"{url}/elements/exec.NOPE.findings", json={"value": ["x"]}).status_code == 422
+    assert client.patch(f"{url}/elements/exec.NOPE.note", json={"value": "x"}).status_code == 422
     assert client.patch(f"{url}/elements/context.objective", json={"value": ["not text"]}).status_code == 422
 
 
@@ -299,7 +353,9 @@ def test_an_excluded_area_is_left_out_of_the_pptx(client) -> None:
     client.patch(f"{url}/elements/exec.{area['area_id']}.include", json={"value": False})
     deck = Presentation(io.BytesIO(client.get(f"{url}/export.pptx").content))
     tables = [s.table for slide in deck.slides for s in slide.shapes if s.has_table]
-    exec_cells = [t.cell(r, 1).text for t in tables if t.cell(0, 0).text == "S.no." for r in range(1, len(t.rows))]
+    exec_cells = [
+        t.cell(r, 0).text for t in tables if t.cell(0, 0).text == "Diligence area" for r in range(1, len(t.rows))
+    ]
     assert area["title"] not in exec_cells
 
 
@@ -379,8 +435,9 @@ def test_new_inventories_round_trip(client) -> None:
 
     names = load_workbook(io.BytesIO(content)).sheetnames
     assert "IT Team" in names and "IT Contracts" in names
+    assert client.post(f"/api/v1/engagements/{eid}/estate/team_governance/score").status_code == 200
     report = client.post(f"/api/v1/engagements/{eid}/report").json()["payload"]
-    findings = " ".join(f for r in report["executive"] for f in r["findings"])
+    findings = " ".join(b for r in report["executive"] for f in r["findings"] for b in f["bullets"])
     assert "ERP support" in findings and "IT manager" in findings
 
 
@@ -394,3 +451,17 @@ def test_text_elements_are_editable(client, which: str) -> None:
     assert result.status_code == 200
     payload = ReportPayload.model_validate(result.json()["payload"])
     assert key in payload.edited_keys
+
+
+def test_a_weak_process_already_named_by_a_theme_is_not_reported_twice() -> None:
+    covering = _gap(
+        "capability_unused",
+        "process_enablement",
+        "Medium",
+        "Licensed system capability not used",
+        ["Procure to Pay scores 18/100 although Ledger claims to support it."],
+    )
+    covering["subjects"] = ["Procure to Pay"]
+    inputs = _inputs(applications_score={"gaps": [covering]})
+    keys = set(_findings(build(inputs, get_report_config())))
+    assert "applications-capability_unused" in keys and "process-procure_to_pay" not in keys

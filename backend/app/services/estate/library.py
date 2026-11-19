@@ -16,8 +16,53 @@ from app.schemas.estate import (
     ApplicationsConfig,
     DataTechConfig,
     InventoryDefinition,
+    JudgementSection,
+    StrategyProjectsConfig,
+    TeamGovernanceConfig,
+    ThemeDef,
 )
 from app.schemas.it_budget import ItBudgetConfig
+from app.services.estate import judgement
+
+# The themes each module's code raises observations against, beside those its questions
+# name. Kept here so a renamed theme in YAML fails the boot, not a scoring request.
+APPLICATION_RULE_THEMES = (
+    "end_of_support",
+    "fragmentation",
+    "customisation",
+    "integration",
+    "outside_systems",
+    "capability_unused",
+    "analytics",
+    "ai_adoption",
+)
+DATA_TECH_RULE_THEMES = (
+    "privacy",
+    "data_ownership",
+    "data_quality",
+    "infra_support",
+    "asset_lifecycle",
+    "recovery",
+    "capacity",
+)
+TEAM_RULE_THEMES = (
+    "key_person",
+    "outsourcing",
+    "parent_dependency",
+    "leadership",
+    "attrition",
+    "contract_expiry",
+    "change_of_control",
+)
+PROJECT_RULE_THEMES = (
+    "project_delivery",
+    "spend_ahead",
+    "strategy_unfunded",
+    "portfolio_governance",
+    "portfolio_alignment",
+    "delivery_vendor",
+)
+BUDGET_RULE_THEMES = ("budget_variance", "budget_movement")
 
 ESTATE_DIR = Path(__file__).resolve().parents[2] / "reference" / "estate"
 
@@ -75,6 +120,16 @@ def get_inventory_definition() -> InventoryDefinition:
     return definition
 
 
+def _check(problems: list[str]) -> None:
+    if problems:
+        raise EstateLibraryError("; ".join(problems))
+
+
+def _themes_used(where: str, themes: list[ThemeDef], used: set[str]) -> list[str]:
+    known = {t.id for t in themes}
+    return [f"{where}: unknown theme {t!r}" for t in sorted(used - known)]
+
+
 @lru_cache(maxsize=1)
 def get_applications_config() -> ApplicationsConfig:
     try:
@@ -83,17 +138,19 @@ def get_applications_config() -> ApplicationsConfig:
         raise EstateLibraryError(f"applications.yaml: {exc}") from exc
 
     _unique([q.id for q in config.questions], "applications.yaml")
-    groups = {q.group for q in config.questions}
-    for required in ("criticality", "business_fit", "technical_fit", "automation", "ai"):
-        if required not in groups:
-            raise EstateLibraryError(f"applications.yaml: no question in group {required!r}")
+    groups = [q.group for q in config.questions]
+    for required in ("criticality", "automation", "ai"):
+        if groups.count(required) != 1:
+            raise EstateLibraryError(f"applications.yaml: exactly one question in group {required!r}")
     for question in config.questions:
         low, high = question.scale
         if set(question.levels) != set(range(low, high + 1)):
             raise EstateLibraryError(f"applications.yaml {question.id}: levels must cover {low}..{high} exactly")
-    for key in ("high_high", "high_low", "low_high", "low_low"):
-        if key not in config.disposition.matrix:
-            raise EstateLibraryError(f"applications.yaml: disposition matrix lacks {key!r}")
+    _check(
+        judgement.validate("applications.yaml", config.portfolio_sections, config.portfolio_questions, config.themes)
+    )
+    # Themes the rules raise in code must exist in the content.
+    _check(_themes_used("applications.yaml", config.themes, set(APPLICATION_RULE_THEMES)))
     return config
 
 
@@ -107,6 +164,7 @@ def get_data_tech_config() -> DataTechConfig:
     ids = [q.id for q in config.domain_questions] + [q.id for q in config.platform_questions]
     ids += [c.id for s in config.check_sections for c in s.checks]
     _unique(ids, "data_tech.yaml")
+    _unique([t.id for t in config.themes], "data_tech.yaml themes")
     total = sum(q.weight for q in config.domain_questions)
     if abs(total - 100) > 1e-9:
         raise EstateLibraryError(f"data_tech.yaml: domain question weights sum to {total}, not 100")
@@ -123,7 +181,58 @@ def get_data_tech_config() -> DataTechConfig:
         raise EstateLibraryError("data_tech.yaml: section weights must sum to 100")
     if set(config.check_statuses) != {"pass", "partial", "fail", "unknown"}:
         raise EstateLibraryError("data_tech.yaml: check_statuses must be pass/partial/fail/unknown")
+    check_ids = {c.id for s in config.check_sections for c in s.checks}
+    for keyword, checks in config.tool_checks.items():
+        for check in checks:
+            if check not in check_ids:
+                raise EstateLibraryError(f"data_tech.yaml tool_checks {keyword!r}: unknown check {check!r}")
+    used = {c.theme for s in config.check_sections for c in s.checks} | set(DATA_TECH_RULE_THEMES)
+    _check(_themes_used("data_tech.yaml", config.themes, used))
     return config
+
+
+@lru_cache(maxsize=1)
+def get_team_governance_config() -> TeamGovernanceConfig:
+    try:
+        config = TeamGovernanceConfig.model_validate(_read("team_governance.yaml"))
+    except Exception as exc:
+        raise EstateLibraryError(f"team_governance.yaml: {exc}") from exc
+    _check(judgement.validate("team_governance.yaml", config.sections, config.questions, config.themes))
+    _check(_themes_used("team_governance.yaml", config.themes, set(TEAM_RULE_THEMES)))
+    return config
+
+
+@lru_cache(maxsize=1)
+def get_strategy_projects_config() -> StrategyProjectsConfig:
+    try:
+        config = StrategyProjectsConfig.model_validate(_read("strategy_projects.yaml"))
+    except Exception as exc:
+        raise EstateLibraryError(f"strategy_projects.yaml: {exc}") from exc
+    _check(judgement.validate("strategy_projects.yaml", config.sections, config.questions, config.themes))
+    project_section = [JudgementSection(key="projects", label="Projects")]
+    _check(
+        judgement.validate("strategy_projects.yaml projects", project_section, config.project_questions, config.themes)
+    )
+    _check(_themes_used("strategy_projects.yaml", config.themes, set(PROJECT_RULE_THEMES)))
+    labels = {q.id: {o.label for o in q.options} for q in config.project_questions}
+    rules = config.rules
+    triage = labels.get("PJ1", set())
+    if rules.stop_triage not in triage or not set(rules.priority_triage) <= triage:
+        raise EstateLibraryError("strategy_projects.yaml: triage rules must name PJ1 options")
+    if rules.off_track not in labels.get("PJ2", set()):
+        raise EstateLibraryError("strategy_projects.yaml: off_track must be a PJ2 option")
+    return config
+
+
+def all_themes() -> dict[str, list[ThemeDef]]:
+    """Every theme, by assessment — the report checks each names a known area."""
+    return {
+        "applications": get_applications_config().themes,
+        "data_tech": get_data_tech_config().themes,
+        "team_governance": get_team_governance_config().themes,
+        "strategy_projects": get_strategy_projects_config().themes,
+        "it_budget": get_it_budget_config().themes,
+    }
 
 
 @lru_cache(maxsize=1)
@@ -133,6 +242,8 @@ def get_it_budget_config() -> ItBudgetConfig:
     except Exception as exc:
         raise EstateLibraryError(f"it_budget.yaml: {exc}") from exc
     _unique([q.id for q in config.process_questions], "it_budget.yaml")
+    used = {q.theme for q in config.process_questions} | set(BUDGET_RULE_THEMES)
+    _check(_themes_used("it_budget.yaml", config.themes, used))
     for question in config.process_questions:
         for option in question.options:
             if option.finding and option.severity is None:
@@ -147,4 +258,6 @@ def validate_all() -> None:
     get_inventory_definition()
     get_applications_config()
     get_data_tech_config()
+    get_team_governance_config()
+    get_strategy_projects_config()
     get_it_budget_config()

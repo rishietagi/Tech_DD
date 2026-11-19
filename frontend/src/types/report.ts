@@ -45,21 +45,33 @@ export interface ReportSection {
   include: boolean;
 }
 
+/** One finding of the executive summary — a row of the Gaps & Risks table (Phase 8). */
+export interface ExecutiveFinding {
+  key: string;
+  headline: string;
+  bullets: string[];
+  implication: string;
+  impact: string[];
+  risk: RiskLevel;
+  actions: string[];
+  investment: string;
+  source: string;
+  include: boolean;
+}
+
+/** A diligence area and its findings. */
 export interface ExecutiveRow {
   area_id: string;
   sn: number;
   title: string;
-  findings: string[];
-  implication: string;
+  findings: ExecutiveFinding[];
   risk: RiskLevel;
-  actions: string[];
-  investment: string;
-  gap_keys: string[];
+  note: string;
   include: boolean;
 }
 
 export interface ReportPayload {
-  schema_version: 1;
+  schema_version: 2;
   generator: string;
   skill_versions: Record<string, string>;
   generated_at: string;

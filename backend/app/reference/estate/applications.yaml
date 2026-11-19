@@ -1,11 +1,16 @@
-# Application assessment — the analyst's judgement on each inventoried application.
-# docs/reference/ESTATE_ASSESSMENT_MODEL.md §3. Thresholds and weights are [EXT]:
-# calibrations to tune, not authorities.
+# Application assessment — docs/reference/DD_ASSESSMENT_FRAMEWORK.md §3.
 #
-# Every question is asked per application. Answers are stored as the level number
-# ("3"). An unanswered question is excluded from the mean, never scored as zero.
+# Phase 8 (Rishi, 2026-11-18): a due diligence is not an enterprise-architecture review.
+# There is no fit score, no fit quadrant and no disposition per application. Three things
+# are asked per application — how critical it is, how automated the work in it is, and how
+# far AI is used — and four questions about the portfolio as a whole. Everything else comes
+# from the facts the target supplied in the inventory.
+#
+# What the rules find about individual applications are observations. They are reported
+# only through the themes at the bottom of this file, each one a finding a deal team acts
+# on. Thresholds are [EXT]: calibrations to tune, not authorities.
 
-version: "1.0"
+version: "2.0"
 
 questions:
   - id: criticality
@@ -19,90 +24,6 @@ questions:
       3: Important — an outage disrupts a function within the day.
       4: Critical — an outage stops a core process.
       5: Mission-critical — an outage stops revenue or breaches an obligation.
-
-  - id: bf_functional
-    group: business_fit
-    text: Functional fit
-    help: Does it do what the business needs, without work done around it?
-    scale: [1, 5]
-    levels:
-      1: Major gaps — core work is done outside the system.
-      2: Significant gaps, routinely worked around.
-      3: Adequate, with known gaps.
-      4: Good fit, minor gaps.
-      5: Full fit, no workarounds.
-
-  - id: bf_plan
-    group: business_fit
-    text: Fit with the investment plan
-    help: Will it carry the value-creation plan through the hold period?
-    scale: [1, 5]
-    levels:
-      1: Blocks the plan.
-      2: Must be replaced to deliver the plan.
-      3: Carries today; becomes a constraint during the hold.
-      4: Carries the plan with investment.
-      5: Carries the plan as it is.
-
-  - id: bf_users
-    group: business_fit
-    text: User satisfaction
-    help: What management and users say about it.
-    scale: [1, 5]
-    levels:
-      1: Widely complained about.
-      2: Tolerated, with frequent complaints.
-      3: Mixed.
-      4: Generally well regarded.
-      5: Strongly valued by its users.
-
-  - id: tf_currency
-    group: technical_fit
-    text: Technology currency
-    help: How current is the release and the stack underneath it?
-    scale: [1, 5]
-    levels:
-      1: Obsolete or unsupported stack.
-      2: Out of date; upgrade overdue.
-      3: One major version behind.
-      4: Current, with minor lag.
-      5: On the current release.
-
-  - id: tf_integration
-    group: technical_fit
-    text: Integration readiness
-    help: How does data get in and out of it?
-    scale: [1, 5]
-    levels:
-      1: No interfaces — data is re-keyed by hand.
-      2: File-based batch transfers.
-      3: Point-to-point interfaces.
-      4: APIs, partly governed.
-      5: Documented APIs or events through a governed layer.
-
-  - id: tf_security
-    group: technical_fit
-    text: Security and compliance
-    help: Access control, patching, known vulnerabilities, compliance obligations.
-    scale: [1, 5]
-    levels:
-      1: Known unremediated vulnerabilities or a compliance breach.
-      2: Significant control gaps.
-      3: Baseline controls, with gaps.
-      4: Good — single sign-on, multi-factor, patched.
-      5: Strong, tested and evidenced.
-
-  - id: tf_support
-    group: technical_fit
-    text: Supportability
-    help: Who can keep it running, and how well documented is it?
-    scale: [1, 5]
-    levels:
-      1: No one can support it, or the vendor has gone.
-      2: Fragile — depends on one person or a weak vendor.
-      3: Supported, with constraints.
-      4: Well supported.
-      5: Strongly supported and documented.
 
   - id: automation
     group: automation
@@ -132,74 +53,232 @@ questions:
       4: AI-led with oversight — routine decisions taken by AI, exceptions reviewed, models monitored.
       5: Agentic — AI agents act across steps within defined guardrails, with an audit trail.
 
-disposition:
-  threshold: 3.0
-  # (business fit high?, technical fit high?)
-  matrix:
-    high_high: Invest
-    high_low: Modernise
-    low_high: Retain
-    low_low: Replace
-  meanings:
-    Invest: Keep investing and extend its use.
-    Modernise: Keep the functionality; move it onto a current, supportable platform.
-    Retain: Run it as it is, with minimal spend, until it is reviewed.
-    Replace: Plan its replacement and retirement.
-    Consolidate: Fold it into the surviving application of its category.
-    Not assessed: Needs at least one business-fit and one technical-fit answer.
-  # End of life inside the roadmap horizon overrides a keep decision.
-  eol_lifecycle: End of life within 24 months
-  eol_overrides: [Invest, Retain]
-  eol_becomes: Modernise
+# Asked once, about the portfolio — the questions a deal team asks of an application
+# landscape [DD_master §6.6, p. 75].
+portfolio_sections:
+  - key: landscape
+    label: Application landscape
+    source: DD_master §6.6, p. 75
+
+portfolio_questions:
+  - id: AQ1
+    section: landscape
+    text: Can the core platform (ERP or equivalent) carry the plan through the hold?
+    help: Version, support status, customisation and scalability, judged together.
+    source: '"What version of each application is in use … What is the level of customization?" [DD_master p. 75]'
+    theme: core_platform
+    options:
+      - label: Yes — current, supported, and scales with the plan
+        value: 1.0
+      - label: With an upgrade that is planned and funded
+        value: 0.6
+        finding: The core platform needs an upgrade to carry the plan; the upgrade is planned and funded.
+        severity: Low
+      - label: Needs an upgrade or re-implementation that is not yet planned or funded
+        value: 0.2
+        finding: The core platform needs an upgrade or re-implementation to carry the plan, and none is planned or funded.
+        severity: High
+      - label: There is no core platform — functions run on separate tools
+        value: 0.0
+        finding: There is no core platform; functions run on separate tools that the plan will have to consolidate.
+        severity: High
+
+  - id: AQ2
+    section: landscape
+    text: How are the core systems integrated?
+    help: Finance, sales, operations, HR — how data moves between them.
+    source: '"What system interfaces and dependencies are in place, and how complex are they?" [DD_master p. 75]'
+    theme: integration
+    options:
+      - label: Through governed APIs or an integration layer
+        value: 1.0
+      - label: Point-to-point interfaces
+        value: 0.6
+        finding: Core systems are linked by point-to-point interfaces, which multiply the cost of every change.
+        severity: Low
+      - label: File transfers and scheduled batches
+        value: 0.3
+        finding: Core systems exchange data by file transfer and batch, so information lags between functions.
+        severity: Medium
+      - label: Data is re-keyed between systems
+        value: 0.0
+        finding: Data is re-keyed by hand between core systems, increasing the risk of errors and inefficiencies.
+        severity: High
+
+  - id: AQ3
+    section: landscape
+    text: How is management reporting produced?
+    source: '"Data inconsistencies from manual entry" is a common finding [DD_master p. 75].'
+    theme: analytics
+    options:
+      - label: From one enterprise analytics platform with agreed KPIs
+        value: 1.0
+      - label: Departmental reporting tools, KPIs defined separately
+        value: 0.5
+        finding: KPIs are tracked independently by departments, so there is no single view of performance.
+        severity: Medium
+      - label: Assembled in spreadsheets
+        value: 0.0
+        finding: Management reporting is assembled by hand in spreadsheets.
+        severity: High
+
+  - id: AQ4
+    section: landscape
+    text: Who owns the applications?
+    source: '"Complex application suites" and duplication are common findings [DD_master p. 75].'
+    theme: fragmentation
+    options:
+      - label: Centrally, with a named owner for each application
+        value: 1.0
+      - label: Centrally, without named owners
+        value: 0.6
+        finding: Applications have no named owners, so no one is accountable for their fitness or cost.
+        severity: Low
+      - label: Decentralised — business units choose and run their own
+        value: 0.2
+        finding: Ownership of platforms is decentralised across business units, which drives duplication.
+        severity: Medium
+      - label: Unclear
+        value: 0.0
+        finding: Ownership of applications is unclear.
+        severity: Medium
+
+rules:
+  critical_min: 4
+  manual_automation_max: 1
+  # A business process whose latest score falls in one of these bands, while in-scope
+  # applications claim to support it, is the licence-versus-use gap.
+  weak_process_bands: [manual, emerging]
+  # The inventory type that is not licensed capability.
+  ad_hoc_type: Spreadsheet or ad hoc tool
+  eol_lifecycles: [End of life within 24 months]
+  high_customisation: [High]
+  manual_integration: [Manual re-keying]
+  weak_dr: [None, Backup only]
   # Categories too broad to mean "two of the same thing".
   duplication_exempt_categories:
     - Other
     - Industry-specific
     - Custom line-of-business
     - Integration and middleware
+  analytics_category: Business intelligence and analytics
+  # Mean AI level at or below this, across at least ai_min_answered applications, means
+  # AI use is limited to what is switched on in the box.
+  ai_low_max: 1.0
+  ai_min_answered: 3
 
-technical_health:
-  # Technical debt 0-100: weighted mean of the mapped values (0-3 scale) × 100 / 3.
-  debt_weights:
-    customisation: 2
-    lifecycle: 2
-    currency: 2
-  debt_maps:
-    customisation: {None: 0, Low: 1, Medium: 2, High: 3}
-    lifecycle:
-      Current: 0
-      Ageing: 2
-      End of life within 24 months: 3
-      Unknown: 1
-  # currency is derived from the tf_currency answer: (5 - answer) × 0.75
-  debt_bands:
-    - [60, High]
-    - [35, Medium]
-    - [0, Low]
-  critical_min: 4
-  weak_dr: [None, Backup only]
+# The findings this assessment can report. `area` is a diligence area in
+# reference/report/report.yaml. The severity rule is the same everywhere:
+#   High   — threatens continuity of a critical operation, regulatory exposure, or an
+#            unfunded investment the plan depends on;
+#   Medium — constrains the plan or adds cost;
+#   Low    — an improvement.
+themes:
+  - id: end_of_support
+    area: applications
+    headline: Critical applications facing end-of-support risks
+    implication: >-
+      Applications approaching end of vendor support will need upgrading or replacing
+      inside the hold, an investment not yet in the plan, and carry security and stability
+      risk until then.
+    impact: [one_off_investment, continuity]
+    action: >-
+      Target should prioritise upgrading or replacing {subjects} before vendor support ends,
+      and renew the licences needed to avoid disruption to business operations.
+    severity: Medium
 
-gaps:
-  contract_months: 12
-  manual_automation_max: 1
-  # A business process whose latest score falls in one of these bands, while in-scope
-  # applications claim to support it, is the licence-versus-use gap.
-  weak_process_bands: [manual, emerging]
-  # An inventory with vendor or lifecycle unknown on this share of applications or more
-  # raises an incompleteness gap.
-  incomplete_share: 0.34
-  key_person_min: 2
-  # The inventory type that is not licensed capability. A process carried only by this is
-  # treated as having no supporting system.
-  ad_hoc_type: Spreadsheet or ad hoc tool
+  - id: core_platform
+    area: applications
+    headline: Core platform requires upgrade to support the plan
+    implication: >-
+      The core platform cannot carry the plan as it stands; the upgrade or re-implementation
+      is a material one-off investment and a dependency for the value-creation plan.
+    impact: [one_off_investment, plan_risk]
+    action: >-
+      Target should define and fund a core platform roadmap — upgrade or re-implementation —
+      with a business case, timeline and budget.
+    severity: High
 
-hypotheses:
-  Modernise: moved onto a current, supportable platform with its functionality kept
-  Replace: replaced by a standard product and retired
-  Consolidate: consolidated onto the surviving application of its category
-  debt: brought onto a supported, standard version with custom code reduced
-  spof: resilient, with tested recovery and no single-person dependency
-  scalability: able to carry peak volumes without manual workarounds
-  eol: moved to a supported release before vendor support ends
-  contract: renewed or re-tendered on terms reviewed before signing
-  manual: running its routine work in the system rather than around it
+  - id: fragmentation
+    area: applications
+    headline: Fragmented application landscape with functional overlaps
+    implication: >-
+      Overlapping applications split data and effort and add licence and support cost;
+      rationalising them is a cost and a dependency for any integration.
+    impact: [run_cost, integration]
+    action: >-
+      Target should develop an application portfolio rationalisation approach to identify
+      consolidation opportunities and reduce functional overlaps, starting with {subjects}.
+    severity: Medium
+
+  - id: customisation
+    area: applications
+    headline: Heavy customisation constraining upgrades
+    implication: >-
+      Heavily customised core applications are costly and slow to upgrade, which raises the
+      cost of every future change and of any move to a standard platform.
+    impact: [one_off_investment, run_cost]
+    action: >-
+      Target should assess the customisations in {subjects}, retire those the standard
+      product now covers, and plan upgrades around the remainder.
+    severity: Medium
+
+  - id: integration
+    area: process_enablement
+    headline: Lack of integration between core systems
+    implication: >-
+      Without integration between core systems, data is re-keyed and reconciled by hand,
+      which limits automation and slows reporting across functions.
+    impact: [plan_risk, run_cost]
+    action: >-
+      Target should define integration touchpoints between core systems and establish
+      bi-directional interfaces, prioritising the flows that are re-keyed or batched today.
+    severity: Medium
+
+  - id: outside_systems
+    area: process_enablement
+    headline: Incomplete digitisation of business processes
+    implication: >-
+      Core work runs on spreadsheets, email and manual intervention rather than in systems,
+      so headcount scales with volume and controls depend on people.
+    impact: [plan_risk, continuity]
+    action: >-
+      Target should bring the work now run by hand or on spreadsheets — {subjects} — into its
+      systems, and standardise the processes and records behind it.
+    severity: Medium
+
+  - id: capability_unused
+    area: process_enablement
+    headline: Licensed system capability not used
+    implication: >-
+      The business pays for systems whose capability it does not use; the efficiency the
+      plan assumes depends on adoption work, not new spend.
+    impact: [run_cost, plan_risk]
+    action: >-
+      Target should assess as-is process adoption and use the capability already licensed
+      for {subjects} instead of working around it.
+    severity: Medium
+
+  - id: analytics
+    area: process_enablement
+    headline: Limited analytics tool adoption with decentralised KPI monitoring
+    implication: >-
+      Without a single source for KPIs, performance is reported inconsistently across
+      departments and strategic insight is constrained.
+    impact: [plan_risk]
+    action: >-
+      Target should implement an enterprise-wide analytics capability with a centralised
+      source of data to aggregate KPIs and enable unified dashboards.
+    severity: Medium
+
+  - id: ai_adoption
+    area: ai
+    headline: AI adoption limited to embedded tool features
+    implication: >-
+      AI is used only where vendors have switched it on; no productivity or growth from AI
+      is available to the plan without further investment.
+    impact: [plan_risk]
+    action: >-
+      Target should identify AI use cases in its core applications, starting with the
+      highest-volume processes, and plan their adoption.
+    severity: Low

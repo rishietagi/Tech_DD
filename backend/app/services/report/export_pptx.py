@@ -21,7 +21,7 @@ from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
 
-from app.schemas.report import Block, ExecutiveRow, ReportPayload, ReportSection
+from app.schemas.report import Block, ExecutiveFinding, ExecutiveRow, ReportPayload, ReportSection
 from app.services.scope.export_pptx import THEME, Theme, _blank, _table, _textbox, _write
 
 _ASSETS = Path(__file__).resolve().parents[4] / "assets"
@@ -318,36 +318,50 @@ class Deck:
         )
 
     def executive(self) -> None:
-        rows_in: list[ExecutiveRow] = [r for r in self.p.executive if r.include]
-        if not rows_in:
+        """One row per finding, grouped by diligence area — the sample's Gaps & Risks table.
+
+        The area cell is merged down its findings; each finding carries a bold headline over
+        its bullets, a risk cell filled in the RAG colour, its own actions, and the
+        investment cell the engagement team completes.
+        """
+        areas: list[ExecutiveRow] = [r for r in self.p.executive if r.include]
+        if not areas:
             return
         t = self.t
         self.starts["executive"] = self.page + 1
-        widths = [0.55, 1.55, 5.0, 0.85, 2.85, 1.3]
+        widths = [1.5, 5.3, 0.85, 3.25, 1.2]
 
-        def findings_text(r: ExecutiveRow) -> str:
-            text = self._bullets(r.findings)
-            return text + (f"\n•  Implication: {r.implication}" if r.implication else "")
+        rows: list[tuple[ExecutiveRow, ExecutiveFinding | None]] = []
+        for area in areas:
+            shown = [f for f in area.findings if f.include]
+            rows += [(area, f) for f in shown] if shown else [(area, None)]
 
-        pages: list[list[ExecutiveRow]] = []
-        current: list[ExecutiveRow] = []
+        def need(area: ExecutiveRow, finding: ExecutiveFinding | None) -> int:
+            if finding is None:
+                return _lines(area.note, 90) + 1
+            body = "\n".join([finding.headline, *finding.bullets]) + (
+                f"\nImplication: {finding.implication}" if finding.implication else ""
+            )
+            # Measured on the rendered Kiln deck: ~115 characters a line in the findings
+            # column, ~58 in the actions column, ~32 lines between header and footnote.
+            return max(_lines(body, 108), _lines(self._bullets(finding.actions), 56)) + 1
+
+        pages: list[list[tuple[ExecutiveRow, ExecutiveFinding | None]]] = []
+        current: list[tuple[ExecutiveRow, ExecutiveFinding | None]] = []
         used = 0
-        for r in rows_in:
-            # Measured on the rendered deck: ~90 characters a line in the findings column,
-            # ~42 in the actions column, ~30 lines between header and footnote.
-            need = max(_lines(findings_text(r), 90), _lines(self._bullets(r.actions), 42)) + 1
-            if current and used + need > 30:
+        for area, finding in rows:
+            lines = need(area, finding)
+            if current and used + lines > 31:
                 pages.append(current)
                 current, used = [], 0
-            current.append(r)
-            used += need
+            current.append((area, finding))
+            used += lines
         if current:
             pages.append(current)
 
         for i, page_rows in enumerate(pages):
             suffix = f" ({i + 1}/{len(pages)})" if len(pages) > 1 else ""
             slide, top = self._content("executive", self.p.executive_title + suffix)
-            # Legend, as in the sample: Low / Medium / High.
             for j, level in enumerate(("Low", "Medium", "High")):
                 x = t.slide_w - t.margin - 3.0 + j * 1.0
                 self._rect(slide, x, top - 0.25, 0.9, 0.08, RISK_COLOURS[level])
@@ -355,44 +369,55 @@ class Deck:
                 _write(lf, level, size=7, color=t.muted, first=True, theme=t)
             body = [
                 [
-                    str(r.sn),
-                    r.title,
-                    findings_text(r),
-                    r.risk if r.risk == "Not assessed" else "●",
-                    self._bullets(r.actions) or "—",
-                    r.investment,
+                    area.title,
+                    "",
+                    (finding.risk if finding else area.risk),
+                    (self._bullets(finding.actions) if finding else "") or "—",
+                    finding.investment if finding else "",
                 ]
-                for r in page_rows
+                for area, finding in page_rows
             ]
             table = _table(
                 slide,
-                [
-                    [
-                        "S.no.",
-                        "Diligence Area",
-                        "Key Findings",
-                        "Risk level",
-                        "Recommended actions",
-                        "Investment impact",
-                    ],
-                    *body,
-                ],
+                [["Diligence area", "Key findings", "Risk level", "Recommended actions", "Investment impact*"], *body],
                 widths,
                 top + 0.1,
                 t,
             )
-            for r_index, r in enumerate(page_rows, start=1):
-                cell = table.cell(r_index, 3)
+            for r_index, (area, finding) in enumerate(page_rows, start=1):
+                self._findings_cell(table.cell(r_index, 1), area, finding)
+                risk = finding.risk if finding else area.risk
+                cell = table.cell(r_index, 2)
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = RISK_COLOURS.get(risk, t.muted)
+                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
                 para = cell.text_frame.paragraphs[0]
                 para.alignment = PP_ALIGN.CENTER
-                cell.vertical_anchor = MSO_ANCHOR.MIDDLE
                 for run in para.runs:
-                    run.font.color.rgb = RISK_COLOURS.get(r.risk, t.muted)
-                    run.font.size = Pt(26 if r.risk != "Not assessed" else 8)
-                # One paragraph per finding, then the implication in italics with its
-                # label bold — as the sample sets it. Written fresh rather than styled
-                # after the fact: the table helper writes the cell as one run.
-                self._findings_cell(table.cell(r_index, 2), r)
+                    run.font.size = Pt(8)
+                    run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+            # Merge the area cell down the consecutive findings of one area.
+            start_row = 1
+            for r_index in range(2, len(page_rows) + 2):
+                same = (
+                    r_index <= len(page_rows)
+                    and page_rows[r_index - 1][0].area_id == page_rows[start_row - 1][0].area_id
+                )
+                if same:
+                    continue
+                if r_index - 1 > start_row:
+                    # Merging moves the spanned cells' text into the origin, so clear it
+                    # first — otherwise the area name prints once per finding.
+                    for spanned in range(start_row + 1, r_index):
+                        table.cell(spanned, 0).text = ""
+                    table.cell(start_row, 0).merge(table.cell(r_index - 1, 0))
+                origin = table.cell(start_row, 0)
+                origin.vertical_anchor = MSO_ANCHOR.MIDDLE
+                origin.fill.solid()
+                origin.fill.fore_color.rgb = t.paper_2
+                for run in origin.text_frame.paragraphs[0].runs:
+                    run.font.bold = True
+                start_row = r_index
             note = _textbox(slide, t.margin, t.slide_h - 0.72, t.content_w, 0.2)
             _write(
                 note,
@@ -405,7 +430,7 @@ class Deck:
                 theme=t,
             )
 
-    def _findings_cell(self, cell: Any, row: ExecutiveRow) -> None:
+    def _findings_cell(self, cell: Any, area: ExecutiveRow, finding: ExecutiveFinding | None) -> None:
         t = self.t
         frame = cell.text_frame
         for paragraph in list(frame.paragraphs)[1:]:
@@ -413,9 +438,24 @@ class Deck:
         first = frame.paragraphs[0]
         for run in list(first.runs):
             run._r.getparent().remove(run._r)
-        lines = [(f, False) for f in row.findings] + ([(row.implication, True)] if row.implication else [])
-        for i, (text, implication) in enumerate(lines):
-            para = first if i == 0 else frame.add_paragraph()
+        if finding is None:
+            run = first.add_run()
+            run.text = area.note or "—"
+            run.font.size = Pt(8.5)
+            run.font.italic = True
+            run.font.name = t.font
+            run.font.color.rgb = t.muted
+            return
+        head = first.add_run()
+        head.text = finding.headline
+        head.font.bold = True
+        head.font.size = Pt(9)
+        head.font.name = t.font
+        head.font.color.rgb = t.text
+        first.space_after = Pt(2)
+        lines = [(b, False) for b in finding.bullets] + ([(finding.implication, True)] if finding.implication else [])
+        for text, implication in lines:
+            para = frame.add_paragraph()
             para.space_after = Pt(2)
             bullet = para.add_run()
             bullet.text = "•  "

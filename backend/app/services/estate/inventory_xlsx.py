@@ -138,7 +138,16 @@ def _write_kind_sheet(
         for column, field in enumerate(kdef.fields, start=1):
             sheet.write(row, column, _display(values.get(field.key), field.type, process_names), formats.cell)
 
-    last = max(len(items), 1) + _EXTRA_BLANK_ROWS
+    # A checklist inventory (cyber tools) arrives pre-filled with the purposes to answer
+    # for, as the request workbooks do. Seeds already recorded are not repeated.
+    recorded = {str((i.fields or {}).get("name", "")).strip().lower() for i in items}
+    seeds = [name for name in kdef.seed_names if name.lower() not in recorded]
+    name_column = 1 + next(i for i, f in enumerate(kdef.fields) if f.key == "name")
+    for offset, name in enumerate(seeds, start=len(items) + 1):
+        sheet.write(offset, 0, "", formats.id_cell)
+        sheet.write(offset, name_column, name, formats.cell)
+
+    last = max(len(items) + len(seeds), 1) + _EXTRA_BLANK_ROWS
     for column, field in enumerate(kdef.fields, start=1):
         source = list_ranges.get((kind, field.key))
         if source:
@@ -199,6 +208,10 @@ def _list_ranges() -> dict[tuple[str, str], str]:
     return ranges
 
 
+# Inventories that never cross-reference application IDs, so their template stands alone.
+STANDALONE_KINDS: tuple[InventoryKind, ...] = ("application", "cyber_tool")
+
+
 def render_template(kind: InventoryKind, items: list[InventoryItem], processes: list[ProcessRef]) -> bytes:
     """A standalone workbook for one inventory, pre-filled with what is already known.
 
@@ -207,7 +220,7 @@ def render_template(kind: InventoryKind, items: list[InventoryItem], processes: 
     """
     buf = io.BytesIO()
     workbook = xlsxwriter.Workbook(buf, {"in_memory": True})
-    kinds: tuple[InventoryKind, ...] = (kind,) if kind == "application" else (kind, "application")
+    kinds: tuple[InventoryKind, ...] = (kind,) if kind in STANDALONE_KINDS else (kind, "application")
     write_inventory_sheets(workbook, items, processes, kinds)
     workbook.close()
     return buf.getvalue()
@@ -240,9 +253,10 @@ def read_inventory_sheets(content: bytes) -> dict[InventoryKind, tuple[str, list
     try:
         names = {name.strip().lower(): name for name in workbook.sheetnames}
         for kind, kdef in definition.kinds.items():
-            actual = names.get(kdef.sheet.lower())
+            actual = next((names[n.lower()] for n in [kdef.sheet, *kdef.sheet_aliases] if n.lower() in names), None)
             if actual is None:
                 continue
+            seeds = {n.lower() for n in kdef.seed_names}
             rows = list(workbook[actual].iter_rows(max_row=_MAX_ROWS, values_only=True))
             if not rows:
                 continue
@@ -273,6 +287,9 @@ def read_inventory_sheets(content: bytes) -> dict[InventoryKind, tuple[str, list
                         text = str(value).strip()
                         if text:
                             raw[key] = text
+                # A seeded checklist row nobody filled in is not an item.
+                if not ref and set(raw) == {"name"} and str(raw["name"]).lower() in seeds:
+                    continue
                 parsed.append((ref, raw))
             found[kind] = (actual, parsed)
     finally:

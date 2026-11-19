@@ -1,0 +1,515 @@
+# Team & governance assessment — docs/reference/DD_ASSESSMENT_FRAMEWORK.md §5.
+#
+# Phase 8 (Rishi, 2026-11-18). Is IT run by people and forums able to carry the plan, and
+# what breaks if one of them leaves? The facts come from the IT team and IT contracts
+# inventories the target completes; the judgement is the analyst's, from the management
+# interview and the evidence.
+#
+# Sources, cited per question:
+#   DD_master §6.1 (W-OPS) p. 73 — the seven questions of an IT organisation review;
+#   DD_master §6.2 (W-VEN) p. 73 — "How well are strategic vendor relationships managed?";
+#   DD_master §6.3 (W-PROC) p. 73 — "How often are IT operations metrics reviewed?";
+#   DD_master Ch. 20 p. 362 — key-person identification and retention;
+#   COBIT 2019 EDM01 (governance framework), APO01 (IT management framework),
+#     APO07 (human resources), APO10 (vendors) [EXT];
+#   TOGAF — an architecture board that reviews technology before it is adopted, taken as
+#     a governance idea only, not as enterprise-architecture modelling [EXT];
+#   practitioner tech-DD sources on product teams: one person holding architecture, code
+#     review and infrastructure is the most common product red flag [EXT].
+#
+# Option values are maturity credit (0..1). An option with a finding raises an observation
+# against the question's theme. Bands are [EXT] calibrations.
+
+version: "1.0"
+
+sections:
+  - key: leadership
+    label: Leadership and accountability
+    weight: 25
+    source: DD_master §6.1; COBIT EDM01, APO01
+  - key: governance
+    label: Governance and decision rights
+    weight: 25
+    source: COBIT EDM01, APO01, APO10; TOGAF architecture board; DD_master §6.2–6.3
+  - key: capacity
+    label: Organisation and capacity
+    weight: 20
+    source: DD_master §6.1; COBIT APO07
+  - key: people_risk
+    label: People risk
+    weight: 30
+    source: DD_master §6.1 and Ch. 20
+  - key: engineering
+    label: Product engineering team
+    weight: 30
+    source: Practitioner product-DD sources [EXT]
+
+questions:
+  # ------------------------------------------------------------ leadership
+  - id: TG1
+    section: leadership
+    text: Who leads IT?
+    source: '"Is IT leadership capable and well suited for successfully driving the company''s IT strategy and operation?" [DD_master p. 73]; "lack of a dedicated leader" is a common finding.'
+    theme: leadership
+    weight: 2
+    options:
+      - label: A dedicated CIO, CTO or head of IT on the management team
+        value: 1.0
+      - label: A dedicated IT leader below the management team
+        value: 0.6
+        finding: The IT leader sits below the management team, so technology has no voice where the plan is set.
+        severity: Low
+      - label: Run part-time by the CFO or another executive
+        value: 0.2
+        finding: >-
+          IT is managed by a business executive alongside another role, with no dedicated IT
+          leader; this limits strategic direction and the ability to prioritise and drive
+          critical IT and digital transformation initiatives.
+        severity: High
+      - label: No one is accountable for IT
+        value: 0.0
+        finding: No one is accountable for IT.
+        severity: High
+
+  - id: TG2
+    section: leadership
+    text: Who is accountable for information security?
+    source: COBIT APO13 (managed security) [EXT]; a named security owner is the first thing a buyer's insurer asks for.
+    theme: leadership
+    options:
+      - label: A dedicated CISO or security head
+        value: 1.0
+      - label: The IT leader, as part of the role
+        value: 0.6
+        finding: Security is owned by the IT leader alongside the rest of the role, with no dedicated security lead.
+        severity: Low
+      - label: An outsourced or virtual CISO
+        value: 0.6
+        finding: Security leadership is outsourced, so accountability rests with a supplier.
+        severity: Low
+      - label: No one is named
+        value: 0.0
+        finding: There is no dedicated CISO or equivalent in the current IT organisation.
+        severity: High
+
+  - id: TG3
+    section: leadership
+    text: How far does the target depend on parent-group or shared IT?
+    help: Relevant to carve-outs and subsidiaries of a group.
+    source: Separation dependencies [DD_master §6.10]; reviewed as contracts and their terms, not as TSA drafting (2026-09-14 boundary).
+    theme: parent_dependency
+    weight: 2
+    options:
+      - label: Fully standalone
+        value: 1.0
+      - label: Shared services under a written agreement
+        value: 0.6
+        finding: IT services are shared with the parent group under a written agreement, which will need to be reviewed for the transaction.
+        severity: Medium
+      - label: The parent group runs critical IT without a written agreement
+        value: 0.0
+        finding: >-
+          Critical enterprise applications and infrastructure are owned, managed and
+          supported by the parent group's central IT, with no written agreement.
+        severity: High
+      - label: Not applicable — no parent group
+        value: null
+
+  # ------------------------------------------------------------ governance
+  - id: TG4
+    section: governance
+    text: Is there an IT steering committee with business members?
+    source: COBIT EDM01 — governance through a body that directs and monitors IT [EXT].
+    theme: governance_forums
+    options:
+      - label: Yes, meeting on a fixed cadence with minutes
+        value: 1.0
+      - label: Meets ad hoc
+        value: 0.5
+        finding: IT decisions are taken in ad hoc meetings rather than a standing steering committee.
+        severity: Low
+      - label: "No"
+        value: 0.0
+        finding: There is no IT steering committee; technology priorities are not set jointly with the business.
+        severity: Medium
+
+  - id: TG5
+    section: governance
+    text: Is new technology reviewed before it is adopted?
+    help: Architecture, security and cost reviewed before a new system or tool is bought.
+    source: TOGAF architecture board and compliance review, as a governance idea [EXT]; checks before onboarding new technology appear in cyber request lists.
+    theme: governance_forums
+    options:
+      - label: A formal design authority or architecture review
+        value: 1.0
+      - label: Informal review by the IT team
+        value: 0.5
+        finding: New technology is reviewed informally, so architecture and security checks before onboarding are not assured.
+        severity: Low
+      - label: No review — business units buy their own
+        value: 0.0
+        finding: New technology is adopted without review, which drives shadow IT and duplication.
+        severity: Medium
+
+  - id: TG6
+    section: governance
+    text: Are IT policies documented, approved and reviewed?
+    source: '"Are the IT processes and controls well defined and documented?" [DD_master p. 73]; COBIT APO01.'
+    theme: governance_forums
+    options:
+      - label: Documented, approved and reviewed annually
+        value: 1.0
+      - label: Documented but not reviewed
+        value: 0.5
+        finding: IT policies exist but are not reviewed or kept current.
+        severity: Low
+      - label: Not documented
+        value: 0.0
+        finding: IT policies and processes are not documented.
+        severity: Medium
+
+  - id: TG7
+    section: governance
+    text: How are IT performance and service levels reported to management?
+    source: '"How often are IT operations metrics reviewed?" [DD_master p. 73]'
+    theme: governance_forums
+    options:
+      - label: KPIs and SLAs reported monthly
+        value: 1.0
+      - label: Reported occasionally
+        value: 0.5
+        finding: IT performance is reported to management only occasionally.
+        severity: Low
+      - label: Not reported
+        value: 0.0
+        finding: IT performance and service levels are not measured or reported to management.
+        severity: Medium
+
+  - id: TG8
+    section: governance
+    text: How are outsourced IT services governed?
+    source: '"How well are strategic vendor relationships managed?" [DD_master p. 73]; COBIT APO10.'
+    theme: outsourcing
+    options:
+      - label: SLAs monitored, with periodic service reviews
+        value: 1.0
+      - label: Contracts in place, service not reviewed
+        value: 0.5
+        finding: Outsourced IT services run under contracts whose service levels are not reviewed.
+        severity: Medium
+      - label: No formal governance
+        value: 0.0
+        finding: Outsourced IT services are not governed — no service levels are monitored.
+        severity: High
+      - label: Not applicable — nothing material is outsourced
+        value: null
+
+  # ------------------------------------------------------------ capacity
+  - id: TG9
+    section: capacity
+    text: Is the IT organisation sized for the plan?
+    source: '"Is the IT organization sufficient to support the current business and expected growth?" [DD_master p. 73]'
+    theme: capacity_skills
+    weight: 2
+    options:
+      - label: Sufficient for the plan
+        value: 1.0
+      - label: Sufficient today, needs expansion for the plan
+        value: 0.5
+        finding: The IT team is lean; it supports current operations but will need to be augmented to deliver the plan.
+        severity: Medium
+      - label: Stretched today
+        value: 0.0
+        finding: The IT team is stretched by current operations, with no capacity for the planned initiatives.
+        severity: High
+
+  - id: TG10
+    section: capacity
+    text: Does the team hold the skills the roadmap needs?
+    help: For example ERP, cloud, data, security, project management.
+    source: '"What is the mix of staff skills and experience? Are there any areas where IT staff support is limited?" [DD_master p. 73]'
+    theme: capacity_skills
+    options:
+      - label: "Yes"
+        value: 1.0
+      - label: Gaps, with a hiring or partner plan
+        value: 0.5
+        finding: The team lacks some skills the roadmap needs; a plan to close the gap exists.
+        severity: Low
+      - label: Gaps, with no plan
+        value: 0.0
+        finding: The team lacks skills the roadmap needs, and there is no plan to acquire them.
+        severity: Medium
+
+  - id: TG11
+    section: capacity
+    text: What was IT staff attrition over the last 12 months?
+    source: '"Abnormally high staff turnover" is a common finding [DD_master p. 73]. Bands are [EXT].'
+    theme: attrition
+    options:
+      - label: Under 10%
+        value: 1.0
+      - label: 10–20%
+        value: 0.5
+        finding: IT staff attrition ran between 10% and 20% over the last 12 months.
+        severity: Low
+      - label: Over 20%
+        value: 0.0
+        finding: IT staff attrition exceeded 20% over the last 12 months.
+        severity: High
+      - label: Not measured
+        value: 0.3
+        finding: IT staff attrition is not measured.
+        severity: Low
+
+  # ------------------------------------------------------------ people risk
+  - id: TG12
+    section: people_risk
+    text: Is critical knowledge held by more than one person?
+    source: '"Is there sufficient redundancy or cross-training on critical knowledge areas?" [DD_master p. 73]'
+    theme: key_person
+    weight: 2
+    options:
+      - label: Every critical area has at least two people able to run it
+        value: 1.0
+      - label: Some critical areas depend on one person
+        value: 0.4
+        finding: Some critical knowledge areas depend on a single person.
+        severity: Medium
+      - label: Most critical areas depend on one person
+        value: 0.0
+        finding: Most critical knowledge areas depend on a single person, a single point of failure for IT operations.
+        severity: High
+
+  - id: TG13
+    section: people_risk
+    text: Are there succession plans for key IT roles?
+    source: '"Are there succession plans for staff?" [DD_master p. 73]'
+    theme: key_person
+    options:
+      - label: Documented
+        value: 1.0
+      - label: Informal
+        value: 0.5
+        finding: Succession for key IT roles is informal.
+        severity: Low
+      - label: None
+        value: 0.0
+        finding: There are no succession plans for key IT roles.
+        severity: Medium
+
+  - id: TG14
+    section: people_risk
+    text: Are critical systems documented well enough for someone else to run them?
+    source: '"Areas where institutional knowledge has been lost or is at risk" [DD_master p. 73]'
+    theme: key_person
+    options:
+      - label: Current runbooks and documentation
+        value: 1.0
+      - label: Partial or out of date
+        value: 0.5
+        finding: Documentation of critical systems is partial or out of date.
+        severity: Low
+      - label: None
+        value: 0.0
+        finding: Critical systems are not documented; knowledge sits with the people who run them.
+        severity: Medium
+
+  - id: TG15
+    section: people_risk
+    text: Are key IT staff retained through the transaction?
+    source: '"Key employees begin to receive external job inquiries within days or weeks of an M&A announcement" [DD_master p. 121]; retention tooling, Ch. 20.'
+    theme: key_person
+    options:
+      - label: Retention arrangements in place
+        value: 1.0
+      - label: Planned
+        value: 0.5
+      - label: None
+        value: 0.0
+        finding: There are no retention arrangements for key IT staff through the transaction.
+        severity: Medium
+      - label: Not applicable to this deal
+        value: null
+
+  # ------------------------------------------------------------ product engineering
+  - id: TG16
+    section: engineering
+    text: How many engineers can change each core component of the product?
+    help: The bus factor on the codebase that earns the revenue.
+    source: Key-person risk in product teams [EXT]; DD_master Ch. 20.
+    theme: engineering_concentration
+    applies_to: [product, blended]
+    weight: 2
+    options:
+      - label: At least two for every core component
+        value: 1.0
+      - label: Some core components have a single owner
+        value: 0.4
+        finding: Some core components of the product can be changed by only one engineer.
+        severity: Medium
+      - label: One person holds architecture, code review and infrastructure
+        value: 0.0
+        finding: One person holds the product's architecture, code review and infrastructure.
+        severity: High
+
+  - id: TG17
+    section: engineering
+    text: Does the target own the IP in code written by contractors?
+    source: IP ownership and open-source hygiene (W-PROD) [DD_master §6.12].
+    theme: engineering_concentration
+    applies_to: [product, blended]
+    options:
+      - label: Built in-house, or contracts assign IP and were checked
+        value: 1.0
+      - label: Contracts assign IP but were not checked
+        value: 0.5
+        finding: IP assignment in development contracts has not been verified.
+        severity: Medium
+      - label: Unclear
+        value: 0.0
+        finding: Ownership of code written by contractors is unclear.
+        severity: High
+
+  - id: TG18
+    section: engineering
+    text: Who owns the product roadmap?
+    source: Product management and roadmap credibility (W-PROD) [DD_master §6.12].
+    theme: engineering_concentration
+    applies_to: [product, blended]
+    options:
+      - label: A dedicated product management function
+        value: 1.0
+      - label: The founder or CEO
+        value: 0.5
+        finding: The product roadmap is owned by the founder, with no product management function.
+        severity: Low
+      - label: No one in particular
+        value: 0.0
+        finding: No one owns the product roadmap.
+        severity: Medium
+
+rules:
+  critical_min: 4
+  # Outsourced, contractor and parent-shared roles above this share of the team.
+  outsourced_share_max: 0.5
+  # A role with less than this length of service counts as new.
+  short_tenure_years: 1
+  # New roles above this share of the team suggest churn.
+  short_tenure_share: 0.3
+  contract_months: 12
+
+themes:
+  - id: leadership
+    area: organisation
+    headline: No dedicated IT leadership
+    implication: >-
+      The absence of an IT leader limits strategic direction and weakens the organisation's
+      ability to prioritise and drive critical IT and digital initiatives.
+    impact: [plan_risk]
+    action: >-
+      Target should hire an IT and cyber security leader who can partner with business
+      leaders, take executive decisions, prioritise initiatives and anchor the IT operating
+      model.
+    severity: Medium
+
+  - id: key_person
+    area: organisation
+    headline: Critical dependency on individuals
+    implication: >-
+      Knowledge concentrated in individuals is a single point of failure: the departure of
+      one person would interrupt the systems and processes they hold.
+    impact: [continuity]
+    action: >-
+      Target should document and cross-train {subjects}, build succession plans, and agree
+      retention arrangements for key staff through the transaction.
+    severity: Medium
+
+  - id: capacity_skills
+    area: organisation
+    headline: IT team not sized or skilled for the plan
+    implication: >-
+      The team will need to be augmented before it can deliver new initiatives, a cost the
+      plan must carry.
+    impact: [run_cost, plan_risk]
+    action: >-
+      Target should augment the in-house team for the planned initiatives with the skills
+      the roadmap needs.
+    severity: Medium
+
+  - id: attrition
+    area: organisation
+    headline: High IT staff turnover
+    implication: High turnover erodes institutional knowledge and raises the cost of running IT.
+    impact: [continuity, run_cost]
+    action: Target should identify the drivers of turnover and put retention measures in place for critical roles.
+    severity: Medium
+
+  - id: outsourcing
+    area: organisation
+    headline: Heavy reliance on outsourced IT without service governance
+    implication: >-
+      The business depends on suppliers for its IT, and without monitored service levels
+      it cannot hold them to account or plan an exit.
+    impact: [continuity, run_cost]
+    action: >-
+      Target should establish vendor governance — service levels, periodic reviews and exit
+      plans — for its outsourced IT services.
+    severity: Medium
+
+  - id: parent_dependency
+    area: organisation
+    headline: Heavy dependency on the parent group for IT
+    implication: >-
+      IT that is owned and run by the parent group must be replicated or contracted for
+      after the transaction — a separation cost and a Day 1 dependency.
+    impact: [integration, one_off_investment]
+    action: >-
+      Target should establish its own IT capability for day-to-day operations, review the
+      contracts and licences held by the parent, and plan to procure business-critical
+      licences independently.
+    severity: High
+
+  - id: governance_forums
+    area: governance
+    headline: IT governance not formalised
+    implication: >-
+      Without a steering forum, technology review and reporting, IT priorities and spend are
+      not directed or monitored by the business.
+    impact: [plan_risk]
+    action: >-
+      Target should establish an IT steering committee with business representation, a
+      review of new technology before adoption, and monthly IT performance reporting.
+    severity: Medium
+
+  - id: engineering_concentration
+    area: engineering
+    headline: Product knowledge concentrated in a few engineers
+    implication: >-
+      The product depends on the people who built it; losing one of them would stall
+      development of the asset being acquired.
+    impact: [continuity, plan_risk]
+    action: >-
+      Target should spread ownership of each core component across at least two engineers,
+      verify IP assignment, and formalise product ownership.
+    severity: High
+
+  - id: contract_expiry
+    area: contracts
+    headline: Key IT contracts expiring or renewing during the transaction
+    implication: >-
+      Contracts ending around the transaction may be renegotiated from a weak position or
+      force a rushed re-procurement.
+    impact: [run_cost, continuity]
+    action: Target should review renewal, notice and pricing terms for {subjects} before signing.
+    severity: Medium
+
+  - id: change_of_control
+    area: contracts
+    headline: IT contracts with change-of-control or assignment restrictions
+    implication: >-
+      Suppliers whose contracts restrict assignment can charge for consent or terminate on
+      the transaction.
+    impact: [integration, one_off_investment]
+    action: Target should obtain consent, or confirm the position, for {subjects} ahead of completion.
+    severity: Medium

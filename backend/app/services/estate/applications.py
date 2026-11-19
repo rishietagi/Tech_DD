@@ -1,7 +1,11 @@
 """Application assessment rules — pure functions, inputs in and results out, no database.
 
-docs/reference/ESTATE_ASSESSMENT_MODEL.md §3. Every number here is deterministic; the LLM
-only writes prose over the result (D4, PHASE6_PLAN §1).
+docs/reference/DD_ASSESSMENT_FRAMEWORK.md §3. Phase 8 (Rishi, 2026-11-18): no fit score and
+no disposition per application — a due diligence asks what the landscape means for the
+deal, not what to do with each system. Per application the analyst records criticality,
+automation and AI level; the portfolio questions and the inventory facts raise observations
+against the themes in `applications.yaml`. Every number is deterministic; the LLM only
+writes prose over the result.
 """
 
 import re
@@ -17,13 +21,11 @@ from app.schemas.estate import (
     ApplicationResult,
     ApplicationsConfig,
     Gap,
-    GapSubject,
     ProcessRef,
-    Severity,
+    SectionScore,
 )
-from app.services.estate.gaps import highest, make_gap, order
-
-KEEP = ("Invest", "Retain")
+from app.services.estate import judgement
+from app.services.estate.gaps import Observation, build_theme_gaps, join_subjects
 
 
 @dataclass
@@ -37,9 +39,18 @@ class AppInput:
     def name(self) -> str:
         return str(self.fields.get("name") or self.ref)
 
+    @property
+    def short(self) -> str:
+        """The name used inside a sentence. The full name: cutting a parenthesis merged
+        "Depot WMS (north)" and "Depot WMS (south)" into one system (found on Kiln)."""
+        return self.name
+
     def text(self, key: str) -> str:
         value = self.fields.get(key)
         return "" if value is None else str(value).strip()
+
+    def criticality(self) -> int | None:
+        return _scale(self.answers.get("criticality"), 1, 5)
 
 
 @dataclass
@@ -57,6 +68,7 @@ class ApplicationsResult:
     counts: ApplicationCounts
     index: float | None
     ai_index: float | None
+    portfolio: list[SectionScore]
     coverage_note: str
 
 
@@ -65,12 +77,12 @@ def level_short(text: str) -> str:
     return re.split(r"\s+—\s+|\.\s*$", text, maxsplit=1)[0].strip()
 
 
-def _answer(app: AppInput, question_id: str, low: int, high: int) -> int | None:
-    raw = (app.answers.get(question_id) or "").strip()
-    if not raw:
+def _scale(raw: str | None, low: int, high: int) -> int | None:
+    text = (raw or "").strip()
+    if not text:
         return None
     try:
-        value = int(float(raw))
+        value = int(float(text))
     except ValueError:
         return None
     return value if low <= value <= high else None
@@ -91,10 +103,6 @@ def months_until(text: str, today: date) -> int | None:
     return (year - today.year) * 12 + (month - today.month)
 
 
-def _mean(values: list[int]) -> float | None:
-    return round(statistics.mean(values), 2) if values else None
-
-
 def _weighted_index(pairs: list[tuple[int, float]]) -> float | None:
     """Criticality-weighted mean of 0-5 levels, on the 0-100 scale."""
     if not pairs:
@@ -103,494 +111,368 @@ def _weighted_index(pairs: list[tuple[int, float]]) -> float | None:
     return round(sum(level * w for level, w in pairs) / total_weight * 20, 1)
 
 
+def _plural(n: int, one: str, many: str | None = None) -> str:
+    return one if n == 1 else (many or one + "s")
+
+
+def _names(apps: list[AppInput]) -> str:
+    return join_subjects([a.short for a in apps], limit=4)
+
+
 def score_applications(
     apps: list[AppInput],
     config: ApplicationsConfig,
     processes: list[ProcessRef],
     process_scores: dict[str, ProcessScore],
-    today: date,
+    today: date,  # noqa: ARG001 - kept for callers; dated rules moved to other modules
+    portfolio_answers: dict[str, str] | None = None,
+    portfolio_remarks: dict[str, str] | None = None,
 ) -> ApplicationsResult:
+    rules = config.rules
     questions = {q.id: q for q in config.questions}
-    by_group: dict[str, list[str]] = defaultdict(list)
-    for q in config.questions:
-        by_group[q.group].append(q.id)
-    rules = config.disposition
-    health = config.technical_health
-    crit_min = health.critical_min
-    question_count = len(config.questions)
+    by_group = {q.group: q for q in config.questions}
 
     # ------------------------------------------------------------ per application
-    staged: list[dict[str, Any]] = []
-    for app in apps:
-        values: dict[str, int | None] = {qid: _answer(app, qid, *questions[qid].scale) for qid in questions}
-        answered = sum(1 for v in values.values() if v is not None)
-        bf_vals = [v for q in by_group["business_fit"] if (v := values[q]) is not None]
-        tf_vals = [v for q in by_group["technical_fit"] if (v := values[q]) is not None]
-        bf, tf = _mean(bf_vals), _mean(tf_vals)
-        criticality = values[by_group["criticality"][0]]
-        automation = values[by_group["automation"][0]]
-        ai = values[by_group["ai"][0]]
-        assessed = bf is not None and tf is not None
-        partial = assessed and (
-            len(bf_vals) < len(by_group["business_fit"]) or len(tf_vals) < len(by_group["technical_fit"])
-        )
-
-        if assessed:
-            assert bf is not None and tf is not None
-            key = f"{'high' if bf >= rules.threshold else 'low'}_{'high' if tf >= rules.threshold else 'low'}"
-            disposition = rules.matrix[key]
-        else:
-            disposition = "Not assessed"
-        eol = app.text("lifecycle") == rules.eol_lifecycle
-        eol_applied = assessed and eol and disposition in rules.eol_overrides
-        if eol_applied:
-            disposition = rules.eol_becomes
-
-        staged.append(
-            {
-                "app": app,
-                "values": values,
-                "answered": answered,
-                "bf": bf,
-                "tf": tf,
-                "criticality": criticality,
-                "automation": automation,
-                "ai": ai,
-                "assessed": assessed,
-                "partial": partial,
-                "disposition": disposition,
-                "eol": eol,
-                "eol_applied": eol_applied,
-            }
-        )
-
-    # ------------------------------------------------------------ duplication
-    exempt = {c.lower() for c in rules.duplication_exempt_categories}
-    by_category: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for row in staged:
-        category = row["app"].text("category")
-        if category and category.lower() not in exempt:
-            by_category[category].append(row)
-    clusters: list[tuple[str, dict[str, Any], list[dict[str, Any]]]] = []
-    for category, members in sorted(by_category.items()):
-        if len(members) < 2:
-            continue
-        ranked = sorted(
-            members,
-            key=lambda r: (
-                r["assessed"],
-                r["bf"] or 0.0,
-                r["criticality"] or 0,
-                -int(re.sub(r"\D", "", r["app"].ref) or 0),
-            ),
-            reverse=True,
-        )
-        survivor = ranked[0]
-        clusters.append((category, survivor, ranked))
-        for row in ranked[1:]:
-            if row["assessed"]:
-                row["disposition"] = "Consolidate"
-                row["consolidate_into"] = survivor["app"]
-
-    # ------------------------------------------------------------ results
     results: list[ApplicationResult] = []
-    for row in staged:
-        app = row["app"]
-        crit = row["criticality"]
-        critical = crit is not None and crit >= crit_min
-
-        # technical debt
-        parts: dict[str, float] = {}
-        cust = health.debt_maps["customisation"].get(app.text("customisation"))
-        if cust is not None:
-            parts["customisation"] = cust
-        life = health.debt_maps["lifecycle"].get(app.text("lifecycle"))
-        if life is not None:
-            parts["lifecycle"] = life
-        currency = row["values"].get("tf_currency")
-        if currency is not None:
-            parts["currency"] = (5 - currency) * 0.75
-        debt: int | None = None
-        debt_band: str | None = None
-        if parts:
-            weights = health.debt_weights
-            num = sum(weights[k] * v / 3 for k, v in parts.items())
-            den = sum(weights[k] for k in parts)
-            debt = round(100 * num / den)
-            debt_band = next(b for lo, b in health.debt_bands if debt >= lo)
-
-        # single point of failure
-        dr = app.text("dr")
-        spof: list[str] = []
-        checks: list[str] = []
-        if critical and dr in health.weak_dr:
-            spof.append(f"criticality {crit} with recovery '{dr.lower()}'")
-        if critical and dr in ("", "TBD"):
-            checks.append("disaster recovery arrangement not confirmed")
+    for app in apps:
+        values = {qid: _scale(app.answers.get(qid), *q.scale) for qid, q in questions.items()}
+        crit = values[by_group["criticality"].id]
+        automation = values[by_group["automation"].id]
+        ai = values[by_group["ai"].id]
+        flags: list[str] = []
+        if app.text("lifecycle") in rules.eol_lifecycles:
+            flags.append("End of life")
+        if app.text("customisation") in rules.high_customisation:
+            flags.append("High customisation")
+        if app.text("integration") in rules.manual_integration:
+            flags.append("Manual re-keying")
+        if app.text("type") == rules.ad_hoc_type:
+            flags.append("Spreadsheet")
         if app.text("key_person") == "Yes":
-            spof.append("depends on one key person or vendor resource")
-        if critical and app.text("failover_tested") == "No" and dr not in health.weak_dr:
-            checks.append("failover not tested in the last 12 months")
-        spof_status = "SPOF" if spof else ("Check" if checks else "OK")
-
-        # scalability
-        peak = app.text("peak_load")
-        scal: list[str] = []
-        if peak.startswith(("Slows", "Fails")):
-            scal.append(peak[0].lower() + peak[1:])
-        scal_status = "At risk" if scal and (critical or peak.startswith("Fails")) else ("Watch" if scal else "OK")
-
-        disposition = row["disposition"]
-        consolidate_into: AppInput | None = row.get("consolidate_into")
-        statement = _statement(row, config, consolidate_into, bool(spof), scal_status == "At risk")
-
-        automation, ai = row["automation"], row["ai"]
+            flags.append("Key person")
+        if app.text("dr") in rules.weak_dr:
+            flags.append("Weak recovery")
+        if app.text("peak_load").startswith("Fails"):
+            flags.append("Fails at peak")
         results.append(
             ApplicationResult(
                 item_id=app.item_id,
                 ref=app.ref,
                 name=app.name,
                 category=app.text("category"),
-                answered=row["answered"],
-                question_count=question_count,
-                assessed=row["assessed"],
-                partial=row["partial"],
+                answered=sum(v is not None for v in values.values()),
+                question_count=len(questions),
                 criticality=crit,
-                business_fit=row["bf"],
-                technical_fit=row["tf"],
-                disposition=disposition,
-                disposition_statement=statement,
-                consolidate_into=consolidate_into.ref if consolidate_into else None,
                 automation=automation,
                 automation_label=(
-                    level_short(questions["automation"].levels[automation]) if automation is not None else ""
+                    level_short(by_group["automation"].levels[automation]) if automation is not None else ""
                 ),
                 ai=ai,
-                ai_label=level_short(questions["ai"].levels[ai]) if ai is not None else "",
-                debt=debt,
-                debt_band=debt_band,
-                spof_status=spof_status,
-                spof=spof,
-                spof_checks=checks,
-                scalability_status=scal_status,
-                scalability=scal,
+                ai_label=level_short(by_group["ai"].levels[ai]) if ai is not None else "",
+                lifecycle=app.text("lifecycle"),
+                flags=flags,
             )
         )
 
-    gaps = _item_gaps(staged, results, config, today) + _portfolio_gaps(
-        staged, clusters, config, processes, process_scores
+    def critical(app: AppInput) -> bool:
+        crit = app.criticality()
+        return crit is not None and crit >= rules.critical_min
+
+    observations: list[Observation] = []
+    observations += _lifecycle(apps, config, critical)
+    observations += _fragmentation(apps, config)
+    observations += _customisation(apps, config, critical)
+    observations += _integration(apps, config, critical)
+    observations += _process_support(apps, config, processes, process_scores, critical)
+    observations += _analytics(apps, config)
+    observations += _ai(results, config)
+
+    portfolio = judgement.score(
+        config.portfolio_sections,
+        config.portfolio_questions,
+        portfolio_answers or {},
+        portfolio_remarks or {},
+        judgement.AssessContext(),
     )
+    observations += portfolio.observations
 
     counts = ApplicationCounts(applications=len(results))
-    for r in results:
-        counts.assessed += int(r.assessed)
-        counts.by_disposition[r.disposition] = counts.by_disposition.get(r.disposition, 0) + 1
-        counts.high_debt += int(r.debt_band == "High")
-        counts.spof += int(r.spof_status == "SPOF")
-        counts.scalability_risk += int(r.scalability_status == "At risk")
+    for app, result in zip(apps, results, strict=True):
+        counts.assessed += int(result.criticality is not None)
+        counts.critical += int(critical(app))
+        counts.end_of_life += int("End of life" in result.flags)
+        counts.manual_critical += int(
+            critical(app) and result.automation is not None and result.automation <= rules.manual_automation_max
+        )
 
     index = _weighted_index([(r.automation, float(r.criticality or 3)) for r in results if r.automation is not None])
     ai_index = _weighted_index([(r.ai, float(r.criticality or 3)) for r in results if r.ai is not None])
     return ApplicationsResult(
         applications=results,
-        gaps=order(gaps),
+        gaps=build_theme_gaps(observations, config.themes, "AP"),
         counts=counts,
         index=index,
         ai_index=ai_index,
-        coverage_note=_coverage(results),
+        portfolio=portfolio.sections,
+        coverage_note=_coverage(results, portfolio.answered, portfolio.question_count),
     )
 
 
-def band_fields(index: float | None) -> dict[str, Any]:
-    if index is None:
-        return {"band": None, "band_label": "", "band_meaning": ""}
-    band = band_for_index(index)
-    return {"band": band, "band_label": BAND_LABELS[band], "band_meaning": BAND_MEANINGS[band]}
+# ------------------------------------------------------------------ observations
 
 
-def _coverage(results: list[ApplicationResult]) -> str:
-    if not results:
-        return "No applications in the inventory yet. Add them on the request list."
-    assessed = sum(r.assessed for r in results)
-    automated = sum(r.automation is not None for r in results)
-    parts = [f"{assessed} of {len(results)} applications have a disposition"]
-    if automated < len(results):
-        parts.append(f"{automated} have an automation level, so the index covers those only")
-    partial = sum(r.partial for r in results)
-    if partial:
-        parts.append(f"{partial} rest on a partial set of fit answers")
-    return "; ".join(parts) + "."
-
-
-def _statement(
-    row: dict[str, Any],
-    config: ApplicationsConfig,
-    into: "AppInput | None",
-    spof: bool = False,
-    peak_risk: bool = False,
-) -> str:
-    """The disposition in words. The numbers stay in the columns beside it.
-
-    The fit reading comes from the analyst's fit answers, but it must not contradict the
-    technical-health flags on the same row: "the technology is sound" beside "single point
-    of failure, fails at peak" reads as an error, so a sound reading gains the caveat.
-    """
-    app: AppInput = row["app"]
-    disposition = row["disposition"]
-    meaning = config.disposition.meanings.get(disposition, "")
-    if not row["assessed"]:
-        return meaning
-    th = config.disposition.threshold
-    bf, tf = row["bf"], row["tf"]
-    reading = {
-        (True, True): "it serves the business well and the technology is sound",
-        (True, False): "the business depends on it but the technology is holding it back",
-        (False, True): "the technology is sound but it adds little business value",
-        (False, False): "it neither fits the business nor stands up technically",
-    }[(bf >= th, tf >= th)]
-    text = f"{reading[0].upper()}{reading[1:]}"
-    if row["eol_applied"]:
-        text += ", and vendor support ends within 24 months"
-    if disposition == "Consolidate" and into is not None:
-        text += f"; it duplicates {into.name} ({into.ref}), the stronger {app.text('category')} application"
-    caveats = [c for c, on in (("a single point of failure", spof), ("at risk at peak load", peak_risk)) if on]
-    # Only a reading that calls the technology sound needs the caveat; "it neither fits
-    # nor stands up technically, but it is a single point of failure" reads as a non sequitur.
-    if caveats and tf >= th:
-        text += f", but it is {' and '.join(caveats)}"
-    return f"{text}. {meaning}"
-
-
-def _item_gaps(
-    staged: list[dict[str, Any]],
-    results: list[ApplicationResult],
-    config: ApplicationsConfig,
-    today: date,
-) -> list[Gap]:
-    crit_min = config.technical_health.critical_min
-    hyp = config.hypotheses
-    rules = config.gaps
-    by_id = {r.item_id: r for r in results}
-    gaps: list[Gap] = []
-
-    for row in staged:
-        app: AppInput = row["app"]
-        result = by_id[app.item_id]
-        critical = result.criticality is not None and result.criticality >= crit_min
-        findings: list[str] = []
-        levels: list[Severity] = []
-        hypotheses: list[str] = []
-
-        if result.disposition in ("Modernise", "Replace", "Consolidate"):
-            findings.append(f"{result.disposition}: {result.disposition_statement.split('. ')[0]}")
-            levels.append("High" if critical and result.disposition != "Consolidate" else "Medium")
-            hypotheses.append(hyp[result.disposition])
-        if result.debt_band == "High":
-            findings.append(f"High technical debt ({result.debt}/100)")
-            levels.append("High" if critical else "Medium")
-            hypotheses.append(hyp["debt"])
-        if result.spof_status == "SPOF":
-            findings.append("Single point of failure: " + "; ".join(result.spof))
-            levels.append("High" if critical else "Medium")
-            hypotheses.append(hyp["spof"])
-        elif result.spof_checks:
-            findings.append("To confirm: " + "; ".join(result.spof_checks))
-            levels.append("Low")
-            hypotheses.append(hyp["spof"])
-        if result.scalability_status == "At risk":
-            findings.append("Scalability at risk: " + "; ".join(result.scalability))
-            levels.append("High" if critical else "Medium")
-            hypotheses.append(hyp["scalability"])
-        if row["eol"]:
-            findings.append("Vendor support ends within 24 months")
-            levels.append("High")
-            hypotheses.append(hyp["eol"])
-        contract = app.text("contract_end")
-        months = months_until(contract, today) if contract else None
-        if months is not None and months < 0:
-            findings.append(f"Contract end date {contract} has passed; renewal terms unconfirmed")
-            levels.append("Medium")
-            hypotheses.append(hyp["contract"])
-        elif months is not None and months <= rules.contract_months:
-            findings.append(f"Contract ends {contract}, within {max(months, 0)} months")
-            levels.append("High" if critical else "Medium")
-            hypotheses.append(hyp["contract"])
-        if critical and result.automation is not None and result.automation <= rules.manual_automation_max:
-            findings.append(
-                f"Automation level {result.automation} ({result.automation_label}) on a "
-                "business-critical application: the work runs around the system"
-            )
-            levels.append("High")
-            hypotheses.append(hyp["manual"])
-
-        if not findings:
-            continue
-        # A disposition subsumes the remediations it makes moot: an application being
-        # replaced is not also "brought onto a supported version", and one being
-        # modernised is already moving off the release whose support is ending.
-        if result.disposition in ("Replace", "Consolidate"):
-            hypotheses = [hyp[result.disposition]]
-        elif result.disposition == "Modernise":
-            hypotheses = [h for h in hypotheses if h not in (hyp["debt"], hyp["eol"])]
-        short = app.name.split(" (")[0]
-        gaps.append(
-            make_gap(
-                key=f"app:{app.item_id}",
-                display_id=f"AG-{app.ref}",
-                scope="item",
-                category="Application",
-                subject=GapSubject(kind="Application", item_id=app.item_id, ref=app.ref, name=app.name),
-                title=app.name,
-                findings=findings,
-                hypothesis=f"{short} is " + "; ".join(dict.fromkeys(hypotheses)) + ".",
-                severity=highest(levels),
+def _lifecycle(apps: list[AppInput], config: ApplicationsConfig, critical: Any) -> list[Observation]:
+    eol = [a for a in apps if a.text("lifecycle") in config.rules.eol_lifecycles]
+    hot = [a for a in eol if critical(a)]
+    rest = [a for a in eol if not critical(a)]
+    out: list[Observation] = []
+    if hot:
+        out.append(
+            Observation(
+                "end_of_support",
+                f"{len(hot)} business-critical {_plural(len(hot), 'application')} "
+                f"({_names(hot)}) {_plural(len(hot), 'reaches', 'reach')} end of vendor support within 24 months.",
+                "High",
+                [a.short for a in hot],
+                "inventory:lifecycle",
             )
         )
-    return gaps
+    if rest:
+        out.append(
+            Observation(
+                "end_of_support",
+                f"{len(rest)} further {_plural(len(rest), 'application')} ({_names(rest)}) "
+                f"{_plural(len(rest), 'reaches', 'reach')} end of vendor support within 24 months.",
+                "Medium",
+                [a.short for a in rest],
+                "inventory:lifecycle",
+            )
+        )
+    return out
 
 
-def _portfolio_gaps(
-    staged: list[dict[str, Any]],
-    clusters: list[tuple[str, dict[str, Any], list[dict[str, Any]]]],
+def _fragmentation(apps: list[AppInput], config: ApplicationsConfig) -> list[Observation]:
+    exempt = {c.lower() for c in config.rules.duplication_exempt_categories}
+    by_category: dict[str, list[AppInput]] = defaultdict(list)
+    for app in apps:
+        category = app.text("category")
+        if category and category.lower() not in exempt and app.text("type") != config.rules.ad_hoc_type:
+            by_category[category].append(app)
+    clusters = {c: members for c, members in sorted(by_category.items()) if len(members) >= 2}
+    if not clusters:
+        return []
+    total = sum(len(m) for m in clusters.values())
+    detail = "; ".join(f"{c} ({len(m)}: {_names(m)})" for c, m in clusters.items())
+    return [
+        Observation(
+            "fragmentation",
+            f"{total} applications overlap across {len(clusters)} business "
+            f"{_plural(len(clusters), 'function')}: {detail}.",
+            "High" if any(len(m) >= 3 for m in clusters.values()) else "Medium",
+            [a.short for m in clusters.values() for a in m],
+            "inventory:category",
+        )
+    ]
+
+
+def _customisation(apps: list[AppInput], config: ApplicationsConfig, critical: Any) -> list[Observation]:
+    heavy = [a for a in apps if critical(a) and a.text("customisation") in config.rules.high_customisation]
+    if not heavy:
+        return []
+    return [
+        Observation(
+            "customisation",
+            f"{len(heavy)} business-critical {_plural(len(heavy), 'application is', 'applications are')} "
+            f"heavily customised: {_names(heavy)}.",
+            "Medium",
+            [a.short for a in heavy],
+            "inventory:customisation",
+        )
+    ]
+
+
+def _integration(apps: list[AppInput], config: ApplicationsConfig, critical: Any) -> list[Observation]:
+    rekeyed = [a for a in apps if a.text("integration") in config.rules.manual_integration]
+    if not rekeyed:
+        return []
+    hot = [a for a in rekeyed if critical(a)]
+    return [
+        Observation(
+            "integration",
+            f"Data is re-keyed by hand into {len(rekeyed)} {_plural(len(rekeyed), 'application')} "
+            f"({_names(rekeyed)})" + (f", {len(hot)} of them business-critical." if hot else "."),
+            "High" if hot else "Medium",
+            [a.short for a in (hot or rekeyed)],
+            "inventory:integration",
+        )
+    ]
+
+
+def _process_support(
+    apps: list[AppInput],
     config: ApplicationsConfig,
     processes: list[ProcessRef],
     process_scores: dict[str, ProcessScore],
-) -> list[Gap]:
-    rules = config.gaps
-    crit_min = config.technical_health.critical_min
-    apps: list[AppInput] = [row["app"] for row in staged]
-    gaps: list[Gap] = []
-    counter = 0
+    critical: Any,
+) -> list[Observation]:
+    rules = config.rules
+    out: list[Observation] = []
+    supporting: dict[str, list[AppInput]] = defaultdict(list)
+    for app in apps:
+        for key in app.fields.get("processes") or []:
+            supporting[key].append(app)
 
-    def next_id() -> str:
-        nonlocal counter
-        counter += 1
-        return f"AP-{counter:02d}"
+    for process in processes:
+        # Only a process the analyst has scored is known to matter to this target. A
+        # software vendor has no Plan to Make.
+        score = process_scores.get(process.key)
+        if score is None:
+            continue
+        backers = supporting.get(process.key, [])
+        # A spreadsheet is not licensed capability: a process carried only by spreadsheets
+        # has no supporting system.
+        sheets = [a for a in backers if a.text("type") == rules.ad_hoc_type]
+        systems = [a for a in backers if a.text("type") != rules.ad_hoc_type]
+        weak = score.band in rules.weak_process_bands
+        label = BAND_LABELS.get(score.band, score.band)
+        if not systems and apps:
+            via = f"it runs on {_names(sheets)}" if sheets else "it runs on spreadsheets and email"
+            out.append(
+                Observation(
+                    "outside_systems",
+                    f"No system supports {process.name} ({score.index:.0f}/100, {label}); {via}.",
+                    "High" if score.band == "manual" else "Medium",
+                    [process.name],
+                    f"process:{process.key}",
+                )
+            )
+        elif systems and weak:
+            out.append(
+                Observation(
+                    "capability_unused",
+                    f"{process.name} scores {score.index:.0f}/100 ({label}) although "
+                    f"{_names(systems)} {_plural(len(systems), 'claims', 'claim')} to support it.",
+                    "High" if score.band == "manual" else "Medium",
+                    [process.name],
+                    f"process:{process.key}",
+                )
+            )
 
-    for category, survivor, ranked in clusters:
-        names = [r["app"].name for r in ranked]
-        gaps.append(
-            make_gap(
-                key=f"dup:{category}",
-                display_id=next_id(),
-                scope="portfolio",
-                category="Duplication",
-                subject=GapSubject(kind="Application category", name=category),
-                title=f"Overlapping {category} applications",
-                findings=[f"{len(names)} applications in the {category} category: {', '.join(names)}"],
-                hypothesis=(
-                    f"One {category} application ({survivor['app'].name}) serves the business; "
-                    "the others are retired or folded into it."
-                ),
-                severity="High" if len(names) >= 3 else "Medium",
+    sheets_critical = [a for a in apps if critical(a) and a.text("type") == rules.ad_hoc_type]
+    if sheets_critical:
+        out.append(
+            Observation(
+                "outside_systems",
+                f"Business-critical work runs on {len(sheets_critical)} "
+                f"{_plural(len(sheets_critical), 'spreadsheet or ad hoc tool', 'spreadsheets or ad hoc tools')}: "
+                f"{_names(sheets_critical)}.",
+                "High",
+                [a.short for a in sheets_critical],
+                "inventory:type",
             )
         )
-
-    if apps:
-        supporting: dict[str, list[AppInput]] = defaultdict(list)
-        for app in apps:
-            for key in app.fields.get("processes") or []:
-                supporting[key].append(app)
-        for process in processes:
-            backers = supporting.get(process.key, [])
-            # A spreadsheet is not licensed capability. A process carried only by
-            # spreadsheets has no supporting system, and naming the workbook as "what was
-            # bought" would turn the finding upside down.
-            sheets = [a for a in backers if a.text("type") == rules.ad_hoc_type]
-            systems = [a for a in backers if a.text("type") != rules.ad_hoc_type]
-            score = process_scores.get(process.key)
-            # Only a process the analyst has scored is known to matter to this target. A
-            # software vendor has no Plan to Make, and "no application supports it" would
-            # be noise on every engagement that never touched it.
-            if score is None:
-                continue
-            severity: Severity = "High" if score.band == "manual" else "Medium"
-            if not systems:
-                via = (
-                    f"it runs on {', '.join(a.name for a in sheets)}"
-                    if sheets
-                    else "it runs on spreadsheets and email, or a system is missing from the inventory"
-                )
-                gaps.append(
-                    make_gap(
-                        key=f"process-none:{process.key}",
-                        display_id=next_id(),
-                        scope="portfolio",
-                        category="Process support",
-                        subject=GapSubject(kind="Business process", name=process.name),
-                        title=f"No application supports {process.name}",
-                        findings=[f"No inventoried system supports {process.name}: {via}"],
-                        hypothesis=(
-                            f"{process.name} runs on a supported application, or the inventory "
-                            "is corrected to show the system that carries it."
-                        ),
-                        severity=severity if score.band in rules.weak_process_bands else "Medium",
-                    )
-                )
-            elif score.band in rules.weak_process_bands:
-                backer_names = ", ".join(a.name for a in systems)
-                gaps.append(
-                    make_gap(
-                        key=f"process-weak:{process.key}",
-                        display_id=next_id(),
-                        scope="portfolio",
-                        category="Process support",
-                        subject=GapSubject(kind="Business process", name=process.name),
-                        title=f"{process.name} is manual despite its systems",
-                        findings=[
-                            f"{process.name} scores {score.index:.0f}/100 "
-                            f"({BAND_LABELS.get(score.band, score.band)}) on the business "
-                            f"assessment while {len(systems)} "
-                            f"{'system claims' if len(systems) == 1 else 'systems claim'} to support it: "
-                            f"{backer_names}",
-                        ],
-                        hypothesis=(
-                            f"{process.name} uses the capability already licensed in {backer_names} "
-                            "instead of working around it."
-                        ),
-                        severity=severity,
-                    )
-                )
-
-    key_person = [a for a in apps if a.text("key_person") == "Yes"]
-    if len(key_person) >= rules.key_person_min:
-        critical = any((r["criticality"] or 0) >= crit_min for r in staged if r["app"].text("key_person") == "Yes")
-        gaps.append(
-            make_gap(
-                key="key-person",
-                display_id=next_id(),
-                scope="portfolio",
-                category="People dependency",
-                subject=GapSubject(kind="Portfolio", name="Key-person dependency"),
-                title="Key-person dependency across the estate",
-                findings=[
-                    f"{len(key_person)} applications depend on one person or vendor resource: "
-                    + ", ".join(a.name for a in key_person)
-                ],
-                hypothesis="Each application has documented support and at least two people able to run it.",
-                severity="High" if critical else "Medium",
+    manual = [
+        a
+        for a in apps
+        if critical(a)
+        and a.text("type") != rules.ad_hoc_type
+        and (level := _scale(a.answers.get("automation"), 0, 5)) is not None
+        and level <= rules.manual_automation_max
+    ]
+    if manual:
+        out.append(
+            Observation(
+                "outside_systems",
+                f"The work around {len(manual)} business-critical {_plural(len(manual), 'application')} "
+                f"({_names(manual)}) is largely manual: outcomes are keyed in after the fact.",
+                "High",
+                [a.short for a in manual],
+                "answers:automation",
             )
         )
+    return out
 
-    if apps:
-        vendor_unknown = [a for a in apps if a.text("vendor").upper() in ("", "TBD")]
-        lifecycle_unknown = [a for a in apps if a.text("lifecycle") in ("", "Unknown")]
-        share = max(len(vendor_unknown), len(lifecycle_unknown)) / len(apps)
-        if share >= rules.incomplete_share:
-            gaps.append(
-                make_gap(
-                    key="incomplete",
-                    display_id=next_id(),
-                    scope="portfolio",
-                    category="Inventory",
-                    subject=GapSubject(kind="Portfolio", name="Application inventory"),
-                    title="Application inventory incomplete",
-                    findings=[
-                        f"Vendor unknown for {len(vendor_unknown)} of {len(apps)} applications",
-                        f"Lifecycle unknown for {len(lifecycle_unknown)} of {len(apps)} applications",
-                    ],
-                    hypothesis="Every application has a confirmed vendor, version and support status.",
-                    severity="Medium",
-                )
-            )
-    return gaps
+
+def _analytics(apps: list[AppInput], config: ApplicationsConfig) -> list[Observation]:
+    # Only meaningful once the inventory is substantial; a five-line inventory missing a
+    # BI tool is more likely incomplete than evidence of no analytics.
+    if len(apps) < 5 or any(a.text("category") == config.rules.analytics_category for a in apps):
+        return []
+    return [
+        Observation(
+            "analytics",
+            f"No analytics or business intelligence application is recorded among the {len(apps)} "
+            "applications in the inventory.",
+            "Low",
+            [],
+            "inventory:category",
+        )
+    ]
+
+
+def _ai(results: list[ApplicationResult], config: ApplicationsConfig) -> list[Observation]:
+    rated = [r for r in results if r.ai is not None]
+    if len(rated) < config.rules.ai_min_answered:
+        return []
+    average = statistics.mean(r.ai for r in rated if r.ai is not None)
+    if average > config.rules.ai_low_max:
+        return []
+    used = [r for r in rated if (r.ai or 0) >= 2]
+    tail = f"; only {_names_of(used)} {_plural(len(used), 'goes', 'go')} beyond that" if used else ""
+    return [
+        Observation(
+            "ai_adoption",
+            f"Across {len(rated)} applications rated, AI averages {average:.1f} of 5 — "
+            f"features are at most available but unused{tail}.",
+            "Low",
+            [],
+            "answers:ai",
+        )
+    ]
+
+
+def _names_of(results: list[ApplicationResult]) -> str:
+    return join_subjects([r.name.split(" (")[0] for r in results], limit=3)
+
+
+# ------------------------------------------------------------------ helpers
+
+
+# Data & infrastructure, team & governance and strategy & projects are maturity indices,
+# not automation indices: "Manual" means nothing for a steering committee. Same thresholds,
+# their own words (found reading the Kiln report, 2026-11-18).
+MATURITY_LABELS = {
+    "manual": "Initial",
+    "emerging": "Developing",
+    "standardised": "Defined",
+    "integrated": "Managed",
+    "optimised": "Optimised",
+}
+MATURITY_MEANINGS = {
+    "manual": "Little is in place; what exists depends on individuals. Expect investment before it can carry the plan.",
+    "emerging": "Some practices exist but are informal or inconsistent. Gaps will need closing during the hold.",
+    "standardised": "Practices are defined and largely followed, with known gaps.",
+    "integrated": "Practices are embedded, measured and reviewed.",
+    "optimised": "Practices are mature and improving; little to fix.",
+}
+
+
+def band_fields(index: float | None, scale: str = "automation") -> dict[str, Any]:
+    if index is None:
+        return {"band": None, "band_label": "", "band_meaning": ""}
+    band = band_for_index(index)
+    if scale == "maturity":
+        return {"band": band, "band_label": MATURITY_LABELS[band], "band_meaning": MATURITY_MEANINGS[band]}
+    return {"band": band, "band_label": BAND_LABELS[band], "band_meaning": BAND_MEANINGS[band]}
+
+
+def _coverage(results: list[ApplicationResult], answered: int, total: int) -> str:
+    if not results:
+        return "No applications in the inventory yet. Add them on the Information requests page."
+    rated = sum(r.criticality is not None for r in results)
+    automated = sum(r.automation is not None for r in results)
+    parts = [f"{rated} of {len(results)} applications have a criticality"]
+    if automated < len(results):
+        parts.append(f"{automated} have an automation level, so the index covers those only")
+    parts.append(f"{answered} of {total} portfolio questions answered")
+    return "; ".join(parts) + "."

@@ -2,7 +2,7 @@
 
 The payload is built deterministically from every earlier module; an LLM may rewrite its
 prose; a consultant may edit anything. Edits are an overlay keyed on stable element keys
-(`exec.EN-01.findings`, `supporting.applications.panel`), applied at read time, so a
+(`exec.cyber.data_tech-recovery.headline`, `supporting.applications.panel`), applied at read time, so a
 regeneration keeps them for as long as the element still exists.
 """
 
@@ -19,11 +19,26 @@ BlockKind = Literal["paragraph", "bullets", "table", "diagram", "image"]
 # ===================================================================== content (YAML)
 
 
-class RouteRule(BaseModel):
+class AreaDef(BaseModel):
+    """A diligence area of the executive summary. Gap themes name one by id."""
+
     model_config = {"extra": "forbid"}
 
-    prefer: list[str] = Field(default_factory=list)
-    fallback: str
+    id: str
+    title: str
+    workstreams: list[str] = Field(default_factory=list)
+
+
+class ProcessFindingDef(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    area: str
+    headline: str
+    bullet: str
+    implication: str
+    action: str
+    impact: list[str]
+    bands: dict[str, Literal["High", "Medium", "Low"]]
 
 
 class SectionDef(BaseModel):
@@ -40,11 +55,10 @@ class ReportConfig(BaseModel):
     dd_labels: dict[str, str]
     executive_titles: dict[str, str]
     context: dict[str, Any]
-    routing: dict[str, RouteRule]
+    areas: list[AreaDef]
     max_findings_per_area: int
-    max_actions_per_area: int
-    implications: dict[str, str]
-    actions: dict[str, str]
+    max_bullets_per_finding: int
+    process_finding: ProcessFindingDef
     no_findings: str
     not_assessed: str
     limitations: dict[str, str]
@@ -94,17 +108,37 @@ class Limitation(BaseModel):
     include: bool = True
 
 
-class ExecutiveRow(BaseModel):
-    area_id: str
-    sn: int
-    title: str
-    findings: list[str]
-    implication: str
+class ExecutiveFinding(BaseModel):
+    """One finding of the executive summary — a row of the sample's Gaps & Risks table.
+
+    Phase 8 (Rishi, 2026-11-18): one row per finding, each with its own risk and actions,
+    grouped under its diligence area. Investment impact stays XXX for the engagement team.
+    """
+
+    key: str  # <assessment>-<theme>, e.g. applications-end_of_support; stable across versions
+    headline: str
+    bullets: list[str]
+    implication: str = ""
+    impact: list[str] = Field(default_factory=list)
     risk: RiskLevel
     actions: list[str]
     investment: str = "XXX"
-    # What the row was built from, so a reader can trace every finding to the register.
-    gap_keys: list[str] = Field(default_factory=list)
+    # Where it came from: the register entry ("AP-01") or the process.
+    source: str = ""
+    include: bool = True
+
+
+class ExecutiveRow(BaseModel):
+    """One diligence area of the executive summary and its findings."""
+
+    area_id: str
+    sn: int
+    title: str
+    findings: list[ExecutiveFinding] = Field(default_factory=list)
+    # The area's highest risk across its included findings — the summary's RAG.
+    risk: RiskLevel
+    # Shown when the area has no findings: "No material gaps…" or "Not assessed…".
+    note: str = ""
     include: bool = True
 
 
@@ -130,7 +164,7 @@ class ReportSection(BaseModel):
 
 
 class ReportPayload(BaseModel):
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     generator: str
     skill_versions: dict[str, str] = Field(default_factory=dict)
     generated_at: datetime
@@ -188,18 +222,19 @@ class ReportGenerateRequest(BaseModel):
 # ===================================================================== LLM contract
 
 
-class LlmExecutiveRow(BaseModel):
+class LlmExecutiveFinding(BaseModel):
     model_config = {"extra": "ignore"}
 
-    area_id: str
-    findings: list[str]
-    implication: str
+    key: str
+    headline: str
+    bullets: list[str]
+    implication: str = ""
 
 
 class LlmExecutive(BaseModel):
     model_config = {"extra": "ignore"}
 
-    rows: list[LlmExecutiveRow]
+    findings: list[LlmExecutiveFinding]
 
 
 class LlmNarrative(BaseModel):

@@ -43,63 +43,46 @@ context:
     The technology assessment is based on the information received from the target up to
     {date}.
 
-# Where each kind of finding belongs. `prefer` lists workstreams in order; the finding goes
-# to the first in-scope area whose PRIMARY workstream matches, then to any area carrying
-# it. `fallback` names the area created when no in-scope area carries any of them — a
-# finding is never dropped (enterprise decks have no cyber or data row of their own).
-routing:
-  Application: {prefer: [W-APP], fallback: IT Core Applications}
-  Duplication: {prefer: [W-APP], fallback: IT Core Applications}
-  Inventory: {prefer: [W-APP], fallback: IT Core Applications}
-  Process support: {prefer: [W-APP], fallback: IT Core Applications}
-  People dependency: {prefer: [W-OPS], fallback: IT People and Skills}
-  Data: {prefer: [W-DATA], fallback: Data Governance and Privacy}
-  Platform: {prefer: [W-INFRA], fallback: IT Infrastructure}
-  Resilience: {prefer: [W-INFRA], fallback: IT Infrastructure}
-  Cyber security: {prefer: [W-SEC], fallback: Cyber Security}
-  Engineering practice: {prefer: [W-PROC, W-PROD], fallback: Software Development Practice}
-  Budget: {prefer: [W-SPEND], fallback: IT Governance and Budgeting}
-  Contracts: {prefer: [W-VEN], fallback: IT Contracts and Licences}
-  IT team: {prefer: [W-OPS], fallback: IT People and Skills}
-  # Business-process automation always gets its own area: no deck row is about it.
-  Process automation: {prefer: [], fallback: Business Process Automation}
+# The diligence areas the executive summary is organised by (Phase 8, Rishi 2026-11-18).
+# Every gap theme names one of these ids (reference/estate/*.yaml); a finding is grouped
+# under its area, areas appear in this order, and findings within an area by severity. A
+# finding whose area is not listed here is still reported, under its own name — a finding
+# is never dropped. `workstreams` tie an area to the scope, for the "not assessed" claim.
+areas:
+  - {id: process_enablement, title: Business Process Enablement, workstreams: [W-APP, W-PROC]}
+  - {id: applications, title: IT Applications, workstreams: [W-APP]}
+  - {id: infrastructure, title: IT Infrastructure, workstreams: [W-INFRA]}
+  - {id: cyber, title: Cyber Security, workstreams: [W-SEC]}
+  - {id: data, title: Data Governance and Privacy, workstreams: [W-DATA]}
+  - {id: organisation, title: IT Organisation, workstreams: [W-OPS]}
+  - {id: governance, title: IT Governance, workstreams: [W-OPS, W-PROC]}
+  - {id: strategy, title: IT Strategy and Roadmap, workstreams: [W-STRAT]}
+  - {id: pmo, title: Project Delivery (PMO), workstreams: [W-STRAT]}
+  - {id: budget, title: IT Budgeting, workstreams: [W-SPEND]}
+  - {id: contracts, title: IT Contracts and Vendors, workstreams: [W-VEN]}
+  - {id: engineering, title: Software Engineering Practice, workstreams: [W-PROD, W-PROC]}
+  - {id: ai, title: AI Implementation, workstreams: [W-DATA]}
 
 max_findings_per_area: 5
-max_actions_per_area: 4
+# Evidence bullets under one finding; the rest stay in the assessment's register.
+max_bullets_per_finding: 3
 
-# One implication per area: the template for the category of its most severe finding.
-implications:
-  Application: Core business systems carry risk the plan will have to fund — modernisation, replacement or resilience work that is not yet budgeted.
-  Duplication: Overlapping systems split data and effort; consolidation is a cost and a dependency for any integration or separation plan.
-  Inventory: Without a complete inventory, licence, support and end-of-life exposure cannot be sized.
-  Process support: Processes are run around the systems rather than in them, so efficiency gains assumed in the plan depend on adoption work first.
-  People dependency: Knowledge concentrated in individuals makes continuity of key systems a people risk.
-  Data: Ungoverned data undermines reporting, integration and privacy compliance.
-  Platform: Platforms out of support carry security and stability risk and an upgrade cost inside the hold.
-  Resilience: Limited recovery capability may increase recovery effort and downtime during a critical system outage.
-  Cyber security: Control gaps expose the business to incidents that are costly to recover from and may breach regulatory obligations.
-  Engineering practice: Delivery without automated, tested pipelines slows change and raises the defect and security risk of every release.
-  Budget: Technology spend is not planned or controlled tightly enough to rely on the reported run-rate.
-  Contracts: Contract expiry and change-of-control terms may force renegotiation or re-procurement during the hold.
-  IT team: The technology function depends on a small or outsourced team, which limits its capacity to deliver the plan.
-  Process automation: Core processes depend on manual effort, so headcount scales with volume until they are automated.
-
-# Recommended actions, per category. {subjects} lists the items the area's findings name.
-actions:
-  Application: Agree a modernisation or replacement plan, with budget and timeline, for {subjects}.
-  Duplication: Consolidate overlapping applications onto a single platform per function.
-  Inventory: Complete the application inventory with vendor, version, hosting and support status.
-  Process support: Assess as-is process adoption and close the gap between licensed capability and use in {subjects}.
-  People dependency: Document support for the systems that depend on one person, and build cover so none does.
-  Data: Name an owner and steward for {subjects}, and classify personal data with retention rules.
-  Platform: Upgrade or migrate {subjects} to supported releases before the end of vendor support.
-  Resilience: Implement documented disaster recovery procedures, periodic recovery testing and defined recovery objectives.
-  Cyber security: Remediate the {count} cyber security control gaps and evidence the fixes through periodic testing.
-  Engineering practice: Introduce automated build, test and security scanning into the delivery pipeline.
-  Budget: Formalise the technology budget process — build, approval and monthly reporting against budget.
-  Contracts: Review renewal, notice and change-of-control terms for {subjects} before signing.
-  IT team: Establish a clear IT leadership structure and reduce single-person dependencies in {subjects}.
-  Process automation: Prioritise automation of {subjects}, starting with the highest-volume manual steps.
+# A business process scored Manual or Emerging is a finding of its own, as in the sample.
+process_finding:
+  area: process_enablement
+  headline: "{process} cycle is not automated"
+  bullet: >-
+    {process} scores {index}/100 ({band}) on the automation assessment: the work is largely
+    done by hand around the systems.
+  implication: >-
+    The process depends on manual effort, so headcount scales with volume and errors and
+    control gaps follow.
+  action: >-
+    Target should prioritise automation of {process}, starting with the highest-volume
+    manual steps, using the capability already in its systems where it exists.
+  impact: [plan_risk, run_cost]
+  # Bands that raise it, and the severity of each.
+  bands: {manual: High, emerging: Medium}
 
 no_findings: No material gaps were identified on the information received.
 not_assessed: Not assessed — the information needed was not received (see Data limitations).
@@ -114,6 +97,8 @@ limitations:
   no_platforms: An infrastructure inventory has not been provided.
   no_team: Details of the IT organisation — roles, reporting lines and the in-house versus outsourced mix — were not provided.
   no_contracts: A list of IT contracts and licences, with terms and expiry, was not provided.
+  no_projects: A list of in-flight and planned IT projects, with budgets and progress, was not provided.
+  no_cyber_tools: The cyber tools inventory was not completed, so security tooling is unconfirmed.
   no_budget: IT budget and actual spend for the review period were not provided.
   unknown_checks: "The status of {count} control(s) could not be established: {checks}."
   no_network_diagram: A network or infrastructure architecture diagram was not provided.
@@ -127,14 +112,16 @@ limitation_routing:
   no_network_diagram: W-INFRA
   no_team: W-OPS
   no_contracts: W-VEN
+  no_projects: W-STRAT
+  no_cyber_tools: W-SEC
   no_budget: W-SPEND
   unknown_checks: W-INFRA
 
 # Supporting analysis: which sections, in which order, per DD type. Each id is a section
 # builder in services/report/sections.py; the title and side-panel lead-in live here.
 supporting:
-  enterprise: [applications, landscape, infrastructure, cyber, data, people, budget, processes]
-  product: [architecture, engineering, product_security, people, data_ai, budget, business_systems]
+  enterprise: [applications, landscape, infrastructure, cyber, data, organisation, strategy, budget, processes, ai]
+  product: [architecture, engineering, product_security, organisation, data_ai, strategy, budget, business_systems]
   # blended: product sections first when the mix is product-weighted (>= 50), else enterprise.
 
 sections:
@@ -143,7 +130,9 @@ sections:
   infrastructure: {title: IT Infrastructure}
   cyber: {title: Cyber Security}
   data: {title: Data Governance and Privacy}
-  people: {title: IT People and Skills}
+  organisation: {title: IT Organisation and Governance}
+  strategy: {title: IT Strategy and Project Portfolio}
+  ai: {title: AI Adoption}
   budget: {title: IT Governance and Budgeting}
   processes: {title: Business Process Automation}
   architecture: {title: Architecture and Platforms}
@@ -152,13 +141,15 @@ sections:
   data_ai: {title: Data and AI Capability}
   business_systems: {title: Business Systems}
 
-appendix: [applications, team, contracts, platforms, data_domains, diagrams]
+appendix: [applications, team, contracts, projects, platforms, data_domains, cyber_tools, diagrams]
 
 appendix_titles:
   applications: IT Applications
   team: IT Team
   contracts: IT Contracts
-  platforms: Technology Platforms
+  projects: IT Projects
+  platforms: Infrastructure Platforms
+  cyber_tools: Cyber Security Tools
   data_domains: Data Domains
   diagrams: Network and Infrastructure Diagrams
 
@@ -171,18 +162,24 @@ glossary:
   API: Application Programming Interface
   BCP: Business Continuity Plan
   BI: Business Intelligence
+  CIO: Chief Information Officer
+  CISO: Chief Information Security Officer
   CRM: Customer Relationship Management
+  CTO: Chief Technology Officer
   COTS: Commercial Off-The-Shelf
   DC: Data Centre
   DD: Due Diligence
   DPIA: Data Protection Impact Assessment
+  DLP: Data Leakage Prevention
   DR: Disaster Recovery
+  EDR: Endpoint Detection and Response
   EOL: End of Life
   ERP: Enterprise Resource Planning
   FY: Financial Year
   GDPR: General Data Protection Regulation
   HRMS: Human Resource Management System
   IaaS: Infrastructure as a Service
+  ITSM: IT Service Management
   IT: Information Technology
   KPI: Key Performance Indicator
   LAN: Local Area Network
@@ -196,6 +193,7 @@ glossary:
   PaaS: Platform as a Service
   PAM: Privileged Access Management
   PII: Personally Identifiable Information
+  PMO: Project Management Office
   PLM: Product Lifecycle Management
   RPO: Recovery Point Objective
   RTO: Recovery Time Objective

@@ -19,13 +19,19 @@ future session would otherwise get wrong.
 | **Phase 5 (assess)** | **COMPLETE — five of five processes defined.** P2P, O2C, Plan to Make, and **Hire to Retire and Record to Report** (2026-09-14). No process is named with nothing behind it |
 | **Phase 6 (estate)** | **Built 2026-11-18.** Application and data & technology inventories on the IRL (screen + workbook sheets); Assess gains **Applications** and **Data & technology** tabs with scores and gap registers; new **IT budget** page (budgeting process, never a cost model). See the entry below and `docs/phases/PHASE6_PLAN.md` |
 | **Phase 7 (report + AI pipeline)** | **Built 2026-11-18.** Final report (Report tab, PPTX export, fully editable); one `AI_MODE` switch over every generator with a `SKILL.md` each; edit-before-export for scope and research; IT team and contracts inventories. See the entry below and `docs/phases/PHASE7_PLAN.md` |
-| **Backend** | pytest 557/557 · ruff clean · mypy clean (116 files) |
+| **Phase 8 (diligence-grade assessments)** | **Built 2026-11-18, uncommitted.** Registers report **themes**, not one gap per system; **dispositions removed**; Assess gains **Team & governance**, **Strategy & projects** and the **IT budget** tab (six tabs); IRL page renamed **Information requests** with **Projects**, **Cyber tools** and an **IT financials** sheet; executive summary is **one row per finding**. See the entry below, `docs/phases/PHASE8_PLAN.md` and `docs/reference/DD_ASSESSMENT_FRAMEWORK.md` |
+| **Backend** | pytest 579/579 · ruff clean · mypy clean (120 files) |
 | **Frontend** | tsc clean · eslint clean · vitest 19/19 |
-| **API** | 69 routes, OpenAPI clean |
-| **DB** | at `0009_add_report` |
-| **Git** | `master`, at `198cdae` **plus uncommitted Phase 6 and Phase 7 work**. Rishi does all committing and pushing — never run `git push` |
+| **API** | 71 routes, OpenAPI clean |
+| **DB** | at `0010_gap_note_headline` — run `alembic upgrade head` |
+| **Git** | `master`, at `172781c` ("finalised pipeline" — Phases 6 and 7, committed by Rishi). **Phase 8 is uncommitted** (plus `docs/PARTNER_CHEATSHEET.md`). Rishi does all committing and pushing — never run `git push` |
+| **Partner cheat sheet** | `docs/PARTNER_CHEATSHEET.md` (2026-11-18) — the workflow end to end, the deterministic logic with its real numbers, how the AI is contained, 17 partner Q&As, a demo script on Kiln. **Keep it in step with the code**: when a threshold, weight or rule count changes, change it there too |
 
-**Uncommitted:** all of Phase 6 and Phase 7 — see the two 2026-11-18 entries below.
+**Phases 6 and 7 are committed; Phase 8 is not** — see the 2026-11-18 entries below.
+
+**Open, not started (do not build unless Rishi asks):** a "re-score needed" banner when an
+assessment's inputs changed after it was last scored. Scores are computed on demand (click
+Score), not live — offered 2026-11-18, no answer yet.
 
 **Your `.env` now runs deterministic.** It sets `SCOPE_GENERATOR=llm` and a key; under Phase 7 that no longer turns the model on. Add `AI_MODE=auto` to restore the LLM path.
 
@@ -37,7 +43,7 @@ what that path is still for.
 
 ```powershell
 conda activate techdd
-cd backend; alembic upgrade head; uvicorn app.main:app --reload   # :8000
+cd backend; alembic upgrade head; uvicorn app.main:app --port 8002   # :8002 (see below)
 cd frontend; npm run dev                                          # :3000
 ```
 
@@ -171,6 +177,67 @@ The YAML is validated at startup; a malformed file fails loudly.
 ---
 
 ## Decisions that override the specs
+
+### Phase 8 — diligence-grade assessments and strategic findings (2026-11-18)
+
+**What Rishi asked for.** Having compared the platform with a real KPMG "Gaps & Risks" deck
+and a client IRL workbook (screenshots — **client material: structure only, no names in the
+repo**), he judged it an enterprise-architecture review, not a due diligence: dispositions
+per application, one gap per system, an executive summary dominated by applications. He
+asked for team & governance and strategy & projects assessments, a projects template,
+renames (IRL page; Data & technology → Data & infrastructure), dispositions removed,
+strategic rather than transactional gaps, and research beyond his brief (the book, TOGAF,
+public tech-DD practice, product and AI diligence). Plan: `docs/phases/PHASE8_PLAN.md`;
+model and sources: `docs/reference/DD_ASSESSMENT_FRAMEWORK.md`.
+
+**Decisions Rishi took:** page renamed **Information requests** (workbook keeps "IRL");
+executive summary **one row per finding**, Investment = XXX kept per finding; per
+application **criticality, automation and AI only**; **cyber tools** and **IT financials**
+templates added; **IT budget moved into Assess** as a tab (`/it-budget` redirects).
+
+**What I added beyond the brief** (each in the framework doc with its source):
+1. **Observation → theme → gap.** Rules still fire per item; the register holds themes, each
+   with headline, evidence, implication, a **deal-impact lens** (one-off investment, run
+   cost, plan risk, continuity, compliance, integration — DD_master p. 70 made explicit),
+   "Target should…" action and severity. A test pins themes-only registers.
+2. **Facts vs judgement carried forward**: per-project **triage** uses the book's rule
+   (Day-1 critical / enables the plan / BAU / candidate to stop) [p. 8, 148].
+3. **Roadmap reconciled against the change budget** — Rishi's "document but no money
+   behind it" becomes a computed finding as well as an interview answer.
+4. **A tool is not a control**: a cyber tool the target lacks defaults its check to fail; a
+   tool it has passes nothing.
+5. **Variants by rule**: product/blended deals add engineering-team questions; AI-material
+   deals (rule A11) add AI data-rights and model-dependency questions.
+
+**Where things live.** Content: `reference/estate/{applications,data_tech,team_governance,
+strategy_projects,it_budget}.yaml` (`themes:` blocks), diligence areas in
+`reference/report/report.yaml › areas` — every theme must name a configured area or the
+boot fails. Code: `services/estate/{gaps,judgement,team_governance,strategy_projects,
+budget_xlsx}.py`. Internal key `data_tech` unchanged (labels only). No new tables; migration
+`0010` adds `estate_gap_note.headline`. Stored scores and reports from before Phase 8 are not
+read — they show as "not scored" / "regenerate" (only Kiln had any).
+
+**Found by reading the output (tests green each time):**
+1. Budget in **thousands** read against projects in absolute amounts made the roadmap look
+   970× the budget — the change budget is now scaled by its `unit`; an unreadable unit means
+   no comparison.
+2. Each weak process was reported twice (its own finding and inside "licensed capability
+   not used"), pushing the area past five — a process already named by a theme is skipped.
+3. Shortening names merged "Depot WMS (north)" and "(south)" into one system — full names.
+4. PPTX: merging the area cell **copied every spanned cell's text into it** (area name ×4);
+   pagination left a third of each slide empty, then overran — re-measured.
+5. Governance and strategy indices borrowed the automation band ("16/100 (Manual)") —
+   maturity indices now say Initial / Developing / Defined / Managed / Optimised.
+6. The rules summary lower-cased whole headlines ("no dedicated it leadership") and Python's
+   half-to-even rounding showed 24 where the screen showed 25.
+7. "1 project are past…", "A further 1 observation", "extend system coverage to *Pricing
+   workbook*", "starting with *the areas identified*".
+
+**Left as is.** Kiln carries illustrative team, contracts, projects, cyber tools and
+questionnaire answers (`scratchpad/seed_kiln.py` style, via the API). Calibrations (25-point
+burn gap, 50% outsourcing and vendor shares, attrition bands) have no external source.
+Rishi said he may give more guidance on gap identification and executive-summary phrasing
+after reviewing — the theme YAMLs are where that lands.
 
 ### Phase 7 — the final report, one AI switch, edit-before-export (2026-11-18)
 

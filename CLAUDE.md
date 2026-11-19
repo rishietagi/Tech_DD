@@ -20,18 +20,21 @@ The flow the product owns:
    Built in Phase 2 — see §9.
 3. **Company research** — search public sources for what is known about the target,
    with citations, to inform the request list. Built in Phase 3 — see §9.
-4. **Initial Request List (IRL)** — from the scope, produce the list of artefacts the
+4. **Information requests (the IRL)** — from the scope, produce the list of artefacts the
    target must supply, grouped by business function and exported to Excel for the
-   client to complete. Built in Phase 3 — see §9.
+   client to complete, with the templates the target fills in (applications, data and
+   infrastructure, IT team and contracts, projects, cyber tools, IT financials). Built in
+   Phase 3; renamed and extended in Phase 8 — see §9.
 5. **Checklist** — track which requested documents have actually arrived, ranked by
    importance. Built in Phase 4 — see §9.
 6. **Assess** — perform the diligence: work through a business process step by step,
    recording what management said, and score its level of automation. Built in Phase 5,
    **complete for all five processes** — see §9. Phase 6 added **application** and **data &
-   technology** assessment beside the processes, fed by inventories the target completes
-   through the IRL, each with a score and a gap register.
+   infrastructure** assessment beside the processes; Phase 8 added **team & governance** and
+   **strategy & projects**, and moved the IT budget in as a tab. Each reports **themes** —
+   strategic findings with a deal-impact lens — never one gap per system.
 7. **IT budget** — review how the technology budget is built, approved and controlled,
-   and reported spend against it. Built in Phase 6 — see §9.
+   and reported spend against it. Built in Phase 6; a tab of Assess since Phase 8 — see §9.
 8. **Report** — the final IT due diligence report, built from every module above, fully
    editable, exported to PowerPoint. Built in Phase 7 — see §9.
 
@@ -150,6 +153,7 @@ Tech_DD/
 ├── README.md                  # setup + run instructions
 ├── docs/
 │   ├── PROJECT_LOG.md         # running log of decisions and state — READ THIS FIRST
+│   ├── PARTNER_CHEATSHEET.md  # presenting the platform: workflow, logic, partner Q&A
 │   ├── phases/
 │   │   ├── PHASE1_PLAN.md     # Phase 1 build plan (intake)
 │   │   ├── PHASE2_SPEC.md     # Phase 2 build spec (scope engine)
@@ -158,7 +162,8 @@ Tech_DD/
 │   │   ├── PHASE4_PLAN.md     # Phase 4 build plan (checklist + shared-drive scan)
 │   │   ├── PHASE5_PLAN.md     # Phase 5 build plan (assess)
 │   │   ├── PHASE6_PLAN.md     # Phase 6 build plan (estate assessment + IT budget)
-│   │   └── PHASE7_PLAN.md     # Phase 7 build plan (report, AI pipeline, edit-before-export)
+│   │   ├── PHASE7_PLAN.md     # Phase 7 build plan (report, AI pipeline, edit-before-export)
+│   │   └── PHASE8_PLAN.md     # Phase 8 build plan (team, governance, strategy, projects; themes)
 │   └── reference/
 │       ├── DD_master.md       # the domain authority (Roehl-Anderson 2013)
 │       ├── KPMG_SOW_LANGUAGE.md  # house scope-of-work voice, from the source deck
@@ -168,7 +173,8 @@ Tech_DD/
 │       ├── P2M_AUTOMATION_MODEL.md   # Assess: Plan to Make, 8 steps    [EXT]
 │       ├── H2R_AUTOMATION_MODEL.md   # Assess: Hire to Retire, 9 steps  [EXT]
 │       ├── R2R_AUTOMATION_MODEL.md   # Assess: Record to Report, 8 steps [EXT]
-│       ├── ESTATE_ASSESSMENT_MODEL.md  # applications, data & technology, IT budget
+│       ├── ESTATE_ASSESSMENT_MODEL.md  # Phase 6 estate model (partly superseded by the next)
+│       ├── DD_ASSESSMENT_FRAMEWORK.md  # Phase 8: themes, deal-impact lens, every question's source
 │       ├── REPORT_STRUCTURE.md  # the final report's structure (from a sample; no client content)
 │       └── mockup_v0.html     # v0 visual reference (architecture superseded)
 ├── assets/                    # brand assets (logos)
@@ -509,10 +515,37 @@ only; never add the sample's client, target or people to the repo**).
   the target until 2026-11-18.
 - **Two more inventories**: IT team and IT contracts, feeding people and contract findings.
 
-**Phase 8+ — not planned.** Evidence collection beyond the drive scan, multi-user auth,
+**Phase 8 — BUILT** (2026-11-18): diligence-grade assessments. Plan at
+`docs/phases/PHASE8_PLAN.md`; model and sources at `docs/reference/DD_ASSESSMENT_FRAMEWORK.md`.
+Rishi's verdict on Phases 6–7 was that they read like an enterprise-architecture review, not
+a due diligence. What changed, and what must not drift back:
+
+- **Registers report themes, never one gap per system.** Rules fire on single applications,
+  platforms, roles and projects; those are **observations**, the evidence under a **theme**
+  (`themes:` in each assessment YAML). A theme carries headline, implication, a
+  **deal-impact lens** (one-off investment, run cost, plan risk, continuity, compliance,
+  integration — DD_master p. 70 made explicit), a "Target should…" action and severity.
+  A test pins themes-only registers. Information not provided is a **data limitation**, not
+  a finding.
+- **No dispositions.** Per application: criticality, automation and AI only. Do not
+  reintroduce fit scores or Invest/Retain/Modernise/Replace.
+- **Assess has six tabs**: business processes, applications, data & infrastructure (internal
+  key still `data_tech`), **team & governance**, **strategy & projects**, **IT budget**.
+- **The executive summary is one row per finding**, grouped by diligence area
+  (`reference/report/report.yaml › areas`; every theme must name one or the boot fails),
+  each with its own risk, actions and **Investment = XXX**.
+- **A tool is not a control**: a cyber tool the target lacks fails its check until the
+  analyst answers; a tool it has passes nothing.
+- **The roadmap is reconciled against the change budget**, scaled by the budget's unit.
+  Arithmetic on reported figures only — still not a cost model.
+- The IRL page is **Information requests**; the workbook keeps the name IRL.
+
+**Phase 9+ — not planned.** Evidence collection beyond the drive scan, multi-user auth,
 email reminders.
 
 **Reference documents:**
+- `docs/reference/DD_ASSESSMENT_FRAMEWORK.md` — how findings are made (observation → theme),
+  the deal-impact lens, the severity rule, and the source of every assessment question.
 - `docs/PROJECT_LOG.md` — decisions, deviations, known gaps, bugs worth remembering.
   **Read this first in a new session.**
 - `docs/reference/DD_master.md` — the domain authority, built from Roehl-Anderson,

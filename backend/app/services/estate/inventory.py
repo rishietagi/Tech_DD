@@ -101,6 +101,17 @@ def coerce_value(field: FieldDef, raw: Any, app_refs: set[str]) -> tuple[Any, li
     if field.type in ("text", "long_text", "date"):
         return ("" if raw is None else str(raw).strip()), []
 
+    if field.type == "number":
+        text = "" if raw is None else str(raw).strip()
+        if not text:
+            return "", []
+        cleaned = re.sub(r"[^\d.\-]", "", text.replace(",", ""))
+        try:
+            float(cleaned)
+        except ValueError:
+            return "", [text]
+        return text, []
+
     if field.type == "select":
         text = "" if raw is None else str(raw).strip()
         if not text:

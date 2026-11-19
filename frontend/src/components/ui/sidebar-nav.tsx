@@ -126,7 +126,7 @@ export function SidebarNav() {
                 href={`/engagements/${activeEngagementId}/irl`}
                 active={pathname === `/engagements/${activeEngagementId}/irl`}
               >
-                Initial request list
+                Information requests
               </NavLink>
               {/* Prefix match, not exact: Assess has a sub-route per business process,
                   and the section should stay lit while the user is inside one. */}
@@ -140,14 +140,7 @@ export function SidebarNav() {
               >
                 Assess
               </NavLink>
-              <NavLink
-                href={`/engagements/${activeEngagementId}/it-budget`}
-                active={
-                  pathname === `/engagements/${activeEngagementId}/it-budget`
-                }
-              >
-                IT budget
-              </NavLink>
+
               <NavLink
                 href={`/engagements/${activeEngagementId}/report`}
                 active={

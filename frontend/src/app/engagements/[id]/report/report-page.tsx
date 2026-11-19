@@ -13,9 +13,11 @@ import { TextInput } from "@/components/ui/text-input";
 import { useToast } from "@/components/ui/toast";
 import { ApiError } from "@/lib/api/client";
 import { reportApi } from "@/lib/api/report";
+import { IMPACT_LABELS } from "@/types/estate";
 import type {
   Block,
   EditValue,
+  ExecutiveFinding,
   ExecutiveRow,
   ReportPayload,
   ReportRead,
@@ -339,6 +341,184 @@ function SectionView({
   );
 }
 
+function RiskPicker({
+  value,
+  label,
+  onChange,
+  edited,
+  onRevert,
+}: {
+  value: RiskLevel;
+  label: string;
+  onChange: (v: RiskLevel) => void;
+  edited: boolean;
+  onRevert: () => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 font-sans text-[12px] text-muted">
+      <span
+        aria-hidden
+        className={`h-3.5 w-3.5 rounded-full ${RISK_CLASSES[value]}`}
+      />
+      <select
+        aria-label={`Risk level for ${label}`}
+        value={value}
+        onChange={(e) => onChange(e.target.value as RiskLevel)}
+        className="rounded-md border border-line-strong bg-paper-2 px-2 py-1 font-sans text-[12.5px] text-text"
+      >
+        {RISK_LEVELS.map((r) => (
+          <option key={r} value={r}>
+            {r}
+          </option>
+        ))}
+      </select>
+      {edited && (
+        <button
+          type="button"
+          onClick={onRevert}
+          className="text-[11.5px] text-steel hover:underline"
+        >
+          Revert
+        </button>
+      )}
+    </label>
+  );
+}
+
+function FindingView({
+  areaId,
+  finding,
+  edit,
+  revert,
+  edited,
+}: {
+  areaId: string;
+  finding: ExecutiveFinding;
+  edit: Edit;
+  revert: Revert;
+  edited: Set<string>;
+}) {
+  const key = (field: string) => `exec.${areaId}.${finding.key}.${field}`;
+  const props = (field: string) => ({
+    edited: edited.has(key(field)),
+    onRevert: () => revert(key(field)),
+  });
+  return (
+    <li
+      className={`grid gap-5 border-t border-line pt-4 first:border-t-0 first:pt-0 lg:grid-cols-[minmax(0,1.7fr)_120px_minmax(0,1fr)_140px] ${finding.include ? "" : "opacity-45"}`}
+    >
+      <div>
+        <EditableText
+          value={finding.headline}
+          rows={1}
+          label="finding headline"
+          onSave={(v) => edit(key("headline"), v)}
+          {...props("headline")}
+        >
+          <h4 className="font-sans text-[14.5px] font-semibold text-text">
+            {finding.headline}
+          </h4>
+        </EditableText>
+        <div className="mt-1.5">
+          <EditableList
+            items={finding.bullets}
+            label="finding evidence"
+            onSave={(v) => edit(key("bullets"), v)}
+            {...props("bullets")}
+          >
+            <Bullets items={finding.bullets} />
+          </EditableList>
+        </div>
+        <div className="mt-2">
+          <EditableText
+            value={finding.implication}
+            label="implication"
+            rows={2}
+            onSave={(v) => edit(key("implication"), v)}
+            {...props("implication")}
+          >
+            <p className="font-sans text-[13px] leading-[1.55] text-text italic">
+              <span className="font-semibold">Implication: </span>
+              {finding.implication || "—"}
+            </p>
+          </EditableText>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {finding.impact.map((lens) => (
+            <span
+              key={lens}
+              className="rounded-full bg-steel-tint px-2 py-0.5 font-sans text-[10.5px] text-steel"
+            >
+              {IMPACT_LABELS[lens] ?? lens}
+            </span>
+          ))}
+          {finding.source && (
+            <span className="font-mono text-[10.5px] text-muted-2">
+              {finding.source}
+            </span>
+          )}
+          <IncludeToggle
+            included={finding.include}
+            label={finding.headline}
+            onChange={(v) => void edit(key("include"), v)}
+          />
+        </div>
+      </div>
+      <div>
+        <p className="mb-1 font-mono text-[10px] tracking-wide text-muted uppercase">
+          Risk
+        </p>
+        <RiskPicker
+          value={finding.risk}
+          label={finding.headline}
+          onChange={(v) => void edit(key("risk"), v)}
+          {...props("risk")}
+        />
+      </div>
+      <div>
+        <p className="mb-1 font-mono text-[10px] tracking-wide text-muted uppercase">
+          Recommended actions
+        </p>
+        <EditableList
+          items={finding.actions}
+          label="recommended actions"
+          onSave={(v) => edit(key("actions"), v)}
+          {...props("actions")}
+        >
+          {finding.actions.length ? (
+            <Bullets items={finding.actions} />
+          ) : (
+            <p className="font-sans text-[13px] text-muted-2">—</p>
+          )}
+        </EditableList>
+      </div>
+      <div>
+        <p className="mb-1 font-mono text-[10px] tracking-wide text-muted uppercase">
+          Investment impact
+        </p>
+        <EditableText
+          value={finding.investment}
+          rows={1}
+          label="investment impact"
+          onSave={(v) => edit(key("investment"), v)}
+          {...props("investment")}
+        >
+          <span
+            className={
+              finding.investment === "XXX"
+                ? "font-mono text-[13px] text-muted-2"
+                : "font-sans text-[13.5px] text-text"
+            }
+          >
+            {finding.investment}
+          </span>
+        </EditableText>
+      </div>
+    </li>
+  );
+}
+
+/** A diligence area with one row per finding, each with its own risk (Phase 8). */
 function ExecutiveRowView({
   row,
   edit,
@@ -351,15 +531,11 @@ function ExecutiveRowView({
   edited: Set<string>;
 }) {
   const key = (field: string) => `exec.${row.area_id}.${field}`;
-  const props = (field: string) => ({
-    edited: edited.has(key(field)),
-    onRevert: () => revert(key(field)),
-  });
   return (
     <li
       className={`rounded-xl border border-line-strong p-5 ${row.include ? "" : "bg-paper-2 opacity-60"}`}
     >
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="font-mono text-[12px] text-muted-2">
             {String(row.sn).padStart(2, "0")}
@@ -369,116 +545,43 @@ function ExecutiveRowView({
             rows={1}
             label="area title"
             onSave={(v) => edit(key("title"), v)}
-            {...props("title")}
+            edited={edited.has(key("title"))}
+            onRevert={() => revert(key("title"))}
           >
             <h3 className="inline font-sans text-[16px] font-semibold text-text">
               {row.title}
             </h3>
           </EditableText>
-        </div>
-        <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 font-sans text-[12px] text-muted">
-            <span
-              aria-hidden
-              className={`h-3.5 w-3.5 rounded-full ${RISK_CLASSES[row.risk]}`}
-            />
-            <select
-              aria-label={`Risk level for ${row.title}`}
-              value={row.risk}
-              onChange={(e) => void edit(key("risk"), e.target.value)}
-              className="rounded-md border border-line-strong bg-paper-2 px-2 py-1 font-sans text-[12.5px] text-text"
-            >
-              {RISK_LEVELS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-            {edited.has(key("risk")) && (
-              <button
-                type="button"
-                onClick={() => void revert(key("risk"))}
-                className="text-[11.5px] text-steel hover:underline"
-              >
-                Revert
-              </button>
-            )}
-          </label>
-          <IncludeToggle
-            included={row.include}
-            label={row.title}
-            onChange={(v) => void edit(key("include"), v)}
+          <span
+            aria-label={`Area risk ${row.risk}`}
+            className={`h-2.5 w-7 rounded-sm ${RISK_CLASSES[row.risk]}`}
           />
         </div>
+        <IncludeToggle
+          included={row.include}
+          label={row.title}
+          onChange={(v) => void edit(key("include"), v)}
+        />
       </div>
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)_160px]">
-        <div>
-          <p className="mb-1 font-mono text-[10px] tracking-wide text-muted uppercase">
-            Key findings
-          </p>
-          <EditableList
-            items={row.findings}
-            label="key findings"
-            onSave={(v) => edit(key("findings"), v)}
-            {...props("findings")}
-          >
-            <Bullets items={row.findings} />
-          </EditableList>
-          <div className="mt-3">
-            <EditableText
-              value={row.implication}
-              label="implication"
-              rows={2}
-              onSave={(v) => edit(key("implication"), v)}
-              {...props("implication")}
-            >
-              <p className="font-sans text-[13.5px] leading-[1.55] text-text italic">
-                <span className="font-semibold">Implication: </span>
-                {row.implication || "—"}
-              </p>
-            </EditableText>
-          </div>
-        </div>
-        <div>
-          <p className="mb-1 font-mono text-[10px] tracking-wide text-muted uppercase">
-            Recommended actions
-          </p>
-          <EditableList
-            items={row.actions}
-            label="recommended actions"
-            onSave={(v) => edit(key("actions"), v)}
-            {...props("actions")}
-          >
-            {row.actions.length ? (
-              <Bullets items={row.actions} />
-            ) : (
-              <p className="font-sans text-[13px] text-muted-2">—</p>
-            )}
-          </EditableList>
-        </div>
-        <div>
-          <p className="mb-1 font-mono text-[10px] tracking-wide text-muted uppercase">
-            Investment impact
-          </p>
-          <EditableText
-            value={row.investment}
-            rows={1}
-            label="investment impact"
-            onSave={(v) => edit(key("investment"), v)}
-            {...props("investment")}
-          >
-            <span
-              className={
-                row.investment === "XXX"
-                  ? "font-mono text-[13px] text-muted-2"
-                  : "font-sans text-[13.5px] text-text"
-              }
-            >
-              {row.investment}
-            </span>
-          </EditableText>
-        </div>
-      </div>
+      {row.findings.length > 0 ? (
+        <ul className="space-y-4">
+          {row.findings.map((finding) => (
+            <FindingView
+              key={finding.key}
+              areaId={row.area_id}
+              finding={finding}
+              edit={edit}
+              revert={revert}
+              edited={edited}
+            />
+          ))}
+        </ul>
+      ) : null}
+      {row.note && (
+        <p className="mt-3 font-sans text-[13px] text-muted italic">
+          {row.note}
+        </p>
+      )}
     </li>
   );
 }

@@ -1,0 +1,506 @@
+# Strategy & projects assessment — docs/reference/DD_ASSESSMENT_FRAMEWORK.md §6.
+#
+# Phase 8 (Rishi, 2026-11-18). Is there a technology strategy, is it funded, and are the
+# projects in flight delivering it — on budget, on time, and aligned with the plan the
+# buyer will run? The projects are facts from the target's projects inventory (allocated
+# capex, capex used, % complete, dates); the judgement is the analyst's.
+#
+# Sources, cited per question:
+#   DD_master §6.4 (W-STRAT) p. 74 — alignment, planned changes, projects that do not
+#     align with the buyer's plans; common findings: no road map, projects that add no
+#     value, projects to put on hold;
+#   DD_master p. 8, 148 — the project triage rule: Day-1 critical, synergy-enabling,
+#     strategic; everything else is a candidate to hold or cancel;
+#   COBIT 2019 APO02 (managed strategy), APO05 (managed portfolio), BAI01 (managed
+#     programmes) [EXT];
+#   Implement Consulting's IT DD framework — portfolio health against the business case,
+#     benefit realisation [EXT];
+#   AI diligence checklists (law-firm and diligence-provider) — AI strategy versus
+#     embedded features, governance and acceptable use, training-data rights, third-party
+#     model dependency [EXT]; product deck row PD-12.
+#
+# Arithmetic on projects uses the target's reported figures only. It is not a cost model
+# (2026-09-14 boundary): nothing here estimates what a project should cost.
+
+version: "1.0"
+
+sections:
+  - key: strategy
+    label: IT strategy
+    weight: 35
+    source: DD_master §6.4; COBIT APO02
+  - key: portfolio
+    label: Portfolio governance
+    weight: 25
+    source: COBIT APO05, BAI01; Implement
+  - key: ai
+    label: AI strategy and governance
+    weight: 15
+    source: PD-12; AI diligence checklists [EXT]
+
+questions:
+  # ------------------------------------------------------------ strategy
+  - id: SP1
+    section: strategy
+    text: Is there an IT or digital strategy?
+    source: '"Lack of an IT road map" is a common finding [DD_master p. 74]; COBIT APO02.'
+    theme: it_strategy
+    weight: 2
+    options:
+      - label: Documented and approved by the board or management
+        value: 1.0
+      - label: Documented, not formally approved
+        value: 0.6
+        finding: An IT strategy is documented but has not been approved by management.
+        severity: Low
+      - label: A high-level list of priorities only
+        value: 0.25
+        finding: >-
+          Management has identified a high-level list of IT priorities, but no strategy sets
+          out how they will be delivered.
+        severity: Medium
+      - label: None
+        value: 0.0
+        finding: There is no IT or digital strategy.
+        severity: High
+
+  - id: SP2
+    section: strategy
+    text: Who develops it?
+    source: COBIT APO02 — strategy set with the business, not for it [EXT].
+    theme: it_strategy
+    options:
+      - label: IT together with business leadership
+        value: 1.0
+      - label: IT alone
+        value: 0.5
+        finding: The IT strategy is developed by IT alone, without the business.
+        severity: Low
+      - label: The parent group
+        value: 0.4
+        finding: The IT strategy is set by the parent group rather than for the target's own business.
+        severity: Medium
+      - label: External consultants, with no internal owner
+        value: 0.2
+        finding: The IT strategy was written by consultants and has no internal owner.
+        severity: Medium
+      - label: Not applicable — there is no strategy
+        value: null
+
+  - id: SP3
+    section: strategy
+    text: Does each initiative trace to a business objective?
+    source: '"How well do planned initiatives align with business needs?" [DD_master p. 74]'
+    theme: it_strategy
+    options:
+      - label: Yes, each one
+        value: 1.0
+      - label: Partly
+        value: 0.5
+        finding: Only some IT initiatives trace to a business objective.
+        severity: Low
+      - label: "No"
+        value: 0.0
+        finding: IT initiatives are not linked to business objectives.
+        severity: Medium
+
+  - id: SP4
+    section: strategy
+    text: Is the strategy funded?
+    help: Initiatives costed and carried in the approved budget.
+    source: '"What future investments in company IT are planned or may be needed?" [DD_master p. 74]'
+    theme: strategy_unfunded
+    weight: 2
+    options:
+      - label: Initiatives costed and funded in the approved budget
+        value: 1.0
+      - label: Costed, not funded
+        value: 0.3
+        finding: The IT initiatives are costed but not funded in the approved budget.
+        severity: High
+      - label: Not costed
+        value: 0.0
+        finding: The IT initiatives have not been costed, so the investment the plan depends on is unknown.
+        severity: High
+
+  - id: SP5
+    section: strategy
+    text: How detailed is the roadmap?
+    source: Detailed planning — dependencies, resources, timelines, risks — distinguishes a roadmap from a wish list [EXT].
+    theme: roadmap_planning
+    options:
+      - label: Sequenced, with dependencies, resources, timelines and risks
+        value: 1.0
+      - label: Priorities and target dates only
+        value: 0.4
+        finding: >-
+          The roadmap lists priorities and dates; detailed planning — budget, dependencies,
+          resources, timelines and risks — has not been done.
+        severity: Medium
+      - label: No roadmap
+        value: 0.0
+        finding: There is no IT roadmap.
+        severity: Medium
+
+  - id: SP6
+    section: strategy
+    text: How often is the strategy refreshed?
+    source: COBIT APO02 — reviewed on change [EXT].
+    theme: it_strategy
+    options:
+      - label: At least annually
+        value: 1.0
+      - label: Ad hoc
+        value: 0.5
+      - label: Not since it was written
+        value: 0.0
+        finding: The IT strategy has not been refreshed since it was written.
+        severity: Low
+      - label: Not applicable — there is no strategy
+        value: null
+
+  # ------------------------------------------------------------ portfolio governance
+  - id: SP7
+    section: portfolio
+    text: How are projects prioritised?
+    source: COBIT APO05 — investments prioritised as a portfolio, low-value initiatives stopped [EXT].
+    theme: portfolio_governance
+    options:
+      - label: Against criteria, each with an approved business case
+        value: 1.0
+      - label: By management judgement
+        value: 0.5
+        finding: Projects are prioritised by management judgement rather than against agreed criteria.
+        severity: Low
+      - label: First come, first served
+        value: 0.0
+        finding: There is no prioritisation of IT projects.
+        severity: Medium
+
+  - id: SP8
+    section: portfolio
+    text: Is there a project management office or portfolio tool?
+    source: Portfolio governance and delivery tracking [Implement; COBIT BAI01].
+    theme: portfolio_governance
+    weight: 2
+    options:
+      - label: A central PMO with a portfolio tool
+        value: 1.0
+      - label: Projects tracked individually
+        value: 0.5
+        finding: Projects are tracked individually, with no portfolio view of progress, resources or budget.
+        severity: Medium
+      - label: Neither
+        value: 0.0
+        finding: >-
+          There is no project management office or delivery tracking tool, which fragments
+          governance and limits visibility of progress.
+        severity: Medium
+
+  - id: SP9
+    section: portfolio
+    text: Do changes to scope, budget or timeline need approval?
+    source: COBIT BAI01 — stage-gates and change control [EXT].
+    theme: portfolio_governance
+    options:
+      - label: Yes, through stage-gates
+        value: 1.0
+      - label: Informally
+        value: 0.5
+      - label: "No"
+        value: 0.0
+        finding: Changes to project scope, budget and timeline proceed without approval.
+        severity: Medium
+
+  - id: SP10
+    section: portfolio
+    text: Are benefits tracked after delivery?
+    source: Benefit realisation follow-up [Implement].
+    theme: portfolio_governance
+    options:
+      - label: Yes, against the business case
+        value: 1.0
+      - label: Sometimes
+        value: 0.5
+      - label: "No"
+        value: 0.0
+        finding: Benefits are not tracked after projects are delivered.
+        severity: Low
+
+  - id: SP11
+    section: portfolio
+    text: How have major IT projects delivered over the last three years?
+    source: Performance against the business case — cost, time, scope [Implement].
+    theme: project_delivery
+    options:
+      - label: Mostly on time and on budget
+        value: 1.0
+      - label: Mixed
+        value: 0.5
+        finding: Major IT projects over the last three years have delivered with mixed results against time and budget.
+        severity: Low
+      - label: Mostly late or over budget
+        value: 0.0
+        finding: Most major IT projects over the last three years have run late or over budget.
+        severity: High
+      - label: Not known
+        value: 0.3
+        finding: The delivery record of past IT projects is not known.
+        severity: Low
+
+  # ------------------------------------------------------------ AI
+  - id: SP12
+    section: ai
+    text: Is there an AI strategy?
+    source: PD-12; "AI strategy versus vendor features" in AI diligence checklists [EXT].
+    theme: ai_strategy
+    options:
+      - label: A documented AI strategy with a use-case roadmap
+        value: 1.0
+      - label: Ad hoc pilots
+        value: 0.5
+        finding: AI is explored through ad hoc pilots without a strategy or roadmap.
+        severity: Low
+      - label: Embedded vendor features only
+        value: 0.2
+        finding: >-
+          The target has not developed an AI strategy; AI adoption is limited to in-built
+          features of existing tools.
+        severity: Medium
+      - label: None
+        value: 0.0
+        finding: AI is not used and there is no AI strategy.
+        severity: Medium
+
+  - id: SP13
+    section: ai
+    text: Is AI use governed?
+    help: An acceptable-use policy, oversight of what is built and bought, and of data sent to AI services.
+    source: '"Is there a documented internal structure overseeing AI use?" — AI diligence checklists [EXT].'
+    theme: ai_governance
+    options:
+      - label: Policy and oversight in place
+        value: 1.0
+      - label: A policy only
+        value: 0.5
+        finding: An AI acceptable-use policy exists, but use is not overseen.
+        severity: Low
+      - label: Neither
+        value: 0.0
+        finding: There is no AI policy or oversight of how AI tools are used or what data they receive.
+        severity: Medium
+
+  - id: SP14
+    section: ai
+    text: Are the rights to the data used to train or tune models documented?
+    source: Training data provenance and rights — AI diligence checklists [EXT]; scope rule A11.
+    theme: ai_rights
+    requires_ai: true
+    options:
+      - label: Documented for every model
+        value: 1.0
+      - label: Partly
+        value: 0.5
+        finding: Rights to the data used to train or tune models are documented only in part.
+        severity: Medium
+      - label: Unknown
+        value: 0.0
+        finding: Rights to the data used to train or tune models are unknown.
+        severity: High
+
+  - id: SP15
+    section: ai
+    text: How dependent is the product on a third-party model provider?
+    source: Third-party model dependency and loss of access — AI diligence checklists [EXT].
+    theme: ai_rights
+    requires_ai: true
+    options:
+      - label: Several providers, or own models
+        value: 1.0
+      - label: One provider, under contract
+        value: 0.5
+        finding: The product depends on one model provider, under contract.
+        severity: Low
+      - label: One provider, no contractual protection
+        value: 0.0
+        finding: The product depends on one model provider with no contractual protection against change or withdrawal.
+        severity: High
+
+  - id: SP16
+    section: ai
+    text: Are models monitored and evaluated in production?
+    source: Model governance (W-DATA) [DD_master §4.9].
+    theme: ai_rights
+    requires_ai: true
+    options:
+      - label: Yes, with defined metrics
+        value: 1.0
+      - label: Informally
+        value: 0.5
+      - label: "No"
+        value: 0.0
+        finding: Models in production are not monitored or evaluated.
+        severity: Medium
+
+# Asked per project. The triage rule is the book's: priority goes to projects that are
+# Day-1 critical, enable the plan, or are essential to strategy; everything else is a
+# candidate to hold or cancel [DD_master p. 8, 148].
+project_questions:
+  - id: PJ1
+    section: projects
+    text: Deal relevance
+    source: DD_master p. 8, 148 — the project triage rule.
+    options:
+      - label: Day-1 critical
+      - label: Enables the plan
+      - label: Business as usual
+      - label: Candidate to stop or defer
+  - id: PJ2
+    section: projects
+    text: Delivery confidence
+    help: The analyst's view, from the evidence, not the target's own status report.
+    options:
+      - label: On track
+      - label: At risk
+      - label: Off track
+
+rules:
+  open_statuses: [In progress, On hold]
+  planned_status: Planned
+  done_statuses: [Completed in the last 12 months, Cancelled]
+  # Share of allocation spent minus % complete, in points, above which spend is running
+  # ahead of delivery [EXT].
+  burn_gap_points: 25
+  # One vendor carrying more than this share of in-flight allocation.
+  vendor_share: 0.5
+  critical_min: 4
+  stop_triage: Candidate to stop or defer
+  priority_triage: [Day-1 critical, Enables the plan]
+  off_track: Off track
+  # Weight of the computed "project delivery" section in the index, beside the sections.
+  delivery_section_weight: 25
+
+themes:
+  - id: it_strategy
+    area: strategy
+    headline: Lack of comprehensive planning in IT strategy
+    implication: >-
+      Without a strategy owned with the business, IT investment follows requests rather than
+      the plan, and the business objectives of projects may not be met in the planned time
+      and budget.
+    impact: [plan_risk]
+    action: >-
+      Target should develop a detailed IT and digital strategy and roadmap, with an
+      enterprise architecture view aligned to business strategy and objectives.
+    severity: Medium
+
+  - id: strategy_unfunded
+    area: strategy
+    headline: IT roadmap not funded
+    implication: >-
+      The initiatives the plan depends on have no money behind them; funding them is an
+      investment the buyer will have to make.
+    impact: [one_off_investment, plan_risk]
+    action: >-
+      Target should cost each initiative on the roadmap and carry it in the approved
+      budget, or re-scope the roadmap to what is funded.
+    severity: High
+
+  - id: roadmap_planning
+    area: strategy
+    headline: Roadmap lacks detailed delivery planning
+    implication: >-
+      Without budgets, dependencies, resources and timelines, initiatives may not be
+      delivered in the planned time or budget, and any augmentation of resources may extend
+      timelines further.
+    impact: [plan_risk]
+    action: >-
+      Target should plan each roadmap initiative in detail — budget, dependencies,
+      resources, timelines and risks.
+    severity: Medium
+
+  - id: portfolio_governance
+    area: pmo
+    headline: No centralised project management office
+    implication: >-
+      Without portfolio governance, delivery is fragmented, progress is not visible, and
+      low-value work is not stopped.
+    impact: [plan_risk, run_cost]
+    action: >-
+      Target should establish a centralised PMO with governance standards and a portfolio
+      management tool for end-to-end visibility of planning, execution, dependencies,
+      resources, risks and budget.
+    severity: Medium
+
+  - id: project_delivery
+    area: pmo
+    headline: In-flight projects over budget or behind schedule
+    implication: >-
+      Projects already running late or over budget will need more money or time than
+      planned — a cost the buyer inherits.
+    impact: [one_off_investment, plan_risk]
+    action: Target should re-baseline {subjects} with a costed recovery plan before completion.
+    severity: Medium
+
+  - id: spend_ahead
+    area: pmo
+    headline: Project spend running ahead of delivery
+    implication: >-
+      Projects that have spent more of their budget than they have delivered are likely to
+      overrun.
+    impact: [one_off_investment]
+    action: Target should forecast the cost to complete for {subjects} and confirm it is funded.
+    severity: Medium
+
+  - id: portfolio_alignment
+    area: pmo
+    headline: In-flight spend not aligned to the plan
+    implication: >-
+      Spend committed to projects that do not support the plan is a candidate for hold or
+      cancellation after close.
+    impact: [run_cost, plan_risk]
+    action: Target should review {subjects} for hold or cancellation against the plan.
+    severity: Low
+
+  - id: delivery_vendor
+    area: pmo
+    headline: Project delivery concentrated on one vendor
+    implication: Delivery of the roadmap depends on one supplier's capacity and terms.
+    impact: [continuity]
+    action: Target should review the terms with {subjects} and build an alternative delivery option.
+    severity: Low
+
+  - id: ai_strategy
+    area: ai
+    headline: No comprehensive AI strategy
+    implication: >-
+      AI use is limited to what vendors switch on; any AI-driven productivity or growth in
+      the plan needs a strategy and investment first.
+    impact: [plan_risk]
+    action: >-
+      Target should define an enterprise AI enablement roadmap focused on its highest-value
+      use cases.
+    severity: Medium
+
+  - id: ai_governance
+    area: ai
+    headline: AI use not governed
+    implication: >-
+      Ungoverned AI use can expose confidential and personal data to third-party services.
+    impact: [compliance]
+    action: >-
+      Target should adopt an AI acceptable-use policy and oversight of the AI tools in use
+      and the data they receive.
+    severity: Medium
+
+  - id: ai_rights
+    area: ai
+    headline: AI data rights and model dependency unverified
+    implication: >-
+      Where AI is material to the product, unverified data rights and dependence on one
+      model provider are liabilities and continuity risks the buyer inherits.
+    impact: [compliance, continuity]
+    action: >-
+      Target should document training-data rights for each model, secure contractual
+      protection with model providers, and monitor models in production.
+    severity: High

@@ -1,9 +1,10 @@
-# The three inventories the target completes through the IRL: applications, data domains
-# and technology platforms. docs/reference/ESTATE_ASSESSMENT_MODEL.md §2–§4.
+# The inventories the target completes through the Information requests page (and the
+# IRL workbook): applications, data domains, infrastructure platforms, the IT team, IT
+# contracts, IT projects and cyber tools. docs/reference/DD_ASSESSMENT_FRAMEWORK.md §2.
 #
-# These are FACTS the target knows. Judgement — fit, automation, AI level, criticality,
-# governance quality — is the analyst's and lives in applications.yaml / data_tech.yaml,
-# never here: a target asked to score its own estate scores it well.
+# These are FACTS the target knows. Judgement — automation, AI level, criticality,
+# governance quality, a project's relevance to the deal — is the analyst's and lives in the
+# assessment files, never here: a target asked to score its own estate scores it well.
 #
 # Field types:
 #   text        one line
@@ -11,6 +12,7 @@
 #   select      one of `options`
 #   multi_select  any of `options`, stored as a list
 #   date        free text, ISO date preferred (YYYY-MM-DD or YYYY-MM)
+#   number      a figure; separators and currency symbols are ignored when it is read
 #   process_list  any of the Assess business processes, stored as process keys
 #   app_refs    any of the inventoried applications, stored as refs (A01, A02)
 #
@@ -96,6 +98,16 @@ kinds:
           - SaaS (vendor-hosted)
           - Partner-hosted
           - Unknown
+      - key: integration
+        label: How data gets in and out
+        type: select
+        options:
+          - Governed APIs or integration layer
+          - Point-to-point interfaces
+          - File transfer or batch
+          - Manual re-keying
+          - TBD
+        template_note: How this application exchanges data with the other systems.
       - key: platform
         label: Platform or technology stack
         type: text
@@ -218,8 +230,9 @@ kinds:
         type: text
 
   platform:
-    label: Technology platforms
-    sheet: Technology Platforms
+    label: Infrastructure platforms
+    sheet: Infrastructure Platforms
+    sheet_aliases: [Technology Platforms]
     ref_prefix: T
     source: >-
       The summary-level infrastructure inventory "showing location, age, current
@@ -392,3 +405,122 @@ kinds:
         label: Applications covered
         type: app_refs
         template_note: Application ID(s) from the Application Inventory sheet.
+
+  # Phase 8 (Rishi, 2026-11-18): the in-flight projects template and the cyber tools
+  # checklist, both modelled on the sheets in a real request workbook (structure only).
+  it_project:
+    label: IT projects
+    sheet: In-flight IT Projects
+    ref_prefix: P
+    source: >-
+      "What enhancements or changes to IT are planned or needed?" and projects that do not
+      align with the buyer's plans [DD_master §6.4, p. 74].
+    fields:
+      - key: name
+        label: Project
+        type: text
+        required: true
+      - key: description
+        label: Description
+        type: long_text
+      - key: objective
+        label: Business objective
+        type: long_text
+        template_note: What the business gets when it is done.
+      - key: sponsor
+        label: Business sponsor
+        type: text
+      - key: status
+        label: Status
+        type: select
+        options:
+          - Planned
+          - In progress
+          - On hold
+          - Completed in the last 12 months
+          - Cancelled
+      - key: start_date
+        label: Project start date
+        type: date
+      - key: planned_end
+        label: Planned completion date
+        type: date
+      - key: revised_end
+        label: Revised completion date
+        type: date
+        template_note: Leave blank if the plan has not moved.
+      - key: allocated
+        label: Allocated capex
+        type: number
+        template_note: Total budget approved for the project — the full amount in the reporting currency, not thousands.
+      - key: used
+        label: Capex utilised
+        type: number
+        template_note: Spent to date — the full amount, in the same currency.
+      - key: pct_complete
+        label: Percentage complete
+        type: number
+        template_note: "0 to 100, as reported to management."
+      - key: delivery
+        label: In-house vs outsourced
+        type: select
+        options: [In-house, Outsourced, Mixed, TBD]
+      - key: vendor
+        label: Vendor involved
+        type: text
+      - key: apps_affected
+        label: Applications affected
+        type: app_refs
+        template_note: Application ID(s) from the Application Inventory sheet.
+      - key: business_case
+        label: Approved business case
+        type: select
+        options: ["Yes", "No", TBD]
+
+  cyber_tool:
+    label: Cyber tools
+    sheet: Cyber Tools
+    ref_prefix: S
+    source: >-
+      "What security/privacy protocols are in place at the company?" [DD_master p. 73]. A tool
+      is evidence beside a control, never proof that the control works.
+    seed_names:
+      - Endpoint protection (antivirus or EDR)
+      - SIEM or security operations centre
+      - Privileged access management (PAM)
+      - Multi-factor authentication and identity
+      - Patch management
+      - Vulnerability scanning
+      - Backup
+      - Data leakage prevention (DLP)
+      - Mobile device management (MDM)
+      - Email security
+      - Firewall and network security
+      - Network monitoring
+      - IT service management (ITSM)
+      - Security awareness training
+      - Cyber threat intelligence
+    fields:
+      - key: name
+        label: Purpose
+        type: text
+        required: true
+        template_note: The purpose is pre-filled; add rows for anything else in use.
+      - key: available
+        label: Available
+        type: select
+        options: ["Yes", "No", Partly]
+      - key: product
+        label: Vendor or product
+        type: text
+      - key: managed_by
+        label: Managed by
+        type: select
+        options: [In-house, Managed security provider, Parent group, Other]
+      - key: coverage
+        label: Coverage
+        type: text
+        template_note: "e.g. all endpoints, servers only, head office."
+      - key: remarks
+        label: Remarks
+        type: long_text

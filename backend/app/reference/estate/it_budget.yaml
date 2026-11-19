@@ -27,6 +27,7 @@ yoy_movement_pct: 20
 # Each weak answer raises a finding with its severity. `finding: null` is a sound answer.
 process_questions:
   - id: BP1
+    theme: budget_process
     text: How is the technology budget built?
     options:
       - label: Bottom-up by cost line, agreed with the business
@@ -46,6 +47,7 @@ process_questions:
         finding: There is no formal technology budget against which spend is controlled.
 
   - id: BP2
+    theme: budget_process
     text: Who approves it?
     options:
       - label: Board or executive committee, as part of the business plan
@@ -63,6 +65,7 @@ process_questions:
         finding: The technology budget is not formally approved.
 
   - id: BP3
+    theme: budget_process
     text: How often is spend reported against the budget?
     options:
       - label: Monthly
@@ -78,6 +81,7 @@ process_questions:
         finding: Technology spend is not reported against the budget.
 
   - id: BP4
+    theme: budget_business_case
     text: Does capital spend need an approved business case?
     options:
       - label: Yes, with a post-investment review
@@ -93,6 +97,7 @@ process_questions:
         finding: Technology capital spend proceeds without an approved business case.
 
   - id: BP5
+    theme: budget_shadow
     text: Is technology spend outside the IT function captured?
     options:
       - label: Yes, consolidated into the technology budget
@@ -107,6 +112,7 @@ process_questions:
           spend understates what the business actually spends on technology.
 
   - id: BP6
+    theme: budget_plan_link
     text: Is the budget tied to the technology plan?
     options:
       - label: Yes — each major line traces to a planned initiative
@@ -117,3 +123,61 @@ process_questions:
       - label: "No"
         severity: Medium
         finding: The budget is not tied to a technology plan, so funding and priorities can diverge.
+
+# The themes the report shows (Phase 8). Each finding above lands in one of them.
+themes:
+  - id: budget_process
+    area: budget
+    headline: IT budget not formally built, approved or monitored
+    implication: >-
+      Technology spend is not planned or controlled tightly enough to rely on the reported
+      run-rate.
+    impact: [run_cost, plan_risk]
+    action: >-
+      Target should formalise the technology budget process — built bottom-up with the
+      business, approved as part of the business plan, and reported monthly against actuals.
+    severity: Medium
+
+  - id: budget_business_case
+    area: budget
+    headline: Technology investment not governed by business cases
+    implication: Capital spend proceeds without a case for its return, so value is not tested before money is committed.
+    impact: [run_cost]
+    action: Target should require an approved business case, with a post-investment review, for technology capital spend.
+    severity: Medium
+
+  - id: budget_shadow
+    area: budget
+    headline: Technology spend outside IT not captured
+    implication: >-
+      Reported technology spend understates what the business actually spends on
+      technology, so the run-rate the buyer relies on is incomplete.
+    impact: [run_cost]
+    action: Target should consolidate technology spend in the business units into the technology budget.
+    severity: Medium
+
+  - id: budget_plan_link
+    area: budget
+    headline: IT budget not tied to the technology plan
+    implication: Funding and priorities can diverge, so planned initiatives may not be funded.
+    impact: [plan_risk]
+    action: Target should trace each major budget line to a planned initiative on the technology roadmap.
+    severity: Medium
+
+  - id: budget_variance
+    area: budget
+    headline: Technology spend departs materially from budget
+    implication: >-
+      Material variances against budget mean the budget is not a reliable guide to the
+      run-rate, and the drivers need explaining before the numbers are relied on.
+    impact: [run_cost]
+    action: Target should explain the variances against budget and show how they are controlled.
+    severity: Medium
+
+  - id: budget_movement
+    area: budget
+    headline: Unexplained movement in technology spend
+    implication: Large year-on-year movements need explaining before the run-rate is relied on.
+    impact: [run_cost]
+    action: Target should explain what drove the movements in technology spend year on year.
+    severity: Low

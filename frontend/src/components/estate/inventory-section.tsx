@@ -46,6 +46,15 @@ const COLUMNS: Record<InventoryKind, string[]> = {
     "annual_value",
     "change_of_control",
   ],
+  it_project: [
+    "status",
+    "planned_end",
+    "allocated",
+    "used",
+    "pct_complete",
+    "vendor",
+  ],
+  cyber_tool: ["available", "product", "managed_by", "coverage"],
 };
 
 const PILL =

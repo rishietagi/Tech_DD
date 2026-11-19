@@ -53,11 +53,23 @@ def get_report_config() -> ReportConfig:
     missing_titles = {s for ids in config.supporting.values() for s in ids} - set(config.sections)
     if missing_titles:
         raise RuntimeError(f"report.yaml: sections without a title: {sorted(missing_titles)}")
-    for category, rule in config.routing.items():
-        if category not in config.implications or category not in config.actions:
-            raise RuntimeError(f"report.yaml: {category!r} needs an implication and an action")
-        if not rule.fallback:
-            raise RuntimeError(f"report.yaml: {category!r} needs a fallback area")
+    # Every gap theme in every assessment must name a configured diligence area, so a
+    # renamed area fails the boot rather than scattering findings under raw ids.
+    from app.services.estate.library import all_themes  # local: estate imports widely
+
+    area_ids = [a.id for a in config.areas]
+    if len(set(area_ids)) != len(area_ids):
+        raise RuntimeError("report.yaml: duplicate diligence area id")
+    stray = sorted(
+        f"{assessment}:{theme.id}->{theme.area}"
+        for assessment, themes in all_themes().items()
+        for theme in themes
+        if theme.area not in area_ids
+    )
+    if config.process_finding.area not in area_ids:
+        stray.append(f"process_finding->{config.process_finding.area}")
+    if stray:
+        raise RuntimeError(f"report.yaml: gap themes name unknown areas: {stray}")
     return config
 
 
@@ -113,7 +125,8 @@ def gather(db: Session, engagement_id: str) -> ReportInputs:
     brief = (research.payload_json.get("business_brief") or {}) if research else {}
 
     def score_payload(domain: str) -> dict[str, Any] | None:
-        row = estate_service.find_latest(db, engagement_id, domain)  # type: ignore[arg-type]
+        # A score from before the theme registers is not read: re-score it first.
+        row = estate_service.find_current(db, engagement_id, domain)  # type: ignore[arg-type]
         return estate_service.to_read(db, row).payload if row is not None else None
 
     processes = [
@@ -161,6 +174,8 @@ def gather(db: Session, engagement_id: str) -> ReportInputs:
         inventory=inventory,
         process_names={p.key: p.name for p in process_refs()},
         assets=assets,
+        team_governance_score=score_payload("team_governance"),
+        strategy_projects_score=score_payload("strategy_projects"),
     )
 
 
@@ -204,6 +219,14 @@ def latest(db: Session, engagement_id: str) -> Report:
     )
     if row is None:
         raise AppError(code="no_report", message="No report has been generated yet.", status_code=404)
+    if (row.payload_json or {}).get("schema_version") != 2:
+        # Phase 8 changed the executive summary to one row per finding; an older report
+        # cannot be read as one. Regenerating keeps every edit whose element still exists.
+        raise AppError(
+            code="no_report",
+            message="The stored report predates the per-finding executive summary. Generate it again.",
+            status_code=404,
+        )
     return row
 
 
@@ -220,6 +243,12 @@ def with_edits(db: Session, row: Report) -> ReportPayload:
     data = copy.deepcopy(data)
     applied = edit_rules.apply(data, _edits(db, row.engagement_id))
     data["edited_keys"] = applied
+    # An area's risk follows its findings: an edited finding risk moves the area's RAG.
+    rank = {"High": 0, "Medium": 1, "Low": 2}
+    for area in data.get("executive", []):
+        shown = [f for f in area.get("findings", []) if f.get("include", True)]
+        if shown and f"exec.{area['area_id']}.risk" not in applied:
+            area["risk"] = min((f["risk"] for f in shown), key=lambda r: rank.get(r, 3))
     return ReportPayload.model_validate(data)
 
 

@@ -24,7 +24,6 @@ from app.services.report.findings import (
     inventory_limitations,
     irl_limitations,
     limitation_rows,
-    route_findings,
 )
 from app.services.report.inputs import ReportInputs
 from app.services.report.sections import appendix_sections, supporting_sections
@@ -35,6 +34,8 @@ from app.services.report.sections import appendix_sections, supporting_sections
 def _evidence(inputs: ReportInputs) -> dict[str, int]:
     dt = inputs.data_tech_score or {}
     checks = [c for c in dt.get("checks", []) if c.get("status") not in ("unanswered", "unknown")]
+    team = (inputs.team_governance_score or {}).get("answered", 0)
+    strategy = (inputs.strategy_projects_score or {}).get("answered", 0)
     return {
         "W-APP": len(inputs.items("application")),
         "W-PROD": len(inputs.items("application")),
@@ -42,8 +43,9 @@ def _evidence(inputs: ReportInputs) -> dict[str, int]:
         "W-SEC": sum(1 for c in checks if c["section"] == "cyber"),
         "W-PROC": sum(1 for c in checks if c["section"] == "engineering"),
         "W-DATA": len(inputs.items("data_domain")),
-        "W-OPS": len(inputs.items("it_role")),
+        "W-OPS": len(inputs.items("it_role")) + team,
         "W-VEN": len(inputs.items("it_contract")),
+        "W-STRAT": len(inputs.items("it_project")) + strategy,
         "W-SPEND": 1 if inputs.budget_saved else 0,
     }
 
@@ -59,7 +61,7 @@ def _date_label(value: object) -> str:
 def _context(inputs: ReportInputs, config: ReportConfig, areas: list[Area], with_findings: list[str]) -> Context:
     c = config.context
     dd_label = config.dd_labels.get(inputs.dd_type, config.dd_labels["enterprise"])
-    if any("W-SEC" in a.workstreams for a in areas) or any(a.title == "Cyber Security" for a in areas):
+    if any("W-SEC" in a.workstreams for a in areas) or any(r == "Cyber Security" for r in with_findings):
         dd_label = dd_label.replace("Due Diligence", "and Cyber Due Diligence")
     target = inputs.target_name or "the target"
     template = c["objective"] if inputs.investor_name else c["objective_no_investor"]
@@ -90,14 +92,13 @@ def _glossary(text: str, config: ReportConfig) -> list[GlossaryEntry]:
 
 def build(inputs: ReportInputs, config: ReportConfig) -> ReportPayload:
     areas = build_areas(inputs)
-    route_findings(collect(inputs), areas, config)
     irl_limitations(inputs, areas, config)
     inventory_limitations(inputs, areas, config)
     evidence = _evidence(inputs)
     for area in areas:
         area.evidence += sum(evidence.get(ws, 0) for ws in area.workstreams)
 
-    executive = executive_rows(areas, config)
+    executive = executive_rows(collect(inputs, config), areas, config)
     scope_by_id = {r["id"]: r for r in inputs.scope_rows}
     in_scope = [
         ScopeArea(
@@ -113,7 +114,7 @@ def build(inputs: ReportInputs, config: ReportConfig) -> ReportPayload:
     context = _context(
         inputs,
         config,
-        [a for a in areas if a.from_scope or a.findings],
+        [a for a in areas if a.from_scope],
         [r.title for r in executive if r.include],
     )
     limitations = limitation_rows(areas)
@@ -122,7 +123,12 @@ def build(inputs: ReportInputs, config: ReportConfig) -> ReportPayload:
         [context.objective, context.approach, context.outcome]
         + [line for s in in_scope for line in s.considerations]
         + [item for limitation in limitations for item in limitation.items]
-        + [text for row in executive for text in [*row.findings, row.implication, *row.actions]]
+        + [
+            text
+            for row in executive
+            for f in row.findings
+            for text in [f.headline, *f.bullets, f.implication, *f.actions]
+        ]
         + [s.panel for s in supporting]
         + [
             " ".join([b.title, b.text, *b.items, *b.columns, *[c for r in b.rows for c in r]])

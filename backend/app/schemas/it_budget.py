@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.schemas.estate import Severity
+from app.schemas.estate import Gap, Severity, ThemeDef
 
 LineKind = Literal["run", "change"]
 
@@ -32,6 +32,7 @@ class BudgetQuestion(BaseModel):
 
     id: str
     text: str
+    theme: str
     options: list[BudgetOption]
 
 
@@ -51,6 +52,7 @@ class ItBudgetConfig(BaseModel):
     variance_tolerance_pct: float
     yoy_movement_pct: float
     process_questions: list[BudgetQuestion]
+    themes: list[ThemeDef]
 
 
 # ------------------------------------------------------------------ inputs
@@ -140,11 +142,25 @@ class ItBudgetReview(BaseModel):
     lines: list[LineReview]
     totals: list[YearTotal]
     findings: list[BudgetFinding]
+    # The findings above, grouped into the themes the report uses (Phase 8).
+    gaps: list[Gap] = Field(default_factory=list)
     tolerance_pct: float
     movement_pct: float
     answered: int
     question_count: int
     coverage_note: str
+
+
+class FinancialsImportResult(BaseModel):
+    """What an uploaded IT financials sheet changed. Never clears a figure."""
+
+    sheet: str
+    filled: int = 0
+    updated: int = 0
+    years_added: int = 0
+    lines_added: int = 0
+    warnings: list[str] = Field(default_factory=list)
+    note: str = ""
 
 
 class ItBudgetQuestionRead(BaseModel):

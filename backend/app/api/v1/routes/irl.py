@@ -16,6 +16,7 @@ from app.schemas.irl import (
     IrlVersionSummary,
 )
 from app.services.engagements import get_engagement
+from app.services.estate import budget as budget_service
 from app.services.estate import inventory as inventory_service
 from app.services.irl import service as irl_service
 from app.services.irl.export_xlsx import (
@@ -95,6 +96,7 @@ def export_irl_xlsx(engagement_id: str, db: Session = Depends(get_db)) -> Respon
         InventorySheets(
             items=inventory_service.items_of(db, engagement_id),
             processes=inventory_service.process_refs(),
+            budget=budget_service.get_budget(db, engagement_id).inputs,
         ),
     )
     filename = xlsx_filename(engagement.deal_name, irl.version)

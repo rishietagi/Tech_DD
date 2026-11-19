@@ -1,12 +1,16 @@
-# Data & technology assessment — the analyst's judgement on each data domain and platform,
-# plus estate-level checks. docs/reference/ESTATE_ASSESSMENT_MODEL.md §4.
+# Data & infrastructure assessment — the analyst's judgement on each data domain and
+# platform, plus estate-level checks. docs/reference/DD_ASSESSMENT_FRAMEWORK.md §4.
+# Shown as "Data & infrastructure" since Phase 8; the internal key stays `data_tech`.
 #
 # Option questions carry a `value` between 0 and 1 — the share of the question's weight
 # the option earns. `value: null` grants the question in full where it does not apply
 # (a domain with no personal data has nothing to classify). Weights and thresholds are
 # [EXT]: calibrations to tune, not authorities.
+#
+# Every check names the theme its failure is reported under. A check the analyst marks
+# "unknown" is a data limitation in the report, not a finding.
 
-version: "1.0"
+version: "2.0"
 
 domain_questions:
   - id: dq_ownership
@@ -88,7 +92,7 @@ check_statuses:
   pass: 100
   partial: 50
   fail: 0
-  unknown: null # excluded from the score; becomes a validate-in-diligence gap
+  unknown: null # excluded from the score; a data limitation, not a finding
 
 check_sections:
   - key: resilience
@@ -97,51 +101,80 @@ check_sections:
       - id: RS1
         text: Disaster recovery capability exists for tier-1 workloads
         source: "\"Limited or no disaster recovery capability\" is a common finding [DD_master p. 76]."
+        theme: recovery
       - id: RS2
         text: Recovery point and time objectives are defined per tier and tested in the last 12 months
+        theme: recovery
       - id: RS3
         text: Backups are application-consistent, protected from tampering, and restore-tested
+        theme: recovery
       - id: RS4
         text: Availability and performance are monitored centrally, with alerting
         source: "\"How does the company support system availability and performance monitoring?\" [DD_master p. 76]"
+        theme: operations
+      - id: IF1
+        text: End-user devices and infrastructure are replaced under an asset lifecycle policy with a funded refresh plan
+        source: "\"Fixed asset inventory\" and replacement dates [DD_master p. 83]; a deferred refresh is a spending cliff."
+        theme: asset_lifecycle
   - key: engineering
     label: Engineering practice
     checks:
       - id: EN1
         text: All custom code is in source control with peer review
+        theme: engineering
       - id: EN2
         text: Build and deployment are automated through pipelines
+        theme: engineering
       - id: EN3
         text: Security testing (static analysis, dependency scanning) runs in the delivery pipeline
+        theme: engineering
       - id: EN4
         text: Environments are segregated and production changes go through change control
+        theme: engineering
   - key: cyber
     label: Cyber security
     checks:
       - id: CY1
         text: A security policy, risk register and board-level security reporting exist
+        theme: cyber_governance
+      - id: CY12
+        text: An information security certification (ISO 27001, SOC 2) or an equivalent independent assessment is held
+        source: Certification is the evidence a buyer's own auditors will ask for.
+        theme: cyber_governance
       - id: CY2
         text: Multi-factor authentication covers all remote, privileged and cloud access
+        theme: identity_access
       - id: CY3
         text: Privileged access is managed through a vault and reviewed
-      - id: CY4
-        text: Vulnerabilities are patched within defined timelines, and the timelines are met
-      - id: CY5
-        text: Security events are monitored around the clock
-      - id: CY6
-        text: The incident response plan was exercised in the last 12 months
+        theme: identity_access
       - id: CY7
         text: Leaver access is revoked within one working day, and that is measured
         source: The mechanism the Hire to Retire assessment grades (H2R step 9).
+        theme: identity_access
+      - id: CY4
+        text: Vulnerabilities are patched within defined timelines, and the timelines are met
+        theme: threat_management
+      - id: CY9
+        text: A vulnerability assessment or penetration test was performed in the last 12 months and its findings remediated
+        theme: threat_management
+      - id: CY5
+        text: Security events are monitored around the clock
+        theme: threat_management
+      - id: CY6
+        text: The incident response plan was exercised in the last 12 months
+        theme: threat_management
+      - id: CY10
+        text: Security awareness training and phishing simulations run for all staff
+        theme: user_controls
+      - id: CY11
+        text: Data leakage prevention and mobile device management are deployed
+        theme: user_controls
       - id: CY8
         text: Third-party and vendor security is assessed before onboarding and periodically
+        theme: third_party
 
 # Section weights in the overall index. A section with no evidence drops out and its
 # weight is redistributed across the others.
-# Platform categories that are facilities rather than software, so their target state
-# is about capacity and recovery rather than a supported release.
-facility_categories: [Data centre and hosting]
-
 section_weights:
   data: 30
   platforms: 20
@@ -149,19 +182,187 @@ section_weights:
   engineering: 10
   cyber: 20
 
-gaps:
+# The cyber tools inventory as evidence. Keys are matched (case-insensitively, as a
+# substring) against each tool row's name; the checks listed are the ones the tool bears
+# on. A tool the target says it has is NOT a pass — a tool is not a control, and the
+# analyst still evidences the control. A tool the target says it lacks defaults the check
+# to fail until the analyst answers it.
+tool_checks:
+  SIEM: [CY5]
+  Security operations: [CY5]
+  Privileged access: [CY3]
+  PAM: [CY3]
+  Multi-factor: [CY2]
+  Identity: [CY2]
+  Patch management: [CY4]
+  Vulnerability: [CY9]
+  Backup: [RS3]
+  Data leakage: [CY11]
+  Mobile device: [CY11]
+  Security awareness: [CY10]
+  Monitoring: [RS4]
+
+rules:
   domain_score_below: 60
-  no_owner_portfolio_min: 2
-  unknown_lifecycle_share: 0.34
   # Engineering failures are Medium unless listed here — a missing pipeline is a
   # constraint, missing security testing is a risk.
   engineering_high_on_fail: [EN3]
+  weak_dr: [None, Backup only]
+  critical_min: 4
 
-hypotheses:
-  domain: >-
-    has a named owner and steward, one mastered version of each record, documented lineage
-    and a privacy classification with retention applied
-  platform: is on a current, supported, patched release with tested recovery
-  # A data centre or hosting facility has no release to patch.
-  facility: is fit for the hold, with capacity, power, cooling and recovery confirmed
-  check: in place and evidenced
+themes:
+  - id: data_ownership
+    area: data
+    headline: Data ownership and mastering not established
+    implication: >-
+      Without named owners and one governed version of each record, data quality has no
+      one accountable for it and integration or migration effort grows.
+    impact: [integration, plan_risk]
+    action: >-
+      Target should name an owner and steward for {subjects} and master each domain in one
+      system of record.
+    severity: Medium
+
+  - id: data_quality
+    area: data
+    headline: Data not trusted for reporting and decisions
+    implication: >-
+      Reports are reconciled by hand, so management information is slow and the numbers
+      the plan relies on need validating.
+    impact: [plan_risk]
+    action: Target should measure and report data quality for {subjects} and remediate the root causes.
+    severity: Medium
+
+  - id: privacy
+    area: data
+    headline: Personal data not classified or governed for retention
+    implication: >-
+      Unclassified personal data is a regulatory exposure and a liability the buyer
+      inherits.
+    impact: [compliance]
+    action: >-
+      Target should classify personal and sensitive data in {subjects} and enforce retention
+      rules.
+    severity: High
+
+  - id: infra_support
+    area: infrastructure
+    headline: Infrastructure out of vendor support
+    implication: >-
+      Platforms out of support carry security and stability risk and require upgrade
+      investment inside the hold.
+    impact: [one_off_investment, continuity]
+    action: >-
+      Target should upgrade or migrate {subjects} to supported releases, and bring patching
+      within policy.
+    severity: High
+
+  - id: recovery
+    area: infrastructure
+    headline: Lack of actively tested disaster recovery
+    implication: >-
+      In the event of a site-level disruption, recovery would likely rely on manual
+      restore processes, increasing downtime for critical operations.
+    impact: [continuity]
+    action: >-
+      Target should define and implement an enterprise-wide disaster recovery strategy —
+      architecture aligned to business criticality, defined RTO/RPO targets, and periodic
+      testing — covering {subjects}.
+    severity: High
+
+  - id: capacity
+    area: infrastructure
+    headline: Infrastructure capacity constrained at peak
+    implication: >-
+      Constrained capacity limits growth without investment and puts peak trading at risk.
+    impact: [one_off_investment, plan_risk]
+    action: Target should size and fund the capacity needed for the plan for {subjects}.
+    severity: Medium
+
+  - id: operations
+    area: infrastructure
+    headline: Limited monitoring of availability and performance
+    implication: Outages are found by users rather than by the IT function, which lengthens them.
+    impact: [continuity]
+    action: Target should implement central monitoring with alerting for critical systems and infrastructure.
+    severity: Medium
+
+  - id: asset_lifecycle
+    area: infrastructure
+    headline: Ageing infrastructure without an asset refresh policy
+    implication: >-
+      Deferred refresh builds a spending cliff the buyer inherits; ageing assets also raise
+      support cost and failure risk.
+    impact: [one_off_investment, run_cost]
+    action: >-
+      Target should establish an IT asset lifecycle policy with defined refresh cycles and
+      allocate annual capital spend for the phased replacement of {subjects}.
+    severity: Medium
+
+  - id: cyber_governance
+    area: cyber
+    headline: Gaps in cyber security governance
+    implication: >-
+      Without policy, risk management and independent assurance, the security posture
+      cannot be evidenced to a buyer, a regulator or an insurer.
+    impact: [compliance, continuity]
+    action: >-
+      Target should develop a comprehensive cyber security framework, including policies
+      and a risk register reported to the board, and pursue certification such as ISO 27001.
+    severity: High
+
+  - id: identity_access
+    area: cyber
+    headline: Weak identity and access controls
+    implication: >-
+      Weak access control is the most common route for an attack and for leaver access that
+      persists after someone leaves.
+    impact: [continuity, compliance]
+    action: >-
+      Target should enforce multi-factor authentication, manage privileged access through a
+      vault, and measure leaver revocation.
+    severity: High
+
+  - id: threat_management
+    area: cyber
+    headline: Limited threat detection and vulnerability management
+    implication: >-
+      Without testing, monitoring and timely patching, the target may not detect or contain
+      an incident, leading to operational disruption, losses and reputational damage.
+    impact: [continuity]
+    action: >-
+      Target should conduct a cyber security maturity assessment, perform penetration
+      testing, and remediate the gaps in a timely manner.
+    severity: High
+
+  - id: user_controls
+    area: cyber
+    headline: Limited user-level security controls
+    implication: >-
+      Without data leakage prevention, device management and awareness training, sensitive
+      data can leave the business unnoticed.
+    impact: [compliance]
+    action: >-
+      Target should deploy data leakage prevention and mobile device management, and run
+      security awareness training with phishing simulations.
+    severity: Medium
+
+  - id: third_party
+    area: cyber
+    headline: Third-party security risk not managed
+    implication: Vendors with access to systems or data are an unassessed route into the business.
+    impact: [compliance]
+    action: Target should assess vendor security before onboarding and periodically thereafter.
+    severity: Medium
+
+  - id: engineering
+    area: engineering
+    headline: Software delivery practice not industrialised
+    implication: >-
+      Delivery without automated, tested pipelines slows change and raises the defect and
+      security risk of every release.
+    impact: [plan_risk, continuity]
+    action: >-
+      Target should introduce source control with review, automated build and deployment,
+      and security testing in the delivery pipeline.
+    severity: Medium

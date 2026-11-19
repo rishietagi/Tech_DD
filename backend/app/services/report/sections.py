@@ -19,6 +19,10 @@ from app.services.report.inputs import Item, ReportInputs
 NOT_PROVIDED = "The target has not provided this information."
 
 
+def _verb(n: int, one: str, many: str) -> str:
+    return one if n == 1 else many
+
+
 def _plural(n: int, word: str) -> str:
     if n == 1:
         return f"{n} {word}"
@@ -70,12 +74,13 @@ def applications(inputs: ReportInputs, title: str) -> ReportSection:
     mix = _app_counts(apps)
     panel += f" ({mix})." if mix else "."
     payload = inputs.applications_score or {}
-    dispositions = payload.get("counts", {}).get("by_disposition", {})
-    if dispositions:
+    counts = payload.get("counts") or {}
+    if counts.get("critical"):
+        panel += f" {_plural(counts['critical'], 'application')} are business-critical"
         panel += (
-            " Assessed on fit, the portfolio splits "
-            + ", ".join(f"{n} {d.lower()}" for d, n in sorted(dispositions.items(), key=lambda kv: -kv[1]))
-            + "."
+            f", {counts['end_of_life']} of the estate reach end of vendor support within 24 months."
+            if counts.get("end_of_life")
+            else "."
         )
 
     overview = []
@@ -117,18 +122,25 @@ def applications(inputs: ReportInputs, title: str) -> ReportSection:
             rows,
         ),
     ]
-    disposition_rows = [
-        [r["ref"], r["name"], r["disposition"], r.get("disposition_statement", "")]
+    assessed = [
+        [
+            r["ref"],
+            r["name"],
+            "—" if r.get("criticality") is None else str(r["criticality"]),
+            r.get("automation_label") or "—",
+            r.get("ai_label") or "—",
+            ", ".join(r.get("flags") or []) or "—",
+        ]
         for r in payload.get("applications", [])
-        if r.get("assessed")
+        if r.get("criticality") is not None or r.get("automation") is not None
     ]
-    if disposition_rows:
+    if assessed:
         blocks.append(
             _table(
-                "dispositions",
+                "assessment",
                 "Application assessment",
-                ["#", "Application", "Disposition", "Rationale"],
-                disposition_rows,
+                ["#", "Application", "Criticality", "Automation", "AI", "Observations"],
+                assessed,
             )
         )
     contracts = inputs.items("it_contract")
@@ -319,44 +331,175 @@ def data(inputs: ReportInputs, title: str, section_id: str = "data") -> ReportSe
 # ------------------------------------------------------------------ people and budget
 
 
-def people(inputs: ReportInputs, title: str) -> ReportSection:
+def _section_rows(payload: dict[str, Any]) -> list[list[str]]:
+    return [
+        [sec["label"], "—" if sec.get("score") is None else f"{sec['score']:.0f}/100"]
+        for sec in payload.get("sections", [])
+    ]
+
+
+def organisation(inputs: ReportInputs, title: str) -> ReportSection:
     team = inputs.items("it_role")
-    if not team:
-        return ReportSection(id="people", title=title, panel=NOT_PROVIDED, blocks=[_para("overview", NOT_PROVIDED)])
-    engagement = Counter(r.text("engagement") or "Not stated" for r in team)
+    payload = inputs.team_governance_score or {}
+    if not team and not payload:
+        return ReportSection(
+            id="organisation", title=title, panel=NOT_PROVIDED, blocks=[_para("overview", NOT_PROVIDED)]
+        )
+    people = payload.get("people") or {}
+    if team:
+        engagement = Counter(r.text("engagement") or "Not stated" for r in team)
+        panel = (
+            f"The target's IT function comprises {_plural(len(team), 'role')}: "
+            + ", ".join(f"{n} {e.lower()}" for e, n in engagement.most_common())
+            + "."
+        )
+    else:
+        panel = "The IT team inventory was not provided; this section rests on the management interview."
+    if payload.get("index") is not None:
+        panel += (
+            f" Governance and organisational maturity is {payload['index']:.0f}/100 "
+            f"({payload.get('band_label', '')})."
+        )
+
+    blocks: list[Block] = []
+    risks: list[str] = []
+    if people.get("single_person_critical_apps"):
+        risks.append(
+            "Business-critical applications supported by one person: "
+            + ", ".join(people["single_person_critical_apps"])
+            + "."
+        )
+    if people.get("sole_holders"):
+        risks.append("Roles only one person can perform: " + ", ".join(people["sole_holders"]) + ".")
+    if people.get("outsourced_share_pct") is not None:
+        risks.append(
+            f"{people['outsourced_share_pct']:.0f}% of IT roles are outsourced, contracted or provided by the "
+            "parent group."
+        )
+    if risks:
+        blocks.append(_bullets("people_risk", risks, "Key-person and sourcing"))
+    if team:
+        blocks.append(
+            _table(
+                "team",
+                "IT team",
+                ["#", "Role", "Function", "Engagement", "Key skills", "Length of service"],
+                [
+                    [
+                        r.ref,
+                        r.text("designation") or r.name,
+                        _cell(r, "function"),
+                        _cell(r, "engagement"),
+                        _cell(r, "key_skills"),
+                        _cell(r, "length_of_service"),
+                    ]
+                    for r in team
+                ],
+            )
+        )
+    if payload.get("sections"):
+        blocks.append(_table("maturity", "Governance maturity", ["Area", "Score"], _section_rows(payload)))
+    return ReportSection(id="organisation", title=title, panel=panel, blocks=blocks)
+
+
+def strategy(inputs: ReportInputs, title: str) -> ReportSection:
+    projects = inputs.items("it_project")
+    payload = inputs.strategy_projects_score or {}
+    if not projects and not payload:
+        return ReportSection(id="strategy", title=title, panel=NOT_PROVIDED, blocks=[_para("overview", NOT_PROVIDED)])
+    portfolio = payload.get("portfolio") or {}
+
+    def num(v: Any) -> str:
+        return "—" if v is None else f"{v:,.0f}"
+
     panel = (
-        f"The target's IT function comprises {_plural(len(team), 'role')}: "
-        + ", ".join(f"{n} {e.lower()}" for e, n in engagement.most_common())
+        f"The target lists {_plural(len(projects), 'IT project')}"
+        + (f", {portfolio.get('open', 0)} in flight" if portfolio else "")
         + "."
     )
-    blocks = [
-        _bullets(
-            "roles",
-            [
-                f"{r.text('designation') or r.name}: "
-                f"{r.text('responsibilities') or r.text('key_skills') or 'responsibilities not stated'}"
-                for r in team
-            ],
-            "Overview",
-        ),
-        _table(
-            "team",
-            "IT team",
-            ["#", "Role", "Function", "Engagement", "Key skills", "Length of service"],
-            [
-                [
-                    r.ref,
-                    r.text("designation") or r.name,
-                    _cell(r, "function"),
-                    _cell(r, "engagement"),
-                    _cell(r, "key_skills"),
-                    _cell(r, "length_of_service"),
-                ]
-                for r in team
-            ],
-        ),
+    if portfolio.get("remaining_commitment") is not None:
+        panel += f" Remaining allocation on in-flight and planned projects is {num(portfolio['remaining_commitment'])}"
+        if portfolio.get("change_budget") is not None:
+            panel += (
+                f", against a {portfolio.get('change_budget_year', '')} change budget of "
+                f"{num(portfolio['change_budget'])}."
+            )
+        else:
+            panel += "."
+    blocks: list[Block] = []
+    funding: list[str] = []
+    if portfolio.get("unfunded"):
+        funding.append(
+            f"The roadmap exceeds the change budget by {num(portfolio['unfunded'])} on the target's own figures."
+        )
+    if portfolio.get("over_budget"):
+        funding.append(
+            f"{_plural(portfolio['over_budget'], 'project')} "
+            f"{_verb(portfolio['over_budget'], 'has', 'have')} spent more than the allocation."
+        )
+    if portfolio.get("late"):
+        funding.append(
+            f"{_plural(portfolio['late'], 'project')} "
+            f"{_verb(portfolio['late'], 'is', 'are')} past the planned completion date."
+        )
+    if portfolio.get("stop_candidates"):
+        funding.append(
+            f"{_plural(portfolio['stop_candidates'], 'project')} "
+            f"{_verb(portfolio['stop_candidates'], 'is a candidate', 'are candidates')} to stop or defer after close."
+        )
+    if funding:
+        blocks.append(_bullets("funding", funding, "Funding and delivery"))
+    rows = [
+        [
+            r["ref"],
+            r["name"],
+            r.get("status") or "—",
+            num(r.get("allocated")),
+            num(r.get("used")),
+            "—" if r.get("pct_complete") is None else f"{r['pct_complete']:.0f}%",
+            r.get("triage") or "—",
+            ", ".join(r.get("flags") or []) or "—",
+        ]
+        for r in payload.get("projects", [])
     ]
-    return ReportSection(id="people", title=title, panel=panel, blocks=blocks)
+    if rows:
+        blocks.append(
+            _table(
+                "projects",
+                "In-flight and planned projects",
+                ["#", "Project", "Status", "Allocated", "Used", "Complete", "Deal relevance", "Observations"],
+                rows,
+            )
+        )
+    if payload.get("sections"):
+        blocks.append(_table("maturity", "Strategy and portfolio maturity", ["Area", "Score"], _section_rows(payload)))
+    return ReportSection(id="strategy", title=title, panel=panel, blocks=blocks)
+
+
+def ai(inputs: ReportInputs, title: str) -> ReportSection:
+    rows = [
+        [a["ref"], a["name"], a.get("ai_label") or "—", a.get("automation_label") or "—"]
+        for a in (inputs.applications_score or {}).get("applications", [])
+        if a.get("ai") is not None
+    ]
+    strategy_payload = inputs.strategy_projects_score or {}
+    ai_section = next((sec for sec in strategy_payload.get("sections", []) if sec.get("key") == "ai"), None)
+    if not rows and ai_section is None:
+        return ReportSection(id="ai", title=title, panel=NOT_PROVIDED, blocks=[_para("overview", NOT_PROVIDED)])
+    index = (inputs.applications_score or {}).get("ai_index")
+    panel = (
+        f"Across the applications rated, AI adoption is {index:.0f}/100 on the AI ladder."
+        if index is not None
+        else "AI adoption in the applications was not rated."
+    )
+    if ai_section is not None and ai_section.get("score") is not None:
+        panel += f" AI strategy and governance scores {ai_section['score']:.0f}/100."
+    blocks: list[Block] = []
+    if rows:
+        blocks.append(
+            _table("ai", "AI and automation in the applications", ["#", "Application", "AI level", "Automation"], rows)
+        )
+    return ReportSection(id="ai", title=title, panel=panel, blocks=blocks)
 
 
 def budget(inputs: ReportInputs, title: str) -> ReportSection:
@@ -478,7 +621,9 @@ BUILDERS: dict[str, Callable[[ReportInputs, str], ReportSection]] = {
     "infrastructure": infrastructure,
     "cyber": cyber,
     "data": data,
-    "people": people,
+    "organisation": organisation,
+    "strategy": strategy,
+    "ai": ai,
     "budget": budget,
     "processes": processes,
     "architecture": architecture,
@@ -638,7 +783,7 @@ def appendix_sections(inputs: ReportInputs, config: ReportConfig) -> list[Report
                     blocks=[
                         _table(
                             "platforms",
-                            "Technology platforms",
+                            "Infrastructure platforms",
                             [
                                 "#",
                                 "Platform",
@@ -702,6 +847,75 @@ def appendix_sections(inputs: ReportInputs, config: ReportConfig) -> list[Report
                                     _cell(d, "retention"),
                                 ]
                                 for d in domains
+                            ],
+                        )
+                    ],
+                )
+            )
+        elif kind == "projects" and inputs.items("it_project"):
+            projects = inputs.items("it_project")
+            out.append(
+                ReportSection(
+                    id="appendix_projects",
+                    title=titles[kind],
+                    blocks=[
+                        _table(
+                            "projects",
+                            "IT projects",
+                            [
+                                "#",
+                                "Project",
+                                "Business objective",
+                                "Status",
+                                "Start",
+                                "Planned completion",
+                                "Allocated capex",
+                                "Capex utilised",
+                                "Complete",
+                                "Delivery",
+                                "Vendor",
+                            ],
+                            [
+                                [
+                                    pr.ref,
+                                    pr.name,
+                                    _cell(pr, "objective"),
+                                    _cell(pr, "status"),
+                                    _cell(pr, "start_date"),
+                                    _cell(pr, "planned_end"),
+                                    _cell(pr, "allocated"),
+                                    _cell(pr, "used"),
+                                    _cell(pr, "pct_complete"),
+                                    _cell(pr, "delivery"),
+                                    _cell(pr, "vendor"),
+                                ]
+                                for pr in projects
+                            ],
+                        )
+                    ],
+                )
+            )
+        elif kind == "cyber_tools" and inputs.items("cyber_tool"):
+            tools = inputs.items("cyber_tool")
+            out.append(
+                ReportSection(
+                    id="appendix_cyber_tools",
+                    title=titles[kind],
+                    blocks=[
+                        _table(
+                            "tools",
+                            "Cyber security tools",
+                            ["#", "Purpose", "Available", "Vendor or product", "Managed by", "Coverage"],
+                            [
+                                [
+                                    t.ref,
+                                    t.name,
+                                    _cell(t, "available"),
+                                    _cell(t, "product"),
+                                    _cell(t, "managed_by"),
+                                    _cell(t, "coverage"),
+                                ]
+                                for t in tools
                             ],
                         )
                     ],

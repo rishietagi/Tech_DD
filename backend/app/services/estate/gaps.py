@@ -1,14 +1,41 @@
-"""Shared gap-register mechanics: building a gap, ordering, counting, and the overlay.
+"""Theme registers: observations in, one gap per theme out, and the consultant overlay.
 
-A gap combines every finding about one subject into one row — one per application, data
-domain, platform or check — rather than one row per rule fired, so the register reads as a
-list of things to fix rather than a log of rules. Severity is the highest of its findings.
+Phase 8 (Rishi, 2026-11-18). A due diligence reports what moves the value of the deal, so
+a register reads as a short list of strategic findings — "critical applications facing
+end-of-support risk", "IT roadmap not funded" — not a defect list per system. The rules
+still look at every application, platform, role and project; what they find is an
+**observation**, kept as the evidence under its theme, never a gap of its own.
+
+A theme's severity is the highest of its observations'. Its action names the subjects of
+its most severe observations, so "upgrade X and Y" names what drove the High, not every
+system that raised anything.
 """
 
+from collections import defaultdict
 from collections.abc import Iterable
+from dataclasses import dataclass, field
 
 from app.models.estate import EstateGapNote
-from app.schemas.estate import SEVERITIES, Gap, GapCounts, GapGenerated, GapSubject, Severity
+from app.schemas.estate import (
+    SEVERITIES,
+    Gap,
+    GapCounts,
+    GapGenerated,
+    GapObservation,
+    Severity,
+    ThemeDef,
+)
+
+_RANK = {s: i for i, s in enumerate(SEVERITIES)}
+
+
+@dataclass
+class Observation:
+    theme: str
+    text: str
+    severity: Severity | None = None
+    subjects: list[str] = field(default_factory=list)
+    source: str = ""
 
 
 def highest(levels: Iterable[Severity]) -> Severity:
@@ -16,74 +43,120 @@ def highest(levels: Iterable[Severity]) -> Severity:
     return next((s for s in SEVERITIES if s in present), "Low")
 
 
-def make_gap(
-    *,
-    key: str,
-    display_id: str,
-    scope: str,
-    category: str,
-    subject: GapSubject,
-    title: str,
-    findings: list[str],
-    hypothesis: str,
-    severity: Severity,
-) -> Gap:
-    description = "; ".join(f.rstrip(".") for f in findings) + "."
-    return Gap(
-        key=key,
-        display_id=display_id,
-        scope=scope,
-        category=category,
-        subject=subject,
-        title=title,
-        findings=findings,
-        description=description,
-        hypothesis=hypothesis,
-        severity=severity,
-    )
+def join_subjects(subjects: list[str], limit: int = 3, empty: str = "the areas identified") -> str:
+    unique = list(dict.fromkeys(s for s in subjects if s))
+    if not unique:
+        return empty
+    if len(unique) > limit:
+        rest = len(unique) - limit
+        return f"{', '.join(unique[:limit])} and {rest} other{'s' if rest != 1 else ''}"
+    if len(unique) == 1:
+        return unique[0]
+    return f"{', '.join(unique[:-1])} and {unique[-1]}"
+
+
+def with_remark(finding: str, remark: str) -> str:
+    """'Not in place — The 2024 ransomware encrypted the backups.'
+
+    The remark keeps the case the consultant typed: lowering its first letter turned
+    "Windows 2012 R2" into "windows" (found reading the report, 2026-11-18).
+    """
+    text = (remark or "").strip().rstrip(".")
+    finding = finding.strip().rstrip(".")
+    return f"{finding} — {text}." if text else f"{finding}."
+
+
+def build_theme_gaps(observations: list[Observation], themes: list[ThemeDef], prefix: str) -> list[Gap]:
+    """One gap per theme with at least one observation, in severity order.
+
+    The display id follows the theme's position in the YAML, so it is stable across
+    re-scores ("AP-03" is always the same theme on this engagement).
+    """
+    known = {t.id: t for t in themes}
+    grouped: dict[str, list[Observation]] = defaultdict(list)
+    for observation in observations:
+        if observation.theme not in known:
+            raise ValueError(f"observation raised against unknown theme {observation.theme!r}")
+        grouped[observation.theme].append(observation)
+
+    gaps: list[Gap] = []
+    for position, theme in enumerate(themes, start=1):
+        raised = grouped.get(theme.id)
+        if not raised:
+            continue
+        resolved = sorted(
+            ((o, o.severity or theme.severity) for o in raised),
+            key=lambda pair: _RANK[pair[1]],
+        )
+        severity = resolved[0][1]
+        evidence = list(dict.fromkeys(o.text for o, _ in resolved))
+        subjects = list(dict.fromkeys(s for o, _ in resolved for s in o.subjects))
+        worst = [s for o, sev in resolved if sev == severity for s in o.subjects]
+        action = theme.action.replace("{subjects}", join_subjects(worst or subjects)).replace(
+            "{count}", str(len(subjects) or len(evidence))
+        )
+        gaps.append(
+            Gap(
+                key=f"theme:{theme.id}",
+                display_id=f"{prefix}-{position:02d}",
+                theme=theme.id,
+                area=theme.area,
+                headline=theme.headline,
+                evidence=evidence,
+                implication=theme.implication,
+                impact=list(theme.impact),
+                action=action,
+                severity=severity,
+                subjects=subjects,
+                observations=[
+                    GapObservation(text=o.text, severity=sev, subjects=o.subjects, source=o.source)
+                    for o, sev in resolved
+                ],
+            )
+        )
+    return order(gaps)
 
 
 def order(gaps: list[Gap]) -> list[Gap]:
-    """Severity first, then item before portfolio, then by id.
-
-    Severity leads because a register is read top-down for what matters most: a High
-    portfolio gap ("applications on unsupported platforms") must not sit below a Low item.
-    """
-    rank = {s: i for i, s in enumerate(SEVERITIES)}
-    return sorted(gaps, key=lambda g: (rank[g.severity], g.scope != "item", g.display_id))
+    """Severity first, then the theme's position — a register is read top-down."""
+    return sorted(gaps, key=lambda g: (_RANK[g.severity], g.display_id))
 
 
 def count(gaps: list[Gap]) -> GapCounts:
     counts = GapCounts()
     for gap in gaps:
         setattr(counts, gap.severity, getattr(counts, gap.severity) + 1)
-        setattr(counts, gap.scope, getattr(counts, gap.scope) + 1)
     return counts
 
 
 def overlay(gaps: list[Gap], notes: dict[str, EstateGapNote]) -> list[Gap]:
     """Apply consultant edits on top of the generated gaps.
 
-    The generated text is kept on `generated`, so the screen can show what changed and
-    put it back. Applied at read time: an edit made after scoring shows without a
-    re-score, and a re-score keeps it.
+    The generated text is kept on `generated`, so the screen can show what changed and put
+    it back. Applied at read time: an edit made after scoring shows without a re-score,
+    and a re-score keeps it. Evidence is stored one bullet per line in `description`; the
+    action in `hypothesis` (the columns predate the theme registers).
     """
     out: list[Gap] = []
     for gap in gaps:
         note = notes.get(gap.key)
-        generated = GapGenerated(description=gap.description, hypothesis=gap.hypothesis, severity=gap.severity)
+        generated = GapGenerated(headline=gap.headline, evidence=gap.evidence, action=gap.action, severity=gap.severity)
         update: dict[str, object] = {"generated": generated, "edited": False}
         if note is not None:
-            if note.description:
-                update["description"] = note.description
+            evidence = [line.strip() for line in (note.description or "").splitlines() if line.strip()]
+            if note.headline:
+                update["headline"] = note.headline
+            if evidence:
+                update["evidence"] = evidence
             if note.hypothesis:
-                update["hypothesis"] = note.hypothesis
+                update["action"] = note.hypothesis
             if note.severity in SEVERITIES:
                 update["severity"] = note.severity
             update["edited"] = any(
                 [
-                    bool(note.description) and note.description != gap.description,
-                    bool(note.hypothesis) and note.hypothesis != gap.hypothesis,
+                    bool(note.headline) and note.headline != gap.headline,
+                    bool(evidence) and evidence != gap.evidence,
+                    bool(note.hypothesis) and note.hypothesis != gap.action,
                     note.severity in SEVERITIES and note.severity != gap.severity,
                 ]
             )

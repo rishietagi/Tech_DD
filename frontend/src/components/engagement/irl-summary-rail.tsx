@@ -124,7 +124,7 @@ export function IrlSummaryRail({
       <div className="mb-4 flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
         <div className="min-w-0">
           <p className="mb-1 font-sans text-[11px] font-semibold tracking-[0.08em] text-kpmg-blue uppercase">
-            Initial request list
+            Information requests
           </p>
           <h1 className="font-display text-[28px] leading-tight font-semibold text-text">
             {companyName ?? "The target"}

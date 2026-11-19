@@ -36,19 +36,32 @@ bad it is, what to do about it, and what could not be verified.
 
 ## 3. The executive summary row
 
+Phase 8 (2026-11-18), from a second sample — a "Gaps & Risks" deck Rishi shared. Structure
+only; its client, target, systems and vendors are not recorded anywhere in the repo.
+
 ```
-S.no | Diligence area | Key findings                       | Risk | Recommended actions   | Investment
-  2  | IT Core Apps   | • finding                          |  ●   | • action              | XXX
-     |                | • finding                          |      | • action              |
-     |                | • Implication: what it means       |      |                       |
+Diligence area   | Key findings                         | Risk   | Recommended actions        | Investment*
+Business process | Headline of the finding (bold)       | [High] | • Target should …          | XXX
+enablement       | • evidence                           |        |                            |
+ (merged down    | • Implication: what it means         |        |                            |
+  its findings)  |--------------------------------------|--------|----------------------------|------------
+                 | Next finding headline (bold)         | [Med]  | • Target should …          | XXX
+                 | • evidence                           |        |                            |
 ```
 
-- One row per diligence area that has something to say.
-- Findings are specific (systems, numbers, what is integrated with what), then one
-  *Implication* bullet saying why it matters to the investor.
-- Risk is one of three levels. The platform takes the highest severity among the area's
-  findings, and the analyst can override it.
-- Investment impact is left **XXX** for the engagement team (Rishi, 2026-11-18), editable.
+- **One row per finding**, grouped under its diligence area; the area cell is merged down
+  the area's findings. Each finding has its **own** risk level and actions.
+- The headline names the **gap**, not the system ("Critical applications facing
+  end-of-support risks", "Lack of comprehensive planning in IT strategy", "Heavy dependency
+  on the parent group IT"); the bullets carry the systems and numbers.
+- Actions are written "Target should…" / "Target may…".
+- The risk cell is **filled** in the RAG colour with the level written in it, against a
+  Low / Medium / High legend.
+- The areas seen in the sample: business process enablement, cyber security, IT and
+  security head, IT infrastructure, IT applications, IT organisation, IT roadmap, PMO, AI
+  implementation. The platform's list is in `reference/report/report.yaml › areas`.
+- Investment impact stays **XXX** for the engagement team (Rishi, 2026-11-18), per finding.
+  The second sample has no investment column; the decision to keep it stands.
 
 ## 4. The current IT landscape overview diagram
 

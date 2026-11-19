@@ -27,6 +27,7 @@ from app.schemas.it_budget import (
     YearTotal,
 )
 from app.services.engagements import get_engagement
+from app.services.estate.gaps import Observation, build_theme_gaps
 from app.services.estate.library import get_it_budget_config
 
 _RANK = {"High": 0, "Medium": 1, "Low": 2}
@@ -179,6 +180,20 @@ def review(inputs: ItBudgetInputs, config: ItBudgetConfig) -> ItBudgetReview:
             )
 
     findings.sort(key=lambda f: (_RANK[f.severity], f.source != "process"))
+    themes_by_question = {q.id: q.theme for q in config.process_questions}
+    observations = [
+        Observation(
+            theme=(
+                themes_by_question.get(f.question_id or "", "budget_process")
+                if f.source == "process"
+                else "budget_movement" if f.source == "movement" else "budget_variance"
+            ),
+            text=f.text,
+            severity=f.severity,
+            source=f"budget:{f.source}",
+        )
+        for f in findings
+    ]
     has_figures = any(v is not None for line in inputs.lines for v in [*line.budget, *line.actual])
     notes = []
     if not has_figures:
@@ -189,6 +204,7 @@ def review(inputs: ItBudgetInputs, config: ItBudgetConfig) -> ItBudgetReview:
         lines=lines,
         totals=totals,
         findings=findings,
+        gaps=build_theme_gaps(observations, config.themes, "BU"),
         tolerance_pct=tol,
         movement_pct=move,
         answered=answered,

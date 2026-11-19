@@ -27,7 +27,11 @@ import type { ChecklistRead } from "@/types/checklist";
 import type { ImportResponsesResult, IrlRead, IrlTracking } from "@/types/irl";
 
 /**
- * The Initial Request List — the single screen for what was asked for and what arrived.
+ * Information requests — the single screen for what was asked of the target and what
+ * arrived: the request list, and every template the target completes (applications, data
+ * and infrastructure, IT team and contracts, projects, cyber tools, IT financials).
+ * Renamed from "Initial request list" in Phase 8 (Rishi, 2026-11-18); the workbook keeps
+ * the name IRL, which is what clients call it.
  *
  * Absorbed the checklist page on 2026-09-09 (Rishi). The split had been defensible while
  * the checklist was only a progress view, but the shared-drive scan writes findings —
@@ -40,13 +44,16 @@ import type { ImportResponsesResult, IrlRead, IrlTracking } from "@/types/irl";
 const ACTION =
   "rounded-full border border-line-strong px-3.5 py-2 font-sans text-[12.5px] font-medium transition-colors hover:bg-paper-2 disabled:opacity-50";
 
-type Section = "requests" | "applications" | "data_tech" | "people";
+type Section =
+  "requests" | "applications" | "data_tech" | "people" | "projects" | "cyber";
 
 const SECTIONS: { key: Section; label: string }[] = [
   { key: "requests", label: "Requests" },
-  { key: "applications", label: "Application inventory" },
-  { key: "data_tech", label: "Data & technology inventory" },
+  { key: "applications", label: "Applications" },
+  { key: "data_tech", label: "Data & infrastructure" },
   { key: "people", label: "IT team & contracts" },
+  { key: "projects", label: "Projects" },
+  { key: "cyber", label: "Cyber tools" },
 ];
 
 export function IrlPage({ engagementId }: { engagementId: string }) {
@@ -274,8 +281,8 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
     return (
       <main className="mx-auto w-full max-w-[720px] px-7 py-20">
         <EmptyState
-          title="No request list yet"
-          description="Build the initial request list from the scope of work. Running company research first makes the questions specific to this target."
+          title="No information requests yet"
+          description="Build the request list from the scope of work. Running company research first makes the questions specific to this target."
           action={
             <button
               type="button"
@@ -434,7 +441,7 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
         <InventorySection
           engagementId={engagementId}
           kinds={["application"]}
-          intro="Every system the business runs on: functionality, version and licences, customisation, platform, scalability and redundancy, hosting and support. Facts only; the fit, automation and AI judgement is made in Assess."
+          intro="Every system the business runs on: functionality, version and licences, customisation, integration, hosting, support and lifecycle. Facts only; criticality, automation and AI are judged in Assess."
         />
       )}
 
@@ -442,7 +449,7 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
         <InventorySection
           engagementId={engagementId}
           kinds={["data_domain", "platform"]}
-          intro="What data the business holds and where it is mastered, and the platforms underneath the applications. Governance quality, support status and recoverability are judged in Assess."
+          intro="What data the business holds and where it is mastered, and the infrastructure platforms underneath the applications. Governance quality, support status and recoverability are judged in Assess."
         />
       )}
 
@@ -451,6 +458,22 @@ export function IrlPage({ engagementId }: { engagementId: string }) {
           engagementId={engagementId}
           kinds={["it_role", "it_contract"]}
           intro="Who runs the technology and on what terms it is bought. The team shows key-person risk and the in-house versus outsourced mix; contracts are reviewed for their terms and expiry — renewal dates, notice periods, change of control and anything held by the parent."
+        />
+      )}
+
+      {section === "projects" && (
+        <InventorySection
+          engagementId={engagementId}
+          kinds={["it_project"]}
+          intro="The technology projects in flight and planned: objective, status, dates, allocated capital against what has been used, percentage complete, delivery model and vendor. The target's own figures — Assess measures them against the plan and reconciles the roadmap against the change budget."
+        />
+      )}
+
+      {section === "cyber" && (
+        <InventorySection
+          engagementId={engagementId}
+          kinds={["cyber_tool"]}
+          intro="Which security tools the target runs, from a checklist of purposes. A tool is evidence beside a control, never proof that it works: a tool the target lacks fails its check in Assess until the analyst answers it; a tool it has passes nothing by itself."
         />
       )}
 

@@ -2,7 +2,7 @@
  * IT budget review — the budgeting process, never a cost model.
  * Mirrors backend/app/schemas/it_budget.py.
  */
-import type { Severity } from "@/types/estate";
+import type { Gap, Severity } from "@/types/estate";
 
 export type LineKind = "run" | "change";
 
@@ -66,11 +66,23 @@ export interface ItBudgetReview {
   lines: LineReview[];
   totals: YearTotal[];
   findings: BudgetFinding[];
+  /** The findings grouped into the report's themes (Phase 8). */
+  gaps: Gap[];
   tolerance_pct: number;
   movement_pct: number;
   answered: number;
   question_count: number;
   coverage_note: string;
+}
+
+export interface FinancialsImportResult {
+  sheet: string;
+  filled: number;
+  updated: number;
+  years_added: number;
+  lines_added: number;
+  warnings: string[];
+  note: string;
 }
 
 export interface ItBudgetQuestion {

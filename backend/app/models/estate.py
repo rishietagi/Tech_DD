@@ -98,10 +98,13 @@ class EstateAssessment(TimestampMixin, Base):
 class EstateGapNote(TimestampMixin, Base):
     """A consultant's edit to one generated gap.
 
-    An overlay, applied when a score is read, keyed on the gap's stable key (`app:<item
-    id>`, `dup:ERP`, `check:CY2`). It survives re-scoring: the consultant's wording stays
-    on the gap for as long as the rules still raise it. A gap the rules stop raising simply
-    stops showing, and its note is inert until it comes back.
+    An overlay, applied when a score is read, keyed on the gap's stable key
+    (`theme:end_of_support`). It survives re-scoring: the consultant's wording stays on the
+    gap for as long as the rules still raise it. A gap the rules stop raising simply stops
+    showing, and its note is inert until it comes back.
+
+    Since Phase 8 `description` holds the edited evidence (one bullet per line) and
+    `hypothesis` the edited action; `headline` was added for the theme's headline.
     """
 
     __tablename__ = "estate_gap_note"
@@ -114,6 +117,7 @@ class EstateGapNote(TimestampMixin, Base):
     domain: Mapped[str] = mapped_column(String(20), nullable=False)
     gap_key: Mapped[str] = mapped_column(String(120), nullable=False)
     severity: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    headline: Mapped[str | None] = mapped_column(Text, nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     hypothesis: Mapped[str | None] = mapped_column(Text, nullable=True)
 

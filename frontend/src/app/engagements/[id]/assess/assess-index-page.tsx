@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { BandBadge } from "@/components/engagement/band-badge";
 import { EstateAssessment } from "@/components/estate/estate-assessment";
+import { ItBudgetPage } from "@/app/engagements/[id]/it-budget/it-budget-page";
 import { ErrorState } from "@/components/ui/error-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { assessApi } from "@/lib/api/assess";
@@ -13,7 +14,13 @@ import { estateApi } from "@/lib/api/estate";
 import type { ProcessSummary } from "@/types/assess";
 import type { EstateSummaryEntry } from "@/types/estate";
 
-type Tab = "business" | "applications" | "data_tech";
+type Tab =
+  | "business"
+  | "applications"
+  | "data_tech"
+  | "team_governance"
+  | "strategy_projects"
+  | "budget";
 
 const TABS: { key: Tab; label: string; blurb: string }[] = [
   {
@@ -26,22 +33,47 @@ const TABS: { key: Tab; label: string; blurb: string }[] = [
     key: "applications",
     label: "Applications",
     blurb:
-      "Each inventoried application, judged on business fit, technical fit, automation and AI. Fit gives the disposition — invest, retain, modernise, replace or consolidate; the intake facts give technical debt, single points of failure and peak-load risk; together they give the gap register.",
+      "Each inventoried application rated for criticality, automation and AI, and four questions on the landscape as a whole. The findings are about what the landscape means for the deal — end-of-support exposure, integration, overlap, unused capability — not a verdict on each system.",
   },
   {
     key: "data_tech",
-    label: "Data & technology",
+    label: "Data & infrastructure",
     blurb:
-      "Whether the data is governed well enough to trust, and whether the platforms underneath stay supported, recoverable and secure through the hold — per data domain, per platform, and across the estate.",
+      "Whether the data is governed well enough to trust, and whether the infrastructure underneath stays supported, recoverable and secure through the hold — per data domain, per platform, and across the estate. The cyber tools checklist sits beside the checks as evidence; a tool is not a control.",
+  },
+  {
+    key: "team_governance",
+    label: "Team & governance",
+    blurb:
+      "Who runs IT and how it is governed: leadership and accountability, decision forums, capacity against the plan, and what breaks if one person leaves. Key-person dependencies are counted from the IT team sheet; the rest is the analyst's judgement from the management interview.",
+  },
+  {
+    key: "strategy_projects",
+    label: "Strategy & projects",
+    blurb:
+      "Is there a technology strategy, is it funded, and are the projects in flight delivering it? Projects are measured on the target's own figures — spend against allocation, progress, dates — and the roadmap is reconciled against the change budget. AI strategy and governance sit here too.",
+  },
+  {
+    key: "budget",
+    label: "IT budget",
+    blurb:
+      "How the technology budget is built, approved and controlled, and where reported spend landed against it over the review period. A budgeting-process review — it does not build, validate or benchmark a cost model, and it shows no share of revenue.",
   },
 ];
+
+const ESTATE_TABS = new Set<Tab>([
+  "applications",
+  "data_tech",
+  "team_governance",
+  "strategy_projects",
+]);
 
 function TabMeta({ entry }: { entry: EstateSummaryEntry | undefined }) {
   if (!entry) return null;
   if (entry.has_score && entry.index !== null) {
     return (
       <span className="ml-2 font-mono text-[11px] opacity-70">
-        {entry.index.toFixed(0)} · {entry.gap_count} gaps
+        {entry.index.toFixed(0)} · {entry.gap_count} findings
       </span>
     );
   }
@@ -136,8 +168,7 @@ export function AssessIndexPage({ engagementId }: { engagementId: string }) {
   const pathname = usePathname();
   const params = useSearchParams();
   const raw = params.get("tab");
-  const tab: Tab =
-    raw === "applications" || raw === "data_tech" ? raw : "business";
+  const tab: Tab = TABS.some((t) => t.key === raw) ? (raw as Tab) : "business";
   const setTab = (next: Tab) => {
     // The tab lives in the URL so a link, a refresh or the back button lands on it.
     router.replace(next === "business" ? pathname : `${pathname}?tab=${next}`, {
@@ -216,12 +247,13 @@ export function AssessIndexPage({ engagementId }: { engagementId: string }) {
             }`}
           >
             {t.label}
-            {t.key === "business" ? (
+            {t.key === "business" && (
               <span className="ml-2 font-mono text-[11px] opacity-60">
                 {data.processes.filter((p) => p.has_score).length}/
                 {data.processes.length}
               </span>
-            ) : (
+            )}
+            {t.key !== "business" && t.key !== "budget" && (
               <TabMeta entry={summary.data?.[t.key]} />
             )}
           </button>
@@ -239,8 +271,11 @@ export function AssessIndexPage({ engagementId }: { engagementId: string }) {
           ))}
         </div>
       )}
-      {tab !== "business" && (
+      {tab !== "business" && tab !== "budget" && ESTATE_TABS.has(tab) && (
         <EstateAssessment key={tab} engagementId={engagementId} domain={tab} />
+      )}
+      {tab === "budget" && (
+        <ItBudgetPage engagementId={engagementId} embedded />
       )}
     </main>
   );

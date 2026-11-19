@@ -1,18 +1,27 @@
 /**
- * Phase 6 — inventories, application and data & technology assessment.
+ * Phases 6 and 8 — inventories and the four estate assessments: applications, data &
+ * infrastructure (`data_tech`), team & governance, strategy & projects.
  * Mirrors backend/app/schemas/estate.py; drift between the two is a bug.
  */
 import type { Band } from "@/types/assess";
 
 export type InventoryKind =
-  "application" | "data_domain" | "platform" | "it_role" | "it_contract";
-export type EstateDomain = "applications" | "data_tech";
+  | "application"
+  | "data_domain"
+  | "platform"
+  | "it_role"
+  | "it_contract"
+  | "it_project"
+  | "cyber_tool";
+export type EstateDomain =
+  "applications" | "data_tech" | "team_governance" | "strategy_projects";
 export type FieldType =
   | "text"
   | "long_text"
   | "select"
   | "multi_select"
   | "date"
+  | "number"
   | "process_list"
   | "app_refs";
 export type Severity = "High" | "Medium" | "Low";
@@ -23,7 +32,19 @@ export const INVENTORY_KINDS: InventoryKind[] = [
   "platform",
   "it_role",
   "it_contract",
+  "it_project",
+  "cyber_tool",
 ];
+
+/** The deal-impact lens of a finding [DD_master §1.1]. */
+export const IMPACT_LABELS: Record<string, string> = {
+  one_off_investment: "One-off investment",
+  run_cost: "Run-rate cost",
+  plan_risk: "Risk to the plan",
+  continuity: "Continuity risk",
+  compliance: "Compliance exposure",
+  integration: "Integration or separation",
+};
 
 export interface FieldDef {
   key: string;
@@ -37,8 +58,10 @@ export interface FieldDef {
 export interface KindDef {
   label: string;
   sheet: string;
+  sheet_aliases: string[];
   ref_prefix: string;
   source: string;
+  seed_names: string[];
   fields: FieldDef[];
 }
 
@@ -93,6 +116,8 @@ export interface EstateQuestion {
   text: string;
   help: string;
   group: string;
+  group_label: string;
+  source: string;
   options: AnswerOption[];
 }
 
@@ -119,32 +144,40 @@ export interface EstateRead {
   subjects: EstateSubject[];
   questions: Partial<Record<SubjectKind, EstateQuestion[]>>;
   answers: Record<string, Record<string, EstateAnswer>>;
+  /** question id → what the target's inventories say about it. Never an answer. */
+  evidence: Record<string, string[]>;
+  dd_type: string;
+  ai_material: boolean;
   latest_score_version: number | null;
 }
 
 // ------------------------------------------------------------------ score payloads
 
-export interface GapSubject {
-  kind: string;
-  item_id: string;
-  ref: string;
-  name: string;
+export interface GapObservation {
+  text: string;
+  severity: Severity;
+  subjects: string[];
+  source: string;
 }
 
+/** One theme of a register: a strategic finding with its evidence (Phase 8). */
 export interface Gap {
   key: string;
   display_id: string;
-  scope: "item" | "portfolio";
-  category: string;
-  subject: GapSubject;
-  title: string;
-  findings: string[];
-  description: string;
-  hypothesis: string;
+  theme: string;
+  area: string;
+  headline: string;
+  evidence: string[];
+  implication: string;
+  impact: string[];
+  action: string;
   severity: Severity;
+  subjects: string[];
+  observations: GapObservation[];
   generated: {
-    description: string;
-    hypothesis: string;
+    headline: string;
+    evidence: string[];
+    action: string;
     severity: Severity;
   } | null;
   edited: boolean;
@@ -154,8 +187,14 @@ export interface GapCounts {
   High: number;
   Medium: number;
   Low: number;
-  item: number;
-  portfolio: number;
+}
+
+export interface SectionScore {
+  key: string;
+  label: string;
+  score: number | null;
+  weight: number;
+  evidence: number;
 }
 
 interface ScoreBase {
@@ -180,25 +219,13 @@ export interface ApplicationResult {
   category: string;
   answered: number;
   question_count: number;
-  assessed: boolean;
-  partial: boolean;
   criticality: number | null;
-  business_fit: number | null;
-  technical_fit: number | null;
-  disposition: string;
-  disposition_statement: string;
-  consolidate_into: string | null;
   automation: number | null;
   automation_label: string;
   ai: number | null;
   ai_label: string;
-  debt: number | null;
-  debt_band: string | null;
-  spof_status: "SPOF" | "Check" | "OK";
-  spof: string[];
-  spof_checks: string[];
-  scalability_status: "At risk" | "Watch" | "OK";
-  scalability: string[];
+  lifecycle: string;
+  flags: string[];
 }
 
 export interface ApplicationsScorePayload extends ScoreBase {
@@ -207,20 +234,12 @@ export interface ApplicationsScorePayload extends ScoreBase {
   counts: {
     applications: number;
     assessed: number;
-    by_disposition: Record<string, number>;
-    high_debt: number;
-    spof: number;
-    scalability_risk: number;
+    critical: number;
+    end_of_life: number;
+    manual_critical: number;
   };
   applications: ApplicationResult[];
-}
-
-export interface SectionScore {
-  key: string;
-  label: string;
-  score: number | null;
-  weight: number;
-  evidence: number;
+  portfolio: SectionScore[];
 }
 
 export interface DomainResult {
@@ -252,6 +271,8 @@ export interface CheckResult {
   section: string;
   text: string;
   status: "pass" | "partial" | "fail" | "unknown" | "unanswered";
+  source: "analyst" | "inventory" | "";
+  evidence: string[];
 }
 
 export interface DataTechScorePayload extends ScoreBase {
@@ -262,8 +283,73 @@ export interface DataTechScorePayload extends ScoreBase {
   checks: CheckResult[];
 }
 
+export interface PeopleSummary {
+  headcount: number;
+  in_house: number;
+  outsourced: number;
+  contractor: number;
+  parent_shared: number;
+  outsourced_share_pct: number | null;
+  sole_holders: string[];
+  single_person_critical_apps: string[];
+  short_tenure_share_pct: number | null;
+  has_leadership_role: boolean;
+  by_function: Record<string, number>;
+}
+
+export interface TeamGovernanceScorePayload extends ScoreBase {
+  domain: "team_governance";
+  sections: SectionScore[];
+  people: PeopleSummary;
+  answered: number;
+  question_count: number;
+}
+
+export interface ProjectResult {
+  item_id: string;
+  ref: string;
+  name: string;
+  status: string;
+  allocated: number | null;
+  used: number | null;
+  remaining: number | null;
+  pct_complete: number | null;
+  spend_pct: number | null;
+  planned_end: string;
+  triage: string;
+  confidence: string;
+  flags: string[];
+}
+
+export interface PortfolioSummary {
+  projects: number;
+  open: number;
+  planned: number;
+  allocated_total: number | null;
+  used_total: number | null;
+  remaining_commitment: number | null;
+  change_budget: number | null;
+  change_budget_year: string;
+  unfunded: number | null;
+  over_budget: number;
+  late: number;
+  stop_candidates: number;
+}
+
+export interface StrategyProjectsScorePayload extends ScoreBase {
+  domain: "strategy_projects";
+  sections: SectionScore[];
+  projects: ProjectResult[];
+  portfolio: PortfolioSummary;
+  answered: number;
+  question_count: number;
+}
+
 export type EstateScorePayload =
-  ApplicationsScorePayload | DataTechScorePayload;
+  | ApplicationsScorePayload
+  | DataTechScorePayload
+  | TeamGovernanceScorePayload
+  | StrategyProjectsScorePayload;
 
 export interface EstateScoreRead {
   id: string;
@@ -287,8 +373,9 @@ export type EstateSummary = Record<EstateDomain, EstateSummaryEntry>;
 
 export interface GapEdit {
   severity?: Severity;
-  description?: string;
-  hypothesis?: string;
+  headline?: string;
+  evidence?: string[];
+  action?: string;
 }
 
 /** A stored value as one line of text, for tables. */

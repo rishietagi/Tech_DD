@@ -448,14 +448,16 @@ def import_responses_from_workbook(
     # The workbook may carry the inventory sheets as well (PHASE6_PLAN D2). They are read
     # independently: a returned file with a filled inventory and an untouched request
     # sheet is a perfectly good upload, and must not fail on the missing responses.
+    from app.services.estate.budget_xlsx import import_financials, read_financials
     from app.services.estate.inventory import import_workbook
     from app.services.estate.inventory_xlsx import read_inventory_sheets
 
     has_inventory = bool(read_inventory_sheets(content))
+    has_financials = read_financials(content) is not None
     try:
         responses, result = import_responses(content, payload, responses_for(irl))
     except ResponseImportError:
-        if not has_inventory:
+        if not (has_inventory or has_financials):
             raise
         responses = {}
         result = ImportResponsesResult(
@@ -467,6 +469,8 @@ def import_responses_from_workbook(
         )
     if has_inventory:
         result.inventory = import_workbook(db, engagement_id, content)
+    if has_financials:
+        result.financials = import_financials(db, engagement_id, content)
 
     for question_id, text in responses.items():
         existing = db.execute(

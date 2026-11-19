@@ -22,7 +22,7 @@ from app.schemas.estate import (
 from app.services.engagements import get_engagement
 from app.services.estate import inventory as inventory_service
 from app.services.estate import service as estate_service
-from app.services.estate.inventory_xlsx import render_template
+from app.services.estate.inventory_xlsx import STANDALONE_KINDS, render_template
 from app.services.irl.export_xlsx import xlsx_filename
 
 XLSX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -78,7 +78,7 @@ def import_inventory(
         raise AppError(code="empty_upload", message="The uploaded file is empty.", status_code=400)
     # A data-domain or platform template also carries the application sheet, so the
     # applications in it are applied too — an ID the target added there must resolve.
-    kinds: tuple[InventoryKind, ...] = (kind,) if kind == "application" else ("application", kind)
+    kinds: tuple[InventoryKind, ...] = (kind,) if kind in STANDALONE_KINDS else ("application", kind)
     return inventory_service.import_workbook(db, engagement_id, content, kinds)
 
 

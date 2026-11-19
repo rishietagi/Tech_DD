@@ -9,6 +9,7 @@ first, so a failed or absent model leaves a usable — if terser — write-up.
 import json
 import logging
 import re
+from decimal import ROUND_HALF_UP, Decimal
 from functools import lru_cache
 from typing import Any
 
@@ -21,7 +22,15 @@ logger = logging.getLogger(__name__)
 _MAX_POINTERS = 5
 DOMAIN_LABELS = {
     "applications": "application assessment",
-    "data_tech": "data and technology assessment",
+    "data_tech": "data and infrastructure assessment",
+    "team_governance": "team and governance assessment",
+    "strategy_projects": "strategy and projects assessment",
+}
+INDEX_LABELS = {
+    "applications": "criticality-weighted automation index",
+    "data_tech": "data and infrastructure index",
+    "team_governance": "team and governance maturity index",
+    "strategy_projects": "strategy and portfolio maturity index",
 }
 
 
@@ -50,6 +59,11 @@ def _plain(text: str) -> str:
 # ------------------------------------------------------------------ the rules floor
 
 
+def whole(value: float) -> int:
+    """Half up, as the screen rounds: 24.5 showed as 25 on the card and 24 in the text."""
+    return int(Decimal(str(value)).quantize(Decimal(1), rounding=ROUND_HALF_UP))
+
+
 def rules_summary(domain: str, payload: dict[str, Any], gaps: list[Gap]) -> tuple[str, list[str]]:
     """A terse, fully deterministic write-up. Always computed; the model may replace it."""
     high = [g for g in gaps if g.severity == "High"]
@@ -58,50 +72,48 @@ def rules_summary(domain: str, payload: dict[str, Any], gaps: list[Gap]) -> tupl
         counts = payload["counts"]
         if not counts["applications"]:
             return "No applications are in the inventory yet.", []
-        dispositions = ", ".join(
-            f"{n} {d.lower()}" for d, n in sorted(counts["by_disposition"].items(), key=lambda kv: -kv[1])
-        )
         sentences.append(
-            f"{counts['applications']} applications are inventoried and {counts['assessed']} "
-            f"have a disposition ({dispositions})."
+            f"{counts['applications']} applications are inventoried; {counts['assessed']} have a "
+            f"criticality and {counts['critical']} are business-critical."
         )
-        if payload.get("index") is not None:
+    elif domain == "team_governance":
+        people = payload["people"]
+        if people["headcount"]:
+            share = people.get("outsourced_share_pct")
             sentences.append(
-                f"The criticality-weighted automation index is {payload['index']:.0f}/100 "
-                f"({payload['band_label']})."
+                f"The IT team inventory lists {people['headcount']} roles"
+                + (f", {share:.0f}% outsourced, contracted or parent-provided" if share is not None else "")
+                + "."
             )
-        flags = []
-        if counts["high_debt"]:
-            flags.append(f"{counts['high_debt']} carry high technical debt")
-        if counts["spof"]:
-            flags.append(f"{counts['spof']} are single points of failure")
-        if counts["scalability_risk"]:
-            flags.append(f"{counts['scalability_risk']} are at risk at peak load")
-        if flags:
-            sentences.append("Of these, " + ", ".join(flags) + ".")
-    else:
-        scored = [s for s in payload["sections"] if s["score"] is not None]
-        if payload.get("index") is not None:
+    elif domain == "strategy_projects":
+        portfolio = payload["portfolio"]
+        if portfolio["projects"]:
             sentences.append(
-                f"The data and technology index is {payload['index']:.0f}/100 "
-                f"({payload['band_label']}), across {len(scored)} of "
-                f"{len(payload['sections'])} sections with evidence."
+                f"{portfolio['projects']} projects are inventoried, {portfolio['open']} in flight and "
+                f"{portfolio['planned']} planned."
             )
-        else:
-            sentences.append("No data and technology evidence has been recorded yet.")
-        weakest = min(scored, key=lambda s: s["score"], default=None)
-        if weakest is not None:
-            sentences.append(f"The weakest section is {weakest['label'].lower()} at {weakest['score']:.0f}/100.")
+    if payload.get("index") is not None:
+        sentences.append(
+            f"The {INDEX_LABELS.get(domain, 'index')} is {whole(payload['index'])}/100 ({payload['band_label']})."
+        )
+    sections = [s for s in payload.get("sections", []) if s.get("score") is not None]
+    weakest = min(sections, key=lambda s: s["score"], default=None)
+    if weakest is not None and len(sections) > 1:
+        sentences.append(f"The weakest area is {weakest['label'].lower()} at {whole(weakest['score'])}/100.")
     if high:
+        # Lower only the first letter, and only before a lower-case one: "No dedicated IT
+        # leadership" → "no dedicated IT leadership", never "no dedicated it leadership".
+        names = [g.headline[0].lower() + g.headline[1:] if g.headline[1:2].islower() else g.headline for g in high]
+        listed = "; ".join(names[:4])
         sentences.append(
-            f"{len(high)} high-severity gap{'s' if len(high) != 1 else ''}: "
-            + "; ".join(g.title for g in high[:4])
-            + ("…" if len(high) > 4 else "")
-            + "."
+            f"{len(high)} high-severity finding{'s' if len(high) != 1 else ''}: "
+            + (f"{listed}; and {len(high) - 4} more." if len(high) > 4 else f"{listed}.")
         )
+    elif gaps:
+        sentences.append(f"{len(gaps)} finding{'s' if len(gaps) != 1 else ''}, none high-severity.")
     if payload.get("coverage_note"):
         sentences.append(payload["coverage_note"])
-    pointers = [f"{g.display_id} — {g.title}: {g.findings[0]}" for g in high[:_MAX_POINTERS]]
+    pointers = [f"{g.display_id} — {g.headline}: {g.evidence[0]}" for g in high[:_MAX_POINTERS]]
     return " ".join(sentences), pointers
 
 
@@ -113,9 +125,10 @@ def _evidence(domain: str, payload: dict[str, Any], remarks: list[dict[str, str]
     trimmed["gaps"] = [
         {
             "id": g["display_id"],
-            "title": g["title"],
+            "headline": g["headline"],
             "severity": g["severity"],
-            "findings": g["findings"],
+            "evidence": g["evidence"],
+            "implication": g["implication"],
         }
         for g in payload.get("gaps", [])
     ]

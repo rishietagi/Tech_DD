@@ -1,7 +1,14 @@
-"""Data & technology assessment rules — pure functions, no database.
+"""Data & infrastructure assessment rules — pure functions, no database.
 
-docs/reference/ESTATE_ASSESSMENT_MODEL.md §4. Deterministic throughout; the LLM writes
-prose over the result only.
+docs/reference/DD_ASSESSMENT_FRAMEWORK.md §4. Deterministic throughout; the LLM writes
+prose over the result only. Phase 8: findings about single domains, platforms and checks
+are observations under the themes in `data_tech.yaml` — "infrastructure out of vendor
+support", "lack of actively tested disaster recovery" — never a gap per item.
+
+Two inputs arrive from elsewhere: the application inventory (a business-critical
+application with no recovery is a recovery finding, whichever register it sits in) and the
+cyber tools inventory (evidence beside the checks, and a default where the target says a
+tool is absent).
 """
 
 import statistics
@@ -13,16 +20,17 @@ from app.schemas.estate import (
     DataTechConfig,
     DomainResult,
     Gap,
-    GapSubject,
     OptionQuestion,
     PlatformResult,
     SectionScore,
     Severity,
 )
-from app.services.estate.gaps import highest, make_gap, order
+from app.services.estate.applications import AppInput
+from app.services.estate.gaps import Observation, build_theme_gaps, join_subjects, with_remark
 
 PERSONAL = {"Special category personal data", "Personal data", "Payment card data"}
-UNSUPPORTED = {"Out of support", "End of life within 24 months"}
+OUT_OF_SUPPORT = "Out of support"
+ENDING = "End of life within 24 months"
 
 
 @dataclass
@@ -59,14 +67,12 @@ class DataTechResult:
 _NOT_ANSWERED = object()
 
 
-def _with_remark(finding: str, remark: str) -> str:
-    """'Not in place — The 2024 ransomware encrypted the backups.'
+def _plural(n: int, one: str, many: str | None = None) -> str:
+    return one if n == 1 else (many or one + "s")
 
-    The remark keeps the case the consultant typed: lowering its first letter turned
-    "Windows 2012 R2" into "windows" (found reading the report, 2026-11-18).
-    """
-    text = remark.strip().rstrip(".")
-    return f"{finding} — {text}" if text else finding
+
+def _lower_first(text: str) -> str:
+    return text[0].lower() + text[1:] if len(text) > 1 and text[1].islower() else text
 
 
 def _option_value(question: OptionQuestion, answer: str) -> Any:
@@ -92,6 +98,25 @@ def _weighted_score(questions: list[OptionQuestion], answers: dict[str, str]) ->
     return (round(100 * earned / possible) if possible else None), answered
 
 
+def tool_evidence(tools: list[Subject], config: DataTechConfig) -> dict[str, list[tuple[str, str]]]:
+    """check id → [(evidence line, availability)] from the cyber tools inventory."""
+    out: dict[str, list[tuple[str, str]]] = {}
+    for tool in tools:
+        name = tool.name.lower()
+        available = tool.text("available")
+        product = tool.text("product")
+        managed = tool.text("managed_by")
+        detail = ", ".join(p for p in (product, managed) if p)
+        line = f"{tool.name}: {available or 'not stated'}" + (f" — {detail}" if detail else "")
+        for keyword, checks in config.tool_checks.items():
+            if keyword.lower() in name:
+                for check in checks:
+                    entries = out.setdefault(check, [])
+                    if all(existing != line for existing, _ in entries):
+                        entries.append((line, available))
+    return out
+
+
 def score_data_tech(
     domains: list[Subject],
     platforms: list[Subject],
@@ -99,20 +124,27 @@ def score_data_tech(
     app_names: dict[str, str],
     config: DataTechConfig,
     estate_remarks: dict[str, str] | None = None,
+    apps: list[AppInput] | None = None,
+    tools: list[Subject] | None = None,
 ) -> DataTechResult:
-    rules = config.gaps
-    hyp = config.hypotheses
+    rules = config.rules
+    remarks = estate_remarks or {}
+    observations: list[Observation] = []
 
     # ------------------------------------------------------------ data domains
     domain_results: list[DomainResult] = []
-    gaps: list[Gap] = []
+    unclassified: list[str] = []
+    unretained: list[str] = []
+    no_owner: list[str] = []
+    unmastered: list[str] = []
+    no_sor: list[str] = []
+    untrusted: list[tuple[str, float]] = []
     for domain in domains:
         score, answered = _weighted_score(config.domain_questions, domain.answers)
         privacy = domain.answers.get("dq_privacy", "")
         personal = domain.text("sensitivity") in PERSONAL or (bool(privacy) and not privacy.startswith("No personal"))
-        # The analyst's verified answer outranks the target's intake field. A blank owner
-        # on the target's sheet often means "nobody filled the column", and an analyst who
-        # met the owner and steward has better evidence than an empty cell.
+        # The analyst's verified answer outranks the target's intake field: a blank owner
+        # on the target's sheet often means "nobody filled the column".
         owner_answer = domain.answers.get("dq_ownership", "")
         owner_named = owner_answer != "No owner" if owner_answer else bool(domain.text("business_owner"))
         domain_results.append(
@@ -128,49 +160,95 @@ def score_data_tech(
                 score=score,
             )
         )
-
-        findings: list[str] = []
-        levels: list[Severity] = []
         if personal and privacy == "Not classified":
-            findings.append("Holds personal or sensitive data that is not classified for privacy and retention")
-            levels.append("High")
+            unclassified.append(domain.name)
         elif personal and privacy.startswith("Classified, retention not"):
-            findings.append("Personal data is classified but retention rules are not enforced")
-            levels.append("Medium")
+            unretained.append(domain.name)
         if not owner_named:
-            findings.append("No named business owner")
-            levels.append("Medium")
-        if score is not None and score < rules.domain_score_below:
-            findings.append(f"Governance score {score}/100, below {rules.domain_score_below:.0f}")
-            levels.append("High" if score < 40 else "Medium")
-        mdm = domain.answers.get("dq_mdm", "")
-        if mdm.startswith("Not mastered") and "Master" in domain.listed("data_types"):
-            findings.append("Master data is held in several places with no governed version")
-            levels.append("Medium")
-        if domain.answers.get("dq_lineage") == "Not documented":
-            findings.append("Lineage is not documented")
-            levels.append("Low")
+            no_owner.append(domain.name)
+        if domain.answers.get("dq_mdm", "").startswith("Not mastered") and "Master" in domain.listed("data_types"):
+            unmastered.append(domain.name)
         if not domain.listed("system_of_record"):
-            findings.append("No system of record named")
-            levels.append("Low")
-        if findings and not (set(levels) == {"Low"} and (score is None or score >= rules.domain_score_below)):
-            gaps.append(
-                make_gap(
-                    key=f"domain:{domain.item_id}",
-                    display_id=f"DG-{domain.ref}",
-                    scope="item",
-                    category="Data",
-                    subject=GapSubject(kind="Data domain", item_id=domain.item_id, ref=domain.ref, name=domain.name),
-                    title=domain.name,
-                    findings=findings,
-                    hypothesis=f"{domain.name} {hyp['domain']}.",
-                    severity=highest(levels),
-                )
+            no_sor.append(domain.name)
+        quality = next(q for q in config.domain_questions if q.id == "dq_quality")
+        value = _option_value(quality, domain.answers.get("dq_quality", ""))
+        if value is not _NOT_ANSWERED and value is not None and float(value) <= 0.25:
+            untrusted.append((domain.name, float(value)))
+
+    if unclassified:
+        observations.append(
+            Observation(
+                "privacy",
+                f"{len(unclassified)} {_plural(len(unclassified), 'domain')} holding personal or sensitive "
+                f"data {_plural(len(unclassified), 'is', 'are')} not classified: {join_subjects(unclassified)}.",
+                "High",
+                unclassified,
+                "answers:dq_privacy",
             )
+        )
+    if unretained:
+        observations.append(
+            Observation(
+                "privacy",
+                f"Personal data is classified but retention rules are not enforced in {join_subjects(unretained)}.",
+                "Medium",
+                unretained,
+                "answers:dq_privacy",
+            )
+        )
+    if no_owner:
+        observations.append(
+            Observation(
+                "data_ownership",
+                f"{len(no_owner)} data {_plural(len(no_owner), 'domain has', 'domains have')} no named business "
+                f"owner: {join_subjects(no_owner)}.",
+                "High" if len(no_owner) >= 4 else "Medium",
+                no_owner,
+                "answers:dq_ownership",
+            )
+        )
+    if unmastered:
+        observations.append(
+            Observation(
+                "data_ownership",
+                f"Master data is held in several places with no governed version: {join_subjects(unmastered)}.",
+                "Medium",
+                unmastered,
+                "answers:dq_mdm",
+            )
+        )
+    if len(no_sor) >= 2:
+        observations.append(
+            Observation(
+                "data_ownership",
+                f"{len(no_sor)} domains name no system of record: {join_subjects(no_sor)}.",
+                "Low",
+                no_sor,
+                "inventory:system_of_record",
+            )
+        )
+    if untrusted:
+        names = [n for n, _ in untrusted]
+        observations.append(
+            Observation(
+                "data_quality",
+                f"Data is not trusted, with reports reconciled by hand, in {join_subjects(names)}.",
+                "High" if any(v == 0 for _, v in untrusted) else "Medium",
+                names,
+                "answers:dq_quality",
+            )
+        )
 
     # ------------------------------------------------------------ platforms
     platform_results: list[PlatformResult] = []
-    p_questions = {q.id: q for q in config.platform_questions}
+    unsupported: list[str] = []
+    ending: list[str] = []
+    exposed: list[str] = []
+    ageing: list[str] = []
+    unpatched: list[str] = []
+    no_recovery: list[str] = []
+    untested: list[str] = []
+    constrained: list[str] = []
     for platform in platforms:
         values: list[float] = []
         chosen: dict[str, str] = {}
@@ -180,7 +258,6 @@ def score_data_tech(
                 continue
             chosen[question.id] = platform.answers[question.id]
             values.append(1.0 if value is None else float(value))
-        score = round(100 * statistics.mean(values)) if values else None
         hosted = platform.listed("apps_hosted")
         platform_results.append(
             PlatformResult(
@@ -191,54 +268,155 @@ def score_data_tech(
                 lifecycle=platform.text("lifecycle"),
                 answered=len(values),
                 question_count=len(config.platform_questions),
-                score=score,
+                score=round(100 * statistics.mean(values)) if values else None,
                 hosted_apps=hosted,
             )
         )
-
-        findings = []
-        levels = []
         lifecycle = platform.text("lifecycle")
-        out_of_support = lifecycle in UNSUPPORTED or chosen.get("pq_support") == "Out of support"
-        if out_of_support:
-            findings.append(
-                "Out of vendor support"
-                if lifecycle == "Out of support" or chosen.get("pq_support") == "Out of support"
-                else "Vendor support ends within 24 months"
-            )
-            levels.append("High")
+        if lifecycle == OUT_OF_SUPPORT or chosen.get("pq_support") == "Out of support":
+            unsupported.append(platform.name)
+            if hosted:
+                exposed.append(f"{join_subjects([app_names.get(r, r) for r in hosted])} on {platform.name}")
+        elif lifecycle == ENDING:
+            ending.append(platform.name)
+            if hosted:
+                exposed.append(f"{join_subjects([app_names.get(r, r) for r in hosted])} on {platform.name}")
         elif lifecycle == "Ageing":
-            findings.append("Ageing platform")
-            levels.append("Medium")
-        elif lifecycle in ("", "Unknown"):
-            findings.append("Lifecycle unknown")
-            levels.append("Low")
-        for qid, flag, level in (
-            ("pq_patching", "Unpatched, or patch state unknown", "Medium"),
-            ("pq_recovery", "No recovery arrangement", "High"),
-            ("pq_capacity", "Constrained — capacity incidents", "Medium"),
-        ):
-            if chosen.get(qid) == flag:
-                findings.append(f"{p_questions[qid].text}: {flag[0].lower()}{flag[1:]}")
-                levels.append(level)  # type: ignore[arg-type]
-        if findings:
-            gaps.append(
-                make_gap(
-                    key=f"platform:{platform.item_id}",
-                    display_id=f"DG-{platform.ref}",
-                    scope="item",
-                    category="Platform",
-                    subject=GapSubject(kind="Platform", item_id=platform.item_id, ref=platform.ref, name=platform.name),
-                    title=platform.name,
-                    findings=findings,
-                    hypothesis=f"{platform.name} "
-                    + (hyp["facility"] if platform.text("category") in config.facility_categories else hyp["platform"])
-                    + ".",
-                    severity=highest(levels),
-                )
+            ageing.append(platform.name)
+        if chosen.get("pq_patching") == "Unpatched, or patch state unknown":
+            unpatched.append(platform.name)
+        if chosen.get("pq_recovery") == "No recovery arrangement":
+            no_recovery.append(platform.name)
+        elif chosen.get("pq_recovery") == "Recovery documented but untested":
+            untested.append(platform.name)
+        if chosen.get("pq_capacity") == "Constrained — capacity incidents":
+            constrained.append(platform.name)
+
+    if unsupported:
+        observations.append(
+            Observation(
+                "infra_support",
+                f"{len(unsupported)} {_plural(len(unsupported), 'platform is', 'platforms are')} out of vendor "
+                f"support: {join_subjects(unsupported)}.",
+                "High",
+                unsupported,
+                "inventory:lifecycle",
             )
+        )
+    if ending:
+        observations.append(
+            Observation(
+                "infra_support",
+                f"Vendor support ends within 24 months for {join_subjects(ending)}.",
+                "Medium",
+                ending,
+                "inventory:lifecycle",
+            )
+        )
+    if exposed:
+        observations.append(
+            Observation(
+                "infra_support",
+                f"Applications run on platforms leaving support: {'; '.join(exposed)}.",
+                "High",
+                [],
+                "inventory:apps_hosted",
+            )
+        )
+    if unpatched:
+        observations.append(
+            Observation(
+                "infra_support",
+                f"Patching is not within policy, or its state is unknown, on {join_subjects(unpatched)}.",
+                "Medium",
+                unpatched,
+                "answers:pq_patching",
+            )
+        )
+    if ageing:
+        observations.append(
+            Observation(
+                "asset_lifecycle",
+                f"{len(ageing)} {_plural(len(ageing), 'platform is', 'platforms are')} ageing: "
+                f"{join_subjects(ageing)}.",
+                "Medium",
+                ageing,
+                "inventory:lifecycle",
+            )
+        )
+    if no_recovery:
+        observations.append(
+            Observation(
+                "recovery",
+                f"No recovery arrangement exists for {join_subjects(no_recovery)}.",
+                "High",
+                no_recovery,
+                "answers:pq_recovery",
+            )
+        )
+    if untested:
+        observations.append(
+            Observation(
+                "recovery",
+                f"Recovery is documented but untested for {join_subjects(untested)}.",
+                "Medium",
+                untested,
+                "answers:pq_recovery",
+            )
+        )
+    if constrained:
+        observations.append(
+            Observation(
+                "capacity",
+                f"Capacity incidents are reported on {join_subjects(constrained)}.",
+                "Medium",
+                constrained,
+                "answers:pq_capacity",
+            )
+        )
+
+    # ------------------------------------------------------------ business-critical applications
+    critical = [a for a in apps or [] if (c := a.criticality()) is not None and c >= rules.critical_min]
+    weak_dr = [a for a in critical if a.text("dr") in rules.weak_dr]
+    if weak_dr:
+        observations.append(
+            Observation(
+                "recovery",
+                f"{len(weak_dr)} business-critical {_plural(len(weak_dr), 'application has', 'applications have')} "
+                f"no disaster recovery beyond backups: {join_subjects([a.short for a in weak_dr])}.",
+                "High",
+                [a.short for a in weak_dr],
+                "inventory:dr",
+            )
+        )
+    no_failover = [a for a in critical if a.text("failover_tested") == "No" and a.text("dr") not in rules.weak_dr]
+    if no_failover:
+        observations.append(
+            Observation(
+                "recovery",
+                f"Failover has not been tested in the last 12 months for "
+                f"{join_subjects([a.short for a in no_failover])}.",
+                "Medium",
+                [a.short for a in no_failover],
+                "inventory:failover_tested",
+            )
+        )
+    peak = [a for a in critical if a.text("peak_load").startswith(("Fails", "Slows"))]
+    if peak:
+        failing = [a for a in peak if a.text("peak_load").startswith("Fails")]
+        observations.append(
+            Observation(
+                "capacity",
+                f"{join_subjects([a.short for a in peak])} "
+                f"{_plural(len(peak), 'slows or fails', 'slow or fail')} at peak load.",
+                "High" if failing else "Medium",
+                [a.short for a in peak],
+                "inventory:peak_load",
+            )
+        )
 
     # ------------------------------------------------------------ estate checks
+    evidence = tool_evidence(tools or [], config)
     check_results: list[CheckResult] = []
     section_scores: dict[str, tuple[float | None, int]] = {}
     for section in config.check_sections:
@@ -246,16 +424,26 @@ def score_data_tech(
         answered = 0
         for check in section.checks:
             status = (estate_answers.get(check.id) or "").strip().lower()
+            source = "analyst"
             if status not in config.check_statuses:
-                status = "unanswered"
-            check_results.append(CheckResult(id=check.id, section=section.key, text=check.text, status=status))
+                status, source = "unanswered", ""
+                # A tool the target says it lacks is a failed control until the analyst
+                # says otherwise. A tool it has proves nothing by itself.
+                if any(avail.lower() == "no" for _, avail in evidence.get(check.id, [])):
+                    status, source = "fail", "inventory"
+            lines = [line for line, _ in evidence.get(check.id, [])]
+            check_results.append(
+                CheckResult(
+                    id=check.id, section=section.key, text=check.text, status=status, source=source, evidence=lines
+                )
+            )
             if status == "unanswered":
                 continue
             answered += 1
             points = config.check_statuses[status]
             if points is not None:
                 known.append(points)
-            if status == "pass":
+            if status in ("pass", "unknown"):
                 continue
             if status == "fail":
                 severity: Severity = (
@@ -263,24 +451,18 @@ def score_data_tech(
                     if section.key == "engineering" and check.id not in rules.engineering_high_on_fail
                     else "High"
                 )
-                finding = "Not in place"
-            elif status == "partial":
-                severity, finding = "Medium", "Partly in place"
+                lead = "Not in place" + (" (per the target's cyber tools inventory)" if source == "inventory" else "")
             else:
-                severity, finding = "Low", "Status unknown; validate in diligence"
-            gaps.append(
-                make_gap(
-                    key=f"check:{check.id}",
-                    display_id=f"DG-{check.id}",
-                    scope="item",
-                    category=section.label,
-                    subject=GapSubject(kind="Check", ref=check.id, name=section.label),
-                    title=check.text,
+                severity, lead = "Medium", "Partly in place"
+            observations.append(
+                Observation(
+                    check.theme,
                     # The consultant's note is usually the finding itself — "ransomware
                     # encrypted the backups" says more than "not in place" ever will.
-                    findings=[_with_remark(finding, (estate_remarks or {}).get(check.id, ""))],
-                    hypothesis=f"In place and evidenced: {check.text[0].lower()}{check.text[1:]}.",
-                    severity=severity,
+                    with_remark(f"{lead}: {_lower_first(check.text)}", remarks.get(check.id, "")),
+                    severity,
+                    [],
+                    f"check:{check.id}",
                 )
             )
         section_scores[section.key] = (round(statistics.mean(known), 1) if known else None, answered)
@@ -305,115 +487,19 @@ def score_data_tech(
         if scored
         else None
     )
-
-    gaps += _portfolio(domains, domain_results, platforms, platform_results, app_names, config)
-    covered = [s.label.lower() for s in sections if s.score is None]
+    empty = [s.label.lower() for s in sections if s.score is None]
     coverage = (
         f"{len(domain_scores)} of {len(domains)} data domains and {len(platform_scores)} of "
         f"{len(platforms)} platforms assessed."
     )
-    if covered:
-        coverage += f" No evidence yet for {', '.join(covered)}; the index is re-weighted across the rest."
+    if empty:
+        coverage += f" No evidence yet for {', '.join(empty)}; the index is re-weighted across the rest."
     return DataTechResult(
         index=index,
         sections=sections,
         domains=domain_results,
         platforms=platform_results,
         checks=check_results,
-        gaps=order(gaps),
+        gaps=build_theme_gaps(observations, config.themes, "DI"),
         coverage_note=coverage,
     )
-
-
-def _portfolio(
-    domains: list[Subject],
-    domain_results: list[DomainResult],
-    platforms: list[Subject],
-    platform_results: list[PlatformResult],
-    app_names: dict[str, str],
-    config: DataTechConfig,
-) -> list[Gap]:
-    rules = config.gaps
-    gaps: list[Gap] = []
-    counter = 0
-
-    def next_id() -> str:
-        nonlocal counter
-        counter += 1
-        return f"DP-{counter:02d}"
-
-    no_owner = [d.name for d in domain_results if not d.owner_named]
-    if len(no_owner) >= rules.no_owner_portfolio_min:
-        gaps.append(
-            make_gap(
-                key="no-owner",
-                display_id=next_id(),
-                scope="portfolio",
-                category="Data",
-                subject=GapSubject(kind="Data governance", name="Data ownership"),
-                title="Data ownership not established",
-                findings=[f"{len(no_owner)} data domains have no named business owner: {', '.join(no_owner)}"],
-                hypothesis="Every data domain has a named owner and steward, with quality reviewed on a fixed cadence.",
-                severity="High" if len(no_owner) >= 4 else "Medium",
-            )
-        )
-
-    exposed: list[str] = []
-    answers = {p.item_id: p.answers for p in platforms}
-    for platform in platform_results:
-        unsupported = (
-            platform.lifecycle in UNSUPPORTED or answers.get(platform.item_id, {}).get("pq_support") == "Out of support"
-        )
-        if unsupported and platform.hosted_apps:
-            apps = ", ".join(f"{app_names.get(r, r)} ({r})" for r in platform.hosted_apps)
-            exposed.append(f"{apps} on {platform.name} ({platform.ref})")
-    if exposed:
-        gaps.append(
-            make_gap(
-                key="unsupported-hosting",
-                display_id=next_id(),
-                scope="portfolio",
-                category="Platform",
-                subject=GapSubject(kind="Portfolio", name="Hosting"),
-                title="Applications running on unsupported platforms",
-                findings=exposed,
-                hypothesis="Every application runs on a platform inside vendor support for the length of the hold.",
-                severity="High",
-            )
-        )
-
-    if platforms:
-        unknown = [p.name for p in platforms if p.text("lifecycle") in ("", "Unknown")]
-        if len(unknown) / len(platforms) >= rules.unknown_lifecycle_share:
-            gaps.append(
-                make_gap(
-                    key="platform-unknown",
-                    display_id=next_id(),
-                    scope="portfolio",
-                    category="Platform",
-                    subject=GapSubject(kind="Portfolio", name="Technology platforms"),
-                    title="Platform inventory incomplete",
-                    findings=[
-                        f"Lifecycle unknown for {len(unknown)} of {len(platforms)} platforms: {', '.join(unknown)}"
-                    ],
-                    hypothesis="Every platform has a confirmed version, support status and end-of-support date.",
-                    severity="Medium",
-                )
-            )
-
-    no_sor = [d.name for d in domains if not d.listed("system_of_record")]
-    if len(no_sor) >= 2:
-        gaps.append(
-            make_gap(
-                key="no-sor",
-                display_id=next_id(),
-                scope="portfolio",
-                category="Data",
-                subject=GapSubject(kind="Data governance", name="Systems of record"),
-                title="Data domains without a system of record",
-                findings=[f"{len(no_sor)} domains name no system of record: {', '.join(no_sor)}"],
-                hypothesis="Each data domain is mastered in one named system of record.",
-                severity="Medium",
-            )
-        )
-    return gaps

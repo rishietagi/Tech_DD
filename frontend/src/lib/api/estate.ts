@@ -11,7 +11,11 @@ import type {
   InventoryKind,
   InventoryRead,
 } from "@/types/estate";
-import type { ItBudgetInputs, ItBudgetRead } from "@/types/it-budget";
+import type {
+  FinancialsImportResult,
+  ItBudgetInputs,
+  ItBudgetRead,
+} from "@/types/it-budget";
 
 /** Multipart uploads build their own request — `apiClient` serialises JSON. */
 async function upload<T>(path: string, file: File): Promise<T> {
@@ -126,6 +130,13 @@ export const estateApi = {
 };
 
 export const itBudgetApi = {
+  templateUrl: (engagementId: string) =>
+    `${API_BASE_URL}/engagements/${engagementId}/it-budget/template.xlsx`,
+  importFinancials: (engagementId: string, file: File) =>
+    upload<FinancialsImportResult>(
+      `/engagements/${engagementId}/it-budget/import`,
+      file,
+    ),
   get: (engagementId: string) =>
     apiClient.get<ItBudgetRead>(`/engagements/${engagementId}/it-budget`),
   save: (engagementId: string, inputs: ItBudgetInputs) =>

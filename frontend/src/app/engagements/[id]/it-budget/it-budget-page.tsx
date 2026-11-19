@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { SeverityBadge } from "@/components/estate/gap-register";
 import { ErrorState } from "@/components/ui/error-state";
@@ -77,7 +77,14 @@ function nextLineId(lines: BudgetLine[]): string {
  * Inputs are edited as one draft and saved together: the review recomputes from the whole
  * document, and a save per cell would recompute forty times while a year is typed in.
  */
-export function ItBudgetPage({ engagementId }: { engagementId: string }) {
+export function ItBudgetPage({
+  engagementId,
+  embedded = false,
+}: {
+  engagementId: string;
+  /** Inside the Assess page (Phase 8): no page header of its own. */
+  embedded?: boolean;
+}) {
   const queryClient = useQueryClient();
   const { show } = useToast();
   const { data, isLoading, isError, refetch } = useQuery({
@@ -120,15 +127,21 @@ export function ItBudgetPage({ engagementId }: { engagementId: string }) {
 
   if (isLoading || (data && !draft)) {
     return (
-      <main className="mx-auto w-full max-w-[1600px] px-7 pt-12 pb-24">
+      <div
+        className={
+          embedded ? "" : "mx-auto w-full max-w-[1600px] px-7 pt-12 pb-24"
+        }
+      >
         <Skeleton className="mb-6 h-10 w-1/3" />
         <Skeleton className="h-64 w-full" />
-      </main>
+      </div>
     );
   }
   if (isError || !data || !draft) {
     return (
-      <main className="mx-auto w-full max-w-[720px] px-7 py-20">
+      <div
+        className={embedded ? "" : "mx-auto w-full max-w-[720px] px-7 py-20"}
+      >
         <ErrorState
           title="Couldn't load the IT budget"
           action={
@@ -141,7 +154,7 @@ export function ItBudgetPage({ engagementId }: { engagementId: string }) {
             </button>
           }
         />
-      </main>
+      </div>
     );
   }
 
@@ -157,21 +170,36 @@ export function ItBudgetPage({ engagementId }: { engagementId: string }) {
   const unit = [draft.currency, draft.unit].filter(Boolean).join(" ");
 
   return (
-    <main className="mx-auto w-full max-w-[1600px] px-7 pt-12 pb-24">
-      <header className="mb-8 border-b border-line-strong pb-7">
-        <p className="mb-2 font-mono text-[11px] uppercase tracking-wide text-muted">
-          IT budget
-        </p>
-        <h1 className="mb-3 font-serif text-[34px] leading-tight text-ink">
-          Budgeting process review
-        </h1>
-        <p className="max-w-[82ch] font-sans text-[15px] leading-relaxed text-muted">
-          How the technology budget is built, approved and controlled, and where
-          reported spend landed against it over the review period. This reviews
-          the budgeting process — it does not build, validate or benchmark a
-          cost model, and it shows no share of revenue.
-        </p>
-      </header>
+    <div
+      className={
+        embedded ? "" : "mx-auto w-full max-w-[1600px] px-7 pt-12 pb-24"
+      }
+    >
+      {!embedded && (
+        <header className="mb-8 border-b border-line-strong pb-7">
+          <p className="mb-2 font-mono text-[11px] uppercase tracking-wide text-muted">
+            IT budget
+          </p>
+          <h1 className="mb-3 font-serif text-[34px] leading-tight text-ink">
+            Budgeting process review
+          </h1>
+          <p className="max-w-[82ch] font-sans text-[15px] leading-relaxed text-muted">
+            How the technology budget is built, approved and controlled, and
+            where reported spend landed against it over the review period. This
+            reviews the budgeting process — it does not build, validate or
+            benchmark a cost model, and it shows no share of revenue.
+          </p>
+        </header>
+      )}
+      <FinancialsUpload
+        engagementId={engagementId}
+        onImported={() => {
+          setDraft(null);
+          void queryClient.invalidateQueries({
+            queryKey: ["it-budget", engagementId],
+          });
+        }}
+      />
 
       <div className="sticky top-0 z-10 -mx-7 mb-6 flex items-center justify-between gap-3 border-b border-line bg-paper/95 px-7 py-3 backdrop-blur">
         <span className="font-sans text-[13px] text-muted">
@@ -484,8 +512,8 @@ export function ItBudgetPage({ engagementId }: { engagementId: string }) {
         <p className="mb-4 font-sans text-[13px] text-muted">
           Variance beyond ±{review.tolerance_pct}% of budget, and year-on-year
           movement in actual spend beyond {review.movement_pct}%, are flagged
-          for management to explain. The total variance compares only lines
-          that carry a budget; spend with no budget is a finding of its own.
+          for management to explain. The total variance compares only lines that
+          carry a budget; spend with no budget is a finding of its own.
           {unit && ` Figures in ${unit}.`}
         </p>
         {review.coverage_note && (
@@ -593,6 +621,75 @@ export function ItBudgetPage({ engagementId }: { engagementId: string }) {
           />
         </label>
       </section>
-    </main>
+    </div>
+  );
+}
+
+/**
+ * The IT financials sheet: the target supplies its own budget and actuals (Phase 8).
+ * The same sheet travels in the IRL workbook; an upload never clears a figure.
+ */
+function FinancialsUpload({
+  engagementId,
+  onImported,
+}: {
+  engagementId: string;
+  onImported: () => void;
+}) {
+  const { show } = useToast();
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-line-strong bg-paper-2 px-5 py-3.5">
+      <p className="mr-auto max-w-[70ch] font-sans text-[13px] text-muted">
+        The target can supply its budget and actual figures on the IT financials
+        sheet — in the IRL workbook, or as its own template. An upload fills the
+        figures below and never clears one.
+      </p>
+      <a
+        href={itBudgetApi.templateUrl(engagementId)}
+        className="rounded-full border border-line-strong px-3.5 py-2 font-sans text-[12.5px] font-medium hover:bg-paper"
+      >
+        Download template
+      </a>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => input.current?.click()}
+        className="rounded-full border border-line-strong px-3.5 py-2 font-sans text-[12.5px] font-medium hover:bg-paper disabled:opacity-50"
+      >
+        {busy ? "Reading…" : "Upload financials"}
+      </button>
+      <input
+        ref={input}
+        type="file"
+        accept=".xlsx"
+        className="hidden"
+        aria-label="Upload the IT financials sheet"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (!file) return;
+          setBusy(true);
+          try {
+            const result = await itBudgetApi.importFinancials(
+              engagementId,
+              file,
+            );
+            show(result.note);
+            onImported();
+          } catch (err) {
+            show(
+              err instanceof ApiError
+                ? err.message
+                : "Could not read that file",
+              "error",
+            );
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
+    </div>
   );
 }

@@ -2,8 +2,8 @@
 
 Three skills, each optional, each validated after the call and discarded on any breach:
 
-* `report-executive-summary` rewrites an area's finding bullets and implication. It is not
-  shown, and cannot change, the risk level, the actions' targets or the investment cell.
+* `report-executive-summary` rewrites each finding's headline, bullets and implication. It
+  is not shown, and cannot change, the risk level, the actions or the investment cell.
 * `report-narrative` rewrites the context paragraphs and supporting-section side panels.
 * `budget-commentary` rewrites the IT budget side panel.
 
@@ -77,22 +77,20 @@ class ReportWriter:
     # ------------------------------------------------------------------ executive
 
     def executive(self, payload: ReportPayload) -> int:
-        """Rewrite finding bullets and implications in place. Returns rows changed."""
-        rows = [r for r in payload.executive if r.include]
-        if not rows:
+        """Rewrite finding headlines, bullets and implications in place. Returns findings changed.
+
+        The model never sees, and cannot change, a finding's risk, its area, its actions or
+        the investment cell; a rewrite that adds a bullet or a number is discarded.
+        """
+        findings = {f.key: f for r in payload.executive if r.include for f in r.findings if f.include}
+        if not findings:
             return 0
         data = {
             "target": payload.target_name,
             "dd_type": payload.dd_type,
-            "areas": [
-                {
-                    "area_id": r.area_id,
-                    "title": r.title,
-                    "risk": r.risk,
-                    "findings": r.findings,
-                    "implication": r.implication,
-                }
-                for r in rows
+            "findings": [
+                {"key": f.key, "headline": f.headline, "bullets": f.bullets, "implication": f.implication}
+                for f in findings.values()
             ],
         }
         try:
@@ -100,19 +98,19 @@ class ReportWriter:
         except Exception as exc:  # noqa: BLE001 - the deterministic text stands
             logger.warning("Executive summary rewrite failed (%s); rules text kept.", exc)
             return 0
-        by_id = {r.area_id: r for r in rows}
         changed = 0
-        for new in result.rows:
-            row = by_id.get(new.area_id)
-            if row is None or not new.findings:
+        for new in result.findings:
+            finding = findings.get(new.key)
+            if finding is None or not new.bullets or not new.headline.strip():
                 continue
-            original = " ".join([*row.findings, row.implication])
-            rewritten = " ".join([*new.findings, new.implication])
-            if len(new.findings) > len(row.findings) or not numbers_preserved(original, rewritten):
-                logger.warning("Rewrite of %s rejected: added findings or numbers.", row.area_id)
+            original = " ".join([finding.headline, *finding.bullets, finding.implication])
+            rewritten = " ".join([new.headline, *new.bullets, new.implication])
+            if len(new.bullets) > len(finding.bullets) or not numbers_preserved(original, rewritten):
+                logger.warning("Rewrite of %s rejected: added bullets or numbers.", finding.key)
                 continue
-            row.findings = [_plain(f) for f in new.findings if f.strip()]
-            row.implication = _plain(new.implication) or row.implication
+            finding.headline = _plain(new.headline)
+            finding.bullets = [_plain(b) for b in new.bullets if b.strip()]
+            finding.implication = _plain(new.implication) or finding.implication
             changed += 1
         return changed
 

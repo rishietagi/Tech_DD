@@ -178,7 +178,14 @@ export function InventoryEditor({
             id={id}
             invalid={invalid}
             className="py-2.5 text-[14px]"
-            placeholder={field.type === "date" ? "YYYY-MM-DD" : undefined}
+            inputMode={field.type === "number" ? "decimal" : undefined}
+            placeholder={
+              field.type === "date"
+                ? "YYYY-MM-DD"
+                : field.type === "number"
+                  ? "A figure, e.g. 120000"
+                  : undefined
+            }
             value={value as string}
             onChange={(e) => set(field.key, e.target.value)}
           />
@@ -192,6 +199,8 @@ export function InventoryEditor({
     platform: "platform",
     it_role: "role",
     it_contract: "contract",
+    it_project: "project",
+    cyber_tool: "tool",
   };
 
   return (

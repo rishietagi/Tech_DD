@@ -1,8 +1,12 @@
-"""Persistence and assembly for the application and data & technology assessments.
+"""Persistence and assembly for the four estate assessments.
 
-Same lifecycles as the business-process assessment: answers are working notes (one
-current set, not versioned); scores are versioned; consultant edits to gaps are an overlay
-applied at read time so a re-score never discards them.
+Applications, data & infrastructure (`data_tech`), team & governance and strategy &
+projects share one lifecycle, the business-process assessment's: answers are working notes
+(one current set, not versioned); scores are versioned; consultant edits to gaps are an
+overlay applied at read time so a re-score never discards them.
+
+Every assessment has one questionnaire answered once per engagement — the subject
+`estate` — and optionally one set of questions per inventory item.
 """
 
 import logging
@@ -16,6 +20,7 @@ from app.core.errors import AppError
 from app.models.estate import EstateAnswer, EstateAssessment, EstateGapNote, InventoryItem
 from app.schemas.estate import (
     ESTATE_SUBJECT,
+    SCORE_SCHEMA_VERSION,
     AnswerOption,
     ApplicationsScorePayload,
     DataTechScorePayload,
@@ -28,58 +33,131 @@ from app.schemas.estate import (
     EstateSubject,
     Gap,
     GapNoteWrite,
+    StrategyProjectsScorePayload,
+    TeamGovernanceScorePayload,
 )
 from app.services.assess.service import find_latest_score
-from app.services.engagements import get_engagement
+from app.services.engagements import assemble_intake_full, get_engagement
 from app.services.estate import applications as app_rules
 from app.services.estate import data_tech as dt_rules
+from app.services.estate import judgement
+from app.services.estate import strategy_projects as sp_rules
+from app.services.estate import team_governance as tg_rules
 from app.services.estate.gaps import count, overlay
 from app.services.estate.inventory import items_of, process_refs
-from app.services.estate.library import get_applications_config, get_data_tech_config
+from app.services.estate.library import (
+    get_applications_config,
+    get_data_tech_config,
+    get_strategy_projects_config,
+    get_team_governance_config,
+)
 from app.services.estate.llm import EstateSummariser, rules_summary
 from app.services.intelligence.mode import use_llm
 
 logger = logging.getLogger(__name__)
 
-DOMAINS: tuple[EstateDomain, ...] = ("applications", "data_tech")
+DOMAINS: tuple[EstateDomain, ...] = ("applications", "data_tech", "team_governance", "strategy_projects")
+DOMAIN_NAMES = {
+    "applications": "applications",
+    "data_tech": "data & infrastructure",
+    "team_governance": "team & governance",
+    "strategy_projects": "strategy & projects",
+}
+SUBJECT_KINDS: dict[str, tuple[str, ...]] = {
+    "applications": ("application",),
+    "data_tech": ("data_domain", "platform"),
+    "team_governance": (),
+    "strategy_projects": ("it_project",),
+}
+QUESTIONNAIRE = {
+    "applications": ("Portfolio questions", "The application landscape as a whole"),
+    "data_tech": ("Estate checks", "Resilience, engineering practice, cyber security"),
+    "team_governance": ("Team & governance", "Leadership, governance, capacity and people risk"),
+    "strategy_projects": ("Strategy & portfolio", "IT strategy, portfolio governance and AI"),
+}
 CHECK_LABELS = {
     "pass": "Pass — in place and evidenced",
     "partial": "Partial — partly in place",
     "fail": "Fail — not in place",
     "unknown": "Unknown — not yet established",
 }
+AI_MATERIAL = {"Embedded in the product", "Core to the value proposition"}
 
 
 def _domain(domain: str) -> EstateDomain:
     if domain not in DOMAINS:
         raise AppError(
             code="unknown_domain",
-            message=f"{domain!r} is not an estate assessment. Use applications or data_tech.",
+            message=f"{domain!r} is not an estate assessment. Use one of: {', '.join(DOMAINS)}.",
             status_code=404,
         )
     return domain  # type: ignore[return-value]
 
 
+# ------------------------------------------------------------------ context
+
+
+def assess_context(db: Session, engagement_id: str) -> judgement.AssessContext:
+    """Which variant of the questionnaires this deal sees.
+
+    The DD type is the scope's classification once a scope exists, else the intake's
+    declared preference; AI is material when the intake says it is embedded in or core to
+    the product — the condition of scope rule A11.
+    """
+    from app.services.scope import service as scope_service  # local: scope imports widely
+
+    engagement = get_engagement(db, engagement_id)
+    intake = assemble_intake_full(engagement)
+    dd_type = ""
+    try:
+        scope = scope_service.get_latest_scope(db, engagement_id)
+        dd_type = str((scope.payload_json.get("classification") or {}).get("dd_type") or "")
+    except AppError:
+        dd_type = ""
+    if dd_type not in ("enterprise", "product", "blended"):
+        preference = getattr(intake.objectives, "dd_type_preference", None)
+        value = str(getattr(preference, "value", preference) or "").lower()
+        dd_type = next((t for t in ("enterprise", "product", "blended") if t in value), "enterprise")
+    ai = getattr(intake.technology, "ai_ml_dependence", None)
+    ai_value = str(getattr(ai, "value", ai) or "")
+    return judgement.AssessContext(dd_type=dd_type, ai_material=ai_value in AI_MATERIAL)
+
+
 # ------------------------------------------------------------------ questions
 
 
-def question_sets(domain: EstateDomain) -> dict[str, list[EstateQuestion]]:
+def _scale_options(levels: dict[int, str]) -> list[AnswerOption]:
+    return [AnswerOption(value=str(level), label=f"{level} — {text}") for level, text in sorted(levels.items())]
+
+
+def question_sets(domain: EstateDomain, context: judgement.AssessContext) -> dict[str, list[EstateQuestion]]:
     if domain == "applications":
         config = get_applications_config()
         return {
             "application": [
+                EstateQuestion(id=q.id, text=q.text, help=q.help, group=q.group, options=_scale_options(q.levels))
+                for q in config.questions
+            ],
+            "estate": judgement.as_estate_questions(config.portfolio_questions, config.portfolio_sections, context),
+        }
+    if domain == "team_governance":
+        tg = get_team_governance_config()
+        return {"estate": judgement.as_estate_questions(tg.questions, tg.sections, context)}
+    if domain == "strategy_projects":
+        sp = get_strategy_projects_config()
+        return {
+            "it_project": [
                 EstateQuestion(
                     id=q.id,
                     text=q.text,
                     help=q.help,
-                    group=q.group,
-                    options=[
-                        AnswerOption(value=str(level), label=f"{level} — {text}")
-                        for level, text in sorted(q.levels.items())
-                    ],
+                    group="projects",
+                    source=q.source,
+                    options=[AnswerOption(value=o.label, label=o.label) for o in q.options],
                 )
-                for q in config.questions
-            ]
+                for q in sp.project_questions
+            ],
+            "estate": judgement.as_estate_questions(sp.questions, sp.sections, context),
         }
     dt = get_data_tech_config()
 
@@ -101,16 +179,13 @@ def question_sets(domain: EstateDomain) -> dict[str, list[EstateQuestion]]:
                 text=c.text,
                 help=c.source,
                 group=s.key,
+                group_label=s.label,
                 options=[AnswerOption(value=k, label=v) for k, v in CHECK_LABELS.items()],
             )
             for s in dt.check_sections
             for c in s.checks
         ],
     }
-
-
-def _subject_kinds(domain: EstateDomain) -> tuple[str, ...]:
-    return ("application",) if domain == "applications" else ("data_domain", "platform")
 
 
 # ------------------------------------------------------------------ answers
@@ -130,26 +205,72 @@ def _values(rows: dict[str, EstateAnswer]) -> dict[str, str]:
     return {qid: row.value for qid, row in rows.items() if row.value.strip()}
 
 
+def _remark_map(rows: dict[str, EstateAnswer]) -> dict[str, str]:
+    return {qid: row.remarks for qid, row in rows.items() if row.remarks.strip()}
+
+
 def _subtitle(item: InventoryItem) -> str:
     fields = item.fields or {}
     keys = {
         "application": ("category", "vendor"),
         "data_domain": ("sensitivity",),
         "platform": ("category", "lifecycle"),
-    }[item.kind]
+        "it_project": ("status", "vendor"),
+    }.get(item.kind, ())
     return " · ".join(str(fields[k]) for k in keys if fields.get(k))
+
+
+def _subjects(db: Session, engagement_id: str, kind: str) -> list[dt_rules.Subject]:
+    return [
+        dt_rules.Subject(item_id=i.id, ref=i.ref, fields=dict(i.fields or {}))
+        for i in items_of(db, engagement_id, kind)  # type: ignore[arg-type]
+    ]
+
+
+def _apps(db: Session, engagement_id: str) -> list[app_rules.AppInput]:
+    """Applications with the analyst's answers — other assessments read their criticality."""
+    answers = load_answers(db, engagement_id, "applications")
+    return [
+        app_rules.AppInput(item_id=i.id, ref=i.ref, fields=dict(i.fields or {}), answers=_values(answers.get(i.id, {})))
+        for i in items_of(db, engagement_id, "application")
+    ]
+
+
+def _evidence(db: Session, engagement_id: str, domain: EstateDomain) -> dict[str, list[str]]:
+    """What the target's inventories say beside a question. Never an answer by itself."""
+    if domain == "data_tech":
+        found = dt_rules.tool_evidence(_subjects(db, engagement_id, "cyber_tool"), get_data_tech_config())
+        return {check: [line for line, _ in lines] for check, lines in found.items()}
+    if domain == "team_governance":
+        roles = _subjects(db, engagement_id, "it_role")
+        if not roles:
+            return {}
+        out: dict[str, list[str]] = {}
+        leaders = [r.text("designation") or r.name for r in roles if r.text("function") == "IT leadership"]
+        out["TG1"] = [
+            f"IT team inventory: {', '.join(leaders)}" if leaders else "IT team inventory: no IT leadership role"
+        ]
+        sole = [r.text("designation") or r.name for r in roles if r.text("sole_holder") == "Yes"]
+        if sole:
+            out["TG12"] = [f"Only one person can do: {', '.join(sole)}"]
+        external = [r for r in roles if r.text("engagement") in tg_rules.EXTERNAL]
+        out["TG8"] = [f"{len(external)} of {len(roles)} roles outsourced, contracted or parent-provided"]
+        out["TG9"] = [f"{len(roles)} roles in the IT team inventory"]
+        return out
+    return {}
 
 
 def get_estate(db: Session, engagement_id: str, domain: str) -> EstateRead:
     get_engagement(db, engagement_id)
     dom = _domain(domain)
-    sets = question_sets(dom)
+    context = assess_context(db, engagement_id)
+    sets = question_sets(dom, context)
     answers = load_answers(db, engagement_id, dom)
 
     subjects: list[EstateSubject] = []
-    for kind in _subject_kinds(dom):
+    for kind in SUBJECT_KINDS[dom]:
+        ids = {q.id for q in sets[kind]}
         for item in items_of(db, engagement_id, kind):  # type: ignore[arg-type]
-            ids = {q.id for q in sets[kind]}
             given = _values(answers.get(item.id, {}))
             subjects.append(
                 EstateSubject(
@@ -162,19 +283,20 @@ def get_estate(db: Session, engagement_id: str, domain: str) -> EstateRead:
                     question_count=len(ids),
                 )
             )
-    if dom == "data_tech":
-        given = _values(answers.get(ESTATE_SUBJECT, {}))
-        subjects.append(
-            EstateSubject(
-                id=ESTATE_SUBJECT,
-                kind="estate",
-                ref="EST",
-                name="Estate checks",
-                subtitle="Resilience, engineering practice, cyber security",
-                answered=len(given),
-                question_count=len(sets["estate"]),
-            )
+    estate_ids = {q.id for q in sets["estate"]}
+    given = _values(answers.get(ESTATE_SUBJECT, {}))
+    name, subtitle = QUESTIONNAIRE[dom]
+    subjects.append(
+        EstateSubject(
+            id=ESTATE_SUBJECT,
+            kind="estate",
+            ref="Q",
+            name=name,
+            subtitle=subtitle,
+            answered=sum(1 for q in given if q in estate_ids),
+            question_count=len(estate_ids),
         )
+    )
 
     latest = find_latest(db, engagement_id, dom)
     return EstateRead(
@@ -186,7 +308,10 @@ def get_estate(db: Session, engagement_id: str, domain: str) -> EstateRead:
             subject: {qid: EstateAnswerRead(value=row.value, remarks=row.remarks) for qid, row in rows.items()}
             for subject, rows in answers.items()
         },
-        latest_score_version=latest.version if latest is not None else None,
+        evidence=_evidence(db, engagement_id, dom),
+        dd_type=context.dd_type,
+        ai_material=context.ai_material,
+        latest_score_version=latest.version if latest is not None and _current(latest) else None,
     )
 
 
@@ -195,17 +320,13 @@ def save_answer(db: Session, engagement_id: str, domain: str, write: EstateAnswe
     an orphan row never renders and never scores, so it would be invisible."""
     get_engagement(db, engagement_id)
     dom = _domain(domain)
-    sets = question_sets(dom)
+    sets = question_sets(dom, assess_context(db, engagement_id))
 
     if write.subject_id == ESTATE_SUBJECT:
-        if dom != "data_tech":
-            raise AppError(
-                code="unknown_subject", message="Estate checks belong to data & technology.", status_code=404
-            )
         kind = "estate"
     else:
         item = db.get(InventoryItem, write.subject_id)
-        if item is None or item.engagement_id != engagement_id or item.kind not in _subject_kinds(dom):
+        if item is None or item.engagement_id != engagement_id or item.kind not in SUBJECT_KINDS[dom]:
             raise AppError(code="unknown_subject", message="That item is not in this assessment.", status_code=404)
         kind = item.kind
 
@@ -260,6 +381,16 @@ def find_latest(db: Session, engagement_id: str, domain: EstateDomain) -> Estate
     )
 
 
+def _current(row: EstateAssessment) -> bool:
+    """A payload from before the theme registers cannot be read as one: re-score it."""
+    return int((row.payload_json or {}).get("schema_version", 1)) >= SCORE_SCHEMA_VERSION
+
+
+def find_current(db: Session, engagement_id: str, domain: EstateDomain) -> EstateAssessment | None:
+    row = find_latest(db, engagement_id, domain)
+    return row if row is not None and _current(row) else None
+
+
 def _process_scores(db: Session, engagement_id: str) -> dict[str, app_rules.ProcessScore]:
     scores: dict[str, app_rules.ProcessScore] = {}
     for process in process_refs():
@@ -279,7 +410,7 @@ def _remarks(db: Session, engagement_id: str, domain: EstateDomain) -> list[dict
             if row.remarks.strip():
                 out.append(
                     {
-                        "subject": names.get(subject, "Estate checks"),
+                        "subject": names.get(subject, QUESTIONNAIRE[domain][0]),
                         "question": qid,
                         "answer": row.value,
                         "remarks": row.remarks.strip(),
@@ -288,70 +419,67 @@ def _remarks(db: Session, engagement_id: str, domain: EstateDomain) -> list[dict
     return out
 
 
-def _use_llm(generator_name: str | None) -> bool:
-    return use_llm("estate-summary", generator_name)
+def _with_answers(subjects: list[dt_rules.Subject], answers: dict[str, dict[str, EstateAnswer]]) -> list[Any]:
+    for subject in subjects:
+        subject.answers = _values(answers.get(subject.item_id, {}))
+    return subjects
 
 
-def generate_score(
-    db: Session,
-    engagement_id: str,
-    domain: str,
-    generator_name: str | None = None,
-    summariser: EstateSummariser | None = None,
-    today: date | None = None,
-) -> EstateAssessment:
-    get_engagement(db, engagement_id)
-    dom = _domain(domain)
+def _budget_inputs(db: Session, engagement_id: str) -> Any:
+    from app.services.estate import budget as budget_service  # local: budget imports library
+
+    read = budget_service.get_budget(db, engagement_id)
+    return read.inputs if read.saved else None
+
+
+def compute_payload(
+    db: Session, engagement_id: str, dom: EstateDomain, today: date | None = None
+) -> tuple[dict[str, Any], list[Gap]]:
+    """The deterministic score for one assessment, as a payload dict and its gaps."""
     answers = load_answers(db, engagement_id, dom)
+    estate_answers = _values(answers.get(ESTATE_SUBJECT, {}))
+    estate_remarks = _remark_map(answers.get(ESTATE_SUBJECT, {}))
     now = datetime.now(UTC)
+    day = today or now.date()
 
     if dom == "applications":
-        apps = [
-            app_rules.AppInput(
-                item_id=i.id, ref=i.ref, fields=dict(i.fields or {}), answers=_values(answers.get(i.id, {}))
-            )
-            for i in items_of(db, engagement_id, "application")
-        ]
         result = app_rules.score_applications(
-            apps,
+            _apps(db, engagement_id),
             get_applications_config(),
             process_refs(),
             _process_scores(db, engagement_id),
-            today or now.date(),
+            day,
+            estate_answers,
+            estate_remarks,
         )
-        payload: dict[str, Any] = ApplicationsScorePayload(
+        payload = ApplicationsScorePayload(
             generator="rules",
             generated_at=now,
             index=result.index,
             ai_index=result.ai_index,
             counts=result.counts,
             applications=result.applications,
+            portfolio=result.portfolio,
             gaps=result.gaps,
             gap_counts=count(result.gaps),
             coverage_note=result.coverage_note,
             **app_rules.band_fields(result.index),
         ).model_dump(mode="json")
-        gaps = result.gaps
-    else:
+        return payload, result.gaps
 
-        def subjects(kind: str) -> list[dt_rules.Subject]:
-            return [
-                dt_rules.Subject(
-                    item_id=i.id, ref=i.ref, fields=dict(i.fields or {}), answers=_values(answers.get(i.id, {}))
-                )
-                for i in items_of(db, engagement_id, kind)  # type: ignore[arg-type]
-            ]
-
+    if dom == "data_tech":
         app_names = {
             i.ref: str((i.fields or {}).get("name") or i.ref) for i in items_of(db, engagement_id, "application")
         }
         dt = dt_rules.score_data_tech(
-            subjects("data_domain"),
-            subjects("platform"),
-            _values(answers.get(ESTATE_SUBJECT, {})),
+            _with_answers(_subjects(db, engagement_id, "data_domain"), answers),
+            _with_answers(_subjects(db, engagement_id, "platform"), answers),
+            estate_answers,
             app_names,
             get_data_tech_config(),
-            {qid: row.remarks for qid, row in answers.get(ESTATE_SUBJECT, {}).items() if row.remarks.strip()},
+            estate_remarks,
+            _apps(db, engagement_id),
+            _subjects(db, engagement_id, "cyber_tool"),
         )
         payload = DataTechScorePayload(
             generator="rules",
@@ -364,13 +492,79 @@ def generate_score(
             gaps=dt.gaps,
             gap_counts=count(dt.gaps),
             coverage_note=dt.coverage_note,
-            **app_rules.band_fields(dt.index),
+            **app_rules.band_fields(dt.index, "maturity"),
         ).model_dump(mode="json")
-        gaps = dt.gaps
+        return payload, dt.gaps
+
+    context = assess_context(db, engagement_id)
+    if dom == "team_governance":
+        tg = tg_rules.score_team_governance(
+            _subjects(db, engagement_id, "it_role"),
+            _apps(db, engagement_id),
+            _subjects(db, engagement_id, "it_contract"),
+            estate_answers,
+            estate_remarks,
+            get_team_governance_config(),
+            context,
+            day,
+        )
+        payload = TeamGovernanceScorePayload(
+            generator="rules",
+            generated_at=now,
+            index=tg.index,
+            sections=tg.sections,
+            people=tg.people,
+            answered=tg.answered,
+            question_count=tg.question_count,
+            gaps=tg.gaps,
+            gap_counts=count(tg.gaps),
+            coverage_note=tg.coverage_note,
+            **app_rules.band_fields(tg.index, "maturity"),
+        ).model_dump(mode="json")
+        return payload, tg.gaps
+
+    sp = sp_rules.score_strategy_projects(
+        _with_answers(_subjects(db, engagement_id, "it_project"), answers),
+        _apps(db, engagement_id),
+        estate_answers,
+        estate_remarks,
+        _budget_inputs(db, engagement_id),
+        get_strategy_projects_config(),
+        context,
+        day,
+    )
+    payload = StrategyProjectsScorePayload(
+        generator="rules",
+        generated_at=now,
+        index=sp.index,
+        sections=sp.sections,
+        projects=sp.projects,
+        portfolio=sp.portfolio,
+        answered=sp.answered,
+        question_count=sp.question_count,
+        gaps=sp.gaps,
+        gap_counts=count(sp.gaps),
+        coverage_note=sp.coverage_note,
+        **app_rules.band_fields(sp.index, "maturity"),
+    ).model_dump(mode="json")
+    return payload, sp.gaps
+
+
+def generate_score(
+    db: Session,
+    engagement_id: str,
+    domain: str,
+    generator_name: str | None = None,
+    summariser: EstateSummariser | None = None,
+    today: date | None = None,
+) -> EstateAssessment:
+    get_engagement(db, engagement_id)
+    dom = _domain(domain)
+    payload, gaps = compute_payload(db, engagement_id, dom, today)
 
     summary, pointers = rules_summary(dom, payload, gaps)
     payload["executive_summary"], payload["pointers"] = summary, pointers
-    if _use_llm(generator_name):
+    if use_llm("estate-summary", generator_name):
         written = (summariser or EstateSummariser()).summarise(dom, payload, _remarks(db, engagement_id, dom))
         if written is not None:
             payload["executive_summary"] = written.executive_summary.strip()
@@ -431,6 +625,12 @@ def get_latest_score(db: Session, engagement_id: str, domain: str) -> EstateScor
     row = find_latest(db, engagement_id, dom)
     if row is None:
         raise AppError(code="no_score", message="This assessment has not been scored yet.", status_code=404)
+    if not _current(row):
+        raise AppError(
+            code="no_score",
+            message="The stored score predates the theme registers. Score it again.",
+            status_code=404,
+        )
     return to_read(db, row)
 
 
@@ -443,10 +643,15 @@ def save_gap_note(db: Session, engagement_id: str, domain: str, gap_key: str, wr
     if note is None:
         note = EstateGapNote(engagement_id=engagement_id, domain=dom, gap_key=gap_key)
         db.add(note)
-    for attr in ("severity", "description", "hypothesis"):
-        value = getattr(write, attr)
-        if value is not None:
-            setattr(note, attr, value.strip() or None)
+    if write.severity is not None:
+        note.severity = write.severity
+    if write.headline is not None:
+        note.headline = write.headline.strip() or None
+    if write.evidence is not None:
+        lines = [line.strip() for line in write.evidence if line.strip()]
+        note.description = "\n".join(lines) or None
+    if write.action is not None:
+        note.hypothesis = write.action.strip() or None
     db.commit()
     return get_latest_score(db, engagement_id, dom)
 
@@ -461,17 +666,17 @@ def delete_gap_note(db: Session, engagement_id: str, domain: str, gap_key: str) 
 
 
 def summaries(db: Session, engagement_id: str) -> dict[str, dict[str, Any]]:
-    """Headline per domain for the Assess index: item counts and the latest score."""
+    """Headline per assessment for the Assess index: item counts and the latest score."""
     get_engagement(db, engagement_id)
     out: dict[str, dict[str, Any]] = {}
     for dom in DOMAINS:
-        kinds = _subject_kinds(dom)
+        kinds = SUBJECT_KINDS[dom] or ("it_role",)
         items = db.scalar(
             select(func.count())
             .select_from(InventoryItem)
             .where(InventoryItem.engagement_id == engagement_id, InventoryItem.kind.in_(kinds))
         )
-        latest = find_latest(db, engagement_id, dom)
+        latest = find_current(db, engagement_id, dom)
         out[dom] = {
             "items": int(items or 0),
             "has_score": latest is not None,

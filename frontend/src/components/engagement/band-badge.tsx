@@ -14,13 +14,22 @@ const BAND_CLASSES: Record<Band, string> = {
   optimised: "border-status-received bg-status-received-tint text-status-received",
 };
 
-export function BandBadge({ band, title }: { band: Band; title?: string }) {
+export function BandBadge({
+  band,
+  title,
+  label,
+}: {
+  band: Band;
+  title?: string;
+  /** Overrides the automation wording — maturity indices say "Initial", not "Manual". */
+  label?: string;
+}) {
   return (
     <span
       title={title}
       className={`inline-block rounded-full border px-2.5 py-0.5 font-sans text-[11px] font-semibold uppercase ${BAND_CLASSES[band]}`}
     >
-      {BAND_LABELS[band]}
+      {label || BAND_LABELS[band]}
     </span>
   );
 }

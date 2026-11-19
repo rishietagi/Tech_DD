@@ -32,6 +32,8 @@ import xlsxwriter
 from app.models.estate import InventoryItem
 from app.schemas.estate import ProcessRef
 from app.schemas.irl import IrlPayload
+from app.schemas.it_budget import ItBudgetInputs
+from app.services.estate.budget_xlsx import write_financials_sheet
 from app.services.estate.inventory_xlsx import write_inventory_sheets
 
 SHEET_NAME = "Initial Request List"
@@ -86,9 +88,7 @@ def render_xlsx(
             "border_color": "#DDE3ED",
         }
     )
-    cell = workbook.add_format(
-        {"valign": "top", "text_wrap": True, "border": 1, "border_color": "#DDE3ED"}
-    )
+    cell = workbook.add_format({"valign": "top", "text_wrap": True, "border": 1, "border_color": "#DDE3ED"})
     function_cell = workbook.add_format(
         {
             "valign": "top",
@@ -148,6 +148,8 @@ def render_xlsx(
 
     if inventory is not None:
         write_inventory_sheets(workbook, inventory.items, inventory.processes)
+        if inventory.budget is not None:
+            write_financials_sheet(workbook, inventory.budget)
     # The request list stays the sheet the workbook opens on.
     sheet.activate()
 
@@ -187,6 +189,8 @@ class InventorySheets:
 
     items: list[InventoryItem]
     processes: list[ProcessRef]
+    # The IT financials sheet (Phase 8): the budget inputs, or defaults before any are saved.
+    budget: ItBudgetInputs | None = None
 
 
 def render_xlsx_from_payload(

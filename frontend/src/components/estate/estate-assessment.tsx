@@ -10,6 +10,8 @@ import {
   ApplicationResults,
   DataTechResults,
   ScoreHeader,
+  StrategyProjectsResults,
+  TeamGovernanceResults,
 } from "@/components/estate/estate-results";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorState } from "@/components/ui/error-state";
@@ -28,20 +30,17 @@ import type {
 
 const GROUP_LABELS: Record<string, string> = {
   criticality: "Criticality",
-  business_fit: "Business fit",
-  technical_fit: "Technical fit",
   automation: "Automation",
   ai: "Artificial intelligence",
-  resilience: "Resilience",
-  engineering: "Engineering practice",
-  cyber: "Cyber security",
+  projects: "The analyst's view",
 };
 
 const KIND_LABELS: Record<string, string> = {
   application: "Applications",
   data_domain: "Data domains",
-  platform: "Platforms",
-  estate: "Estate",
+  platform: "Infrastructure platforms",
+  it_project: "Projects",
+  estate: "Questionnaire",
 };
 
 const COPY: Record<
@@ -52,13 +51,25 @@ const COPY: Record<
     indexLabel: "Application automation index",
     scoreLabel: "Score applications",
     empty:
-      "Add the applications on the request list — from the target's completed inventory sheet, or by hand from management meetings — and they appear here to assess.",
+      "Add the applications on Information requests — from the target's completed inventory sheet, or by hand from management meetings. The portfolio questions can be answered without them.",
   },
   data_tech: {
-    indexLabel: "Data & technology index",
-    scoreLabel: "Score data & technology",
+    indexLabel: "Data & infrastructure index",
+    scoreLabel: "Score data & infrastructure",
     empty:
-      "Add data domains and platforms on the request list. The estate checks below can be answered without them.",
+      "Add data domains, platforms and the cyber tools checklist on Information requests. The estate checks can be answered without them.",
+  },
+  team_governance: {
+    indexLabel: "Team & governance maturity",
+    scoreLabel: "Score team & governance",
+    empty:
+      "Add the IT team and IT contracts on Information requests — key-person and contract findings come from them. The questionnaire can be answered without them.",
+  },
+  strategy_projects: {
+    indexLabel: "Strategy & portfolio maturity",
+    scoreLabel: "Score strategy & projects",
+    empty:
+      "Add the in-flight and planned projects on Information requests, with their budgets and progress. The strategy questions can be answered without them.",
   },
 };
 
@@ -66,6 +77,7 @@ function QuestionCard({
   question,
   value,
   remarks,
+  evidence,
   onPick,
   onRemarks,
   compact,
@@ -73,6 +85,7 @@ function QuestionCard({
   question: EstateQuestion;
   value: string;
   remarks: string;
+  evidence: string[];
   onPick: (value: string) => void;
   onRemarks: (
     questionId: string,
@@ -83,7 +96,7 @@ function QuestionCard({
   return (
     <div className="rounded-2xl border border-line-strong bg-paper px-5 py-4">
       <p className="font-sans text-[15px] font-semibold text-text">
-        {question.id.match(/^[A-Z]{2}\d$/) && (
+        {question.id.match(/^[A-Z]{2}\d{1,2}$/) && (
           <span className="mr-2 font-mono text-[11.5px] font-normal text-muted">
             {question.id}
           </span>
@@ -94,6 +107,23 @@ function QuestionCard({
         <p className="mt-0.5 font-sans text-[12.5px] text-muted">
           {question.help}
         </p>
+      )}
+      {question.source && (
+        <p className="mt-0.5 font-mono text-[10.5px] text-muted-2">
+          Source: {question.source}
+        </p>
+      )}
+      {evidence.length > 0 && (
+        <div className="mt-2 rounded-lg bg-steel-tint px-3 py-2">
+          <p className="font-mono text-[10px] uppercase tracking-wide text-steel">
+            From the target&apos;s inventories — evidence, not an answer
+          </p>
+          <ul className="mt-0.5 font-sans text-[12.5px] text-text">
+            {evidence.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
       )}
       <div
         role="radiogroup"
@@ -201,10 +231,11 @@ function SubjectList({
 }
 
 /**
- * One estate assessment — applications, or data & technology.
+ * One estate assessment — applications, data & infrastructure, team & governance, or
+ * strategy & projects.
  *
- * Two views: **Assess** (pick an item, answer its questions, add remarks) and **Score &
- * gap register** (the latest stored score). Scoring is a deliberate click, not a side
+ * Two views: **Assess** (pick an item or the questionnaire, answer, add remarks) and
+ * **Score & findings** (the latest stored score and its findings). Scoring is a deliberate click, not a side
  * effect of answering: a score is a versioned judgement, and a version per keystroke would
  * make the history unreadable.
  */
@@ -253,7 +284,7 @@ export function EstateAssessment({
       });
       setView("results");
       show(
-        `Scored — version ${fresh.version}, ${fresh.payload.gaps.length} gaps`,
+        `Scored — version ${fresh.version}, ${fresh.payload.gaps.length} findings`,
       );
     },
     onError: (err: unknown) =>
@@ -284,10 +315,10 @@ export function EstateAssessment({
         scoreKey,
         await estateApi.editGap(engagementId, domain, key, edit),
       );
-      show("Gap updated");
+      show("Finding updated");
     } catch (err) {
       show(
-        err instanceof ApiError ? err.message : "Could not save that gap",
+        err instanceof ApiError ? err.message : "Could not save that finding",
         "error",
       );
       throw err;
@@ -327,6 +358,10 @@ export function EstateAssessment({
     : [];
   const answers = subject ? (data.answers[subject.id] ?? {}) : {};
   const groups = Array.from(new Set(questions.map((q) => q.group)));
+  const groupLabel = (group: string): string =>
+    questions.find((q) => q.group === group && q.group_label)?.group_label ??
+    GROUP_LABELS[group] ??
+    "";
   const scoreRead: EstateScoreRead | undefined = score.data;
   const noScoreYet =
     score.isError &&
@@ -345,7 +380,7 @@ export function EstateAssessment({
           {(
             [
               ["assess", "Assess"],
-              ["results", "Score & gap register"],
+              ["results", "Score & findings"],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -376,7 +411,7 @@ export function EstateAssessment({
             disabled={
               scoreMutation.isPending || (answeredTotal === 0 && !hasItems)
             }
-            title="Compute the scores and the gap register from the inventory and the answers, and store them as a new version"
+            title="Compute the scores and the findings from the inventories and the answers, and store them as a new version"
             className="rounded-full bg-ink px-4 py-2 font-sans text-[13px] font-medium text-paper-on-ink hover:bg-ink-2 disabled:opacity-50"
           >
             {scoreMutation.isPending ? "Scoring…" : copy.scoreLabel}
@@ -396,7 +431,7 @@ export function EstateAssessment({
                     href={`/engagements/${engagementId}/irl`}
                     className="rounded-full border border-ink px-5 py-2.5 font-sans text-[13px] text-text"
                   >
-                    Go to the request list
+                    Go to Information requests
                   </Link>
                 }
               />
@@ -430,9 +465,9 @@ export function EstateAssessment({
                     <div className="space-y-7">
                       {groups.map((group) => (
                         <div key={group}>
-                          {groups.length > 1 && GROUP_LABELS[group] && (
+                          {groups.length > 1 && groupLabel(group) && (
                             <p className="mb-2 font-mono text-[10.5px] uppercase tracking-wide text-muted">
-                              {GROUP_LABELS[group]}
+                              {groupLabel(group)}
                             </p>
                           )}
                           <div className="space-y-3">
@@ -444,6 +479,7 @@ export function EstateAssessment({
                                   question={q}
                                   value={answers[q.id]?.value ?? ""}
                                   remarks={answers[q.id]?.remarks ?? ""}
+                                  evidence={data.evidence[q.id] ?? []}
                                   compact={
                                     q.options.length <= 4 &&
                                     q.options.every((o) => o.label.length < 48)
@@ -494,14 +530,24 @@ export function EstateAssessment({
                 version={scoreRead.version}
                 indexLabel={copy.indexLabel}
               />
-              {scoreRead.payload.domain === "applications" ? (
+              {scoreRead.payload.domain === "applications" && (
                 <ApplicationResults payload={scoreRead.payload} />
-              ) : (
+              )}
+              {scoreRead.payload.domain === "data_tech" && (
                 <DataTechResults payload={scoreRead.payload} />
               )}
-              <h3 className="mb-4 font-serif text-[24px] text-ink">
-                Gap register
-              </h3>
+              {scoreRead.payload.domain === "team_governance" && (
+                <TeamGovernanceResults payload={scoreRead.payload} />
+              )}
+              {scoreRead.payload.domain === "strategy_projects" && (
+                <StrategyProjectsResults payload={scoreRead.payload} />
+              )}
+              <h3 className="mb-1 font-serif text-[24px] text-ink">Findings</h3>
+              <p className="mb-4 max-w-3xl font-sans text-[13px] text-muted">
+                Each finding is a theme the deal team acts on — what it means
+                for the value of the deal, and what the target should do. The
+                single observations behind it sit underneath.
+              </p>
               <GapRegister
                 gaps={scoreRead.payload.gaps}
                 onEdit={editGap}

@@ -75,6 +75,9 @@ class ReportInputs:
     inventory: dict[str, list[Item]]
     process_names: dict[str, str]
     assets: list[dict[str, str]] = field(default_factory=list)
+    # Phase 8 assessments; None until scored.
+    team_governance_score: dict[str, Any] | None = None
+    strategy_projects_score: dict[str, Any] | None = None
 
     def items(self, kind: str) -> list[Item]:
         return self.inventory.get(kind, [])
