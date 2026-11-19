@@ -20,6 +20,7 @@ venv/
 # node / next
 node_modules/
 .next/
+.next-laptop/
 out/
 dist/
 coverage/

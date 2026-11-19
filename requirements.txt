@@ -2,12 +2,12 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 pydantic==2.13.5
 pydantic-settings==2.7.1
-sqlalchemy==2.0.36
+sqlalchemy==2.0.58  # 2.0.36 fails to import on Python 3.14 (typing.Union change)
 alembic==1.14.0
 python-dotenv==1.0.1
 email-validator==2.2.0
 google-genai==2.20.0
-pyyaml==6.0.2
+pyyaml==6.0.3  # first release with Python 3.14 wheels
 pillow==12.3.0  # required by python-pptx
 python-pptx==1.0.2
 xlsxwriter==3.2.9  # IRL Excel export (also a python-pptx dependency)

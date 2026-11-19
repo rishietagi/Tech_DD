@@ -178,6 +178,38 @@ The YAML is validated at startup; a malformed file fails loudly.
 
 ## Decisions that override the specs
 
+### Laptop package — Python 3.14, prebuilt frontend, Kiln only (2026-11-19)
+
+**What Rishi asked for.** A zip that runs on his KPMG laptop (Windows, Python 3.14.10, Node
+installed), with run commands or a run file, preloaded with one engagement populated end to
+end; the research run kept.
+
+**Dependency changes (repo `requirements.txt` too, tested on 3.11 and 3.14).**
+- `sqlalchemy` 2.0.36 → **2.0.58**: 2.0.36 *installs* on 3.14 but fails at import
+  (`typing.Union` changed in 3.14). Found only by running the suite on a real 3.14.10 venv.
+- `pyyaml` 6.0.2 → **6.0.3**: 6.0.2 has no 3.14 wheel, so it would need a compiler.
+- Every other pin has a cp314 or pure-Python wheel. 598 tests pass on 3.14.10; the 827
+  warnings are all library deprecations aimed at Python 3.16/3.17, none from our code.
+
+**Frontend.** `next.config.ts` now builds `output: "standalone"` and takes `distDir` from
+`NEXT_DIST_DIR`, so the package build (`.next-laptop/`, git-ignored) never collides with a
+running `next dev`. Building it found a real bug: **`/intake/new` creates an engagement and
+was being prerendered** — a production build called the API at build time. It is now
+`dynamic = "force-dynamic"`. (The same page is why the browser tours left "Untitled
+Engagement" drafts behind: each visit creates one.) The laptop build bakes
+`NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api/v1`.
+
+**The package** (`Desktop/TechDD_laptop.zip`, built by a scratchpad script, not in the repo):
+the source as git sees it, `frontend-app/` (standalone server + static + public, no
+`npm install` needed), `backend/techdd.db` cleaned to **Project Kiln only** (all modules,
+three research runs, no orphan rows), `shared-drive/project-kiln/`, a secret-free `.env`
+(AI off), `setup.bat` (finds Python 3.14 and Node, makes `.venv`, installs requirements,
+`alembic upgrade head`), `run.bat` (backend on 127.0.0.1:8000, frontend on :3000, opens the
+browser) and `RUN_ON_LAPTOP.md`. Excluded: `.git`, `node_modules`, `.venv`, caches, the KPMG
+scope PDF, the Gemini key. Verified: `setup.bat` run on Python 3.14.10; the packaged app
+driven in a browser — 16 screens, every score and finding, 7 exports, the drive scan, a new
+intake — 37/37 with no console errors; the zip scanned for keys and client names.
+
 ### Process findings, editable everywhere, findings exports, minimal Assess (2026-11-19)
 
 **What Rishi asked for.** The business-process tab shows findings in the same format as the
